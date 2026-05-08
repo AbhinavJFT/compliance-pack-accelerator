@@ -1,9 +1,20 @@
-# DPDP POC — Scope and Phase-1 Boundary
+# Compliance Pack Accelerator — POC Scope and Phase-1 Boundary
 
 This is a one-pager for reviewers. It says exactly what the POC delivers,
 what it stops short of, and what is tracked for Phase 1. The intent is
-to prevent two failure modes: (a) reviewers expecting a full DPDP
-production system, and (b) reviewers under-counting what's already live.
+to prevent two failure modes: (a) reviewers expecting a full
+multi-regulation production system, and (b) reviewers under-counting
+what's already live.
+
+**Architectural foundation:** the POC is built around the regulation-pack
+abstraction governed by [ADR-0001](adr/0001-multi-jurisdiction-data-subject-routing.md).
+The seed pack is **DPDP India 2023** — every "Module" below is exercised
+end-to-end against the DPDP pack. UK GDPR is the next pack and lands
+through the M1–M4 milestones (also tracked in ADR-0001's
+"Implementation: Pending" header). The architecture's per-data-subject
+routing model means a multinational customer running both packs applies
+DPDP rules to Indian principals and UK GDPR rules to UK principals
+simultaneously, in the same database.
 
 The authoritative work-tracking list is `BACKLOG.md`.
 
@@ -12,7 +23,9 @@ The authoritative work-tracking list is `BACKLOG.md`.
 ## In scope (delivered, runnable, reviewable)
 
 The POC delivers **Modules 01 and 02 at full spec depth**, with
-demo-grade slices of 03, 05, and 06 to prove extensibility.
+demo-grade slices of 03, 05, and 06 to prove extensibility. All modules
+are exercised against the DPDP-2023 seed pack; UK GDPR re-runs them
+with a different pack's rules under the same code paths.
 
 ### Module 01 — PII discovery & data inventory (full)
 

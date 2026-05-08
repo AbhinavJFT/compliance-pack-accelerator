@@ -21,25 +21,30 @@ rules to UK principals, simultaneously, in the same database. See
 [ADR-0001](docs/adr/0001-multi-jurisdiction-data-subject-routing.md)
 for why.
 
-## Current State (as of April 2026)
+## Current State (as of May 2026)
 
-### What's Built and Live
+### What's Built and Live (DPDP-2023 seed pack deployment)
 
-Everything below is deployed and queryable on the Databricks workspace:
+Everything below is deployed and queryable on the Databricks workspace
+under the DPDP India 2023 pack as the worked example:
 
 | Component | State | Key Detail |
 |---|---|---|
 | PII Discovery (Module 01) | COMPLETE | 36 findings across 10 silver objects, UC tags on 36 columns |
 | Consent Intelligence (Module 02) | COMPLETE | 1,000 events in Delta (no Lakebase — not available in trial) |
-| Compliance Audit (Module 05) | COMPLETE | 9 rules, 135 gaps (72 critical, 52 high, 11 medium) |
+| Compliance Audit (Module 05) | COMPLETE | 9 DPDP rules, 135 gaps (72 critical, 52 high, 11 medium) |
 | Agent Bricks | COMPLETE | DPIA generator, Compliance Q&A, PII classifier |
 | DPIA Generator (productionised) | COMPLETE | Quarterly cron + structured pydantic output + GC/CCO approval flow + Databricks Review App |
 | Dashboard | COMPLETE | 10-page Lakeview dashboard (adapted from accelerator) |
 | Data Source Onboarding | COMPLETE | Notebook with Federation/Lakeflow/Auto Loader patterns |
-| Synthetic Data | COMPLETE | 21,500 rows, seed=42, deterministic |
+| Synthetic Data | COMPLETE | 21,500 rows, seed=42, deterministic, 100% IN principals (M2 will introduce 70/25/5 IN/GB/unmapped split) |
+| Regulation-Pack Framework | COMPLETE | `governance_core/` + `regulations/dpdp_2023/` — single-pack-active loader. M1 refactors to multi-pack-loaded. |
 
 ### What's NOT Built (Phase 1 scope)
 
+- **ADR-0001 implementation (M1–M4)** — multi-pack loader, jurisdiction
+  column, UK GDPR pack, dashboard jurisdiction filter, mixed-data tests.
+  Plan: `~/.claude/projects/.../memory/project_multi_jurisdiction_implementation_plan.md`.
 - Module 03 — DSR Hub (portal, erasure execution, certificates)
 - Module 04 — Breach Detection (needs Lakewatch, Private Preview)
 - Module 06 — Retention & Transfers (needs retention catalog)

@@ -1,9 +1,18 @@
 # Persona Governance — Unity Catalog + Workspace ACLs
 
 This document explains exactly what's governed by Unity Catalog and what's
-governed by Workspace ACLs for the four DPDP personas (CCO, GC, CMO, CFO).
+governed by Workspace ACLs for the four personas (CCO, GC, CMO, CFO).
 Written for SA review — if a reviewer asks "what if user X tries to read
 table Y?", this doc answers it.
+
+The persona governance layer is **regulation-pack agnostic** — the same
+four personas serve every loaded pack (DPDP, UK GDPR, EU GDPR, …).
+Persona scoping composes with the per-data-subject jurisdiction routing
+defined in [ADR-0001](adr/0001-multi-jurisdiction-data-subject-routing.md):
+a CMO's UC grants restrict what tables they can read; the principal's
+jurisdiction column then restricts which pack's rules apply to each row
+within those tables. Both fences run at query time; neither replaces the
+other.
 
 **For deploying this setup in your own workspace**, see
 `docs/persona_deploy.md`. That guide walks through the six-script

@@ -1,21 +1,35 @@
-# DPDP Audit Gap Finder & Consent Manager
+# Compliance Pack Accelerator
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Databricks](https://img.shields.io/badge/Databricks-native-FF3621.svg?logo=databricks&logoColor=white)](https://www.databricks.com/)
 
-A Databricks-native compliance platform for India's Digital Personal Data Protection Act 2023. Discovers PII across data sources, captures granular consent, identifies compliance gaps, and generates audit reports — all using Databricks platform features with zero custom plumbing.
+A Databricks-native multi-jurisdiction compliance platform with pluggable
+**regulation packs**. Each pack — DPDP India 2023, UK GDPR, EU GDPR, CCPA,
+PIPEDA, … — is a directory of YAML files plus a small region-specific
+PII-pattern module. Compliance applies *per data subject*: each principal's
+`jurisdiction` column routes to the pack governing them, so an Indian SaaS
+with UK clients applies DPDP rules to Indian principals and UK GDPR rules
+to UK principals — same database, different rules per row, no manual
+sorting.
+
+The seed pack today is **DPDP India 2023**, deployed end-to-end as the
+worked example. UK GDPR is the next pack, scoped under
+[ADR-0001](docs/adr/0001-multi-jurisdiction-data-subject-routing.md) which
+is the binding architectural decision for the project.
 
 ## What's Built
 
-| Capability | Status | Key Numbers |
+| Capability | Status | Key Numbers (DPDP-only seed deployment) |
 |---|---|---|
 | **PII Discovery & Data Inventory** | Live | 36 findings across 10 silver objects (8 tables + 2 federation views) · UC tags · 21.5K base rows |
 | **Consent Intelligence Engine** | Live | 1,000 events · 292 principals · 6 purposes · 4 channels |
 | **Compliance Audit & Gap Analysis** | Live | 9 DPDP rules · 135 gaps · 72 critical · 52 high |
-| **Agent Bricks (AI Agents)** | Live | DPIA generator (30s) · Compliance Q&A · PII classifier |
+| **Agent Bricks (AI Agents)** | Live | DPIA generator (30s, multi-regulator citations) · Compliance Q&A · PII classifier |
 | **AI/BI Dashboard** | Live | 10-page professional dashboard with Genie NL queries |
 | **Persona Governance Layer** | Live | 4 sliced dashboards + 4 scoped Genie spaces (CCO/GC/CMO/CFO) with UC-enforced boundaries |
 | **Three-path ingestion demo** | Live | Auto Loader (5 tables) + Lakeflow Connect sim (3 SF tables) + Federation sim (2 views over `federation_mock`) |
+| **Regulation Pack Framework** | Live | `governance_core/` (regulation-agnostic loader + resolver) · `regulations/dpdp_2023/` (seed pack, 9 yaml files + India PII patterns + DPIA template) |
+| **Multi-jurisdiction routing** (ADR-0001) | Planned · M1–M4 | Per-data-subject `jurisdiction` column · all packs in `regulations/` load simultaneously · per-row rule routing |
 
 ## Databricks Workspace
 

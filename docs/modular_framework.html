@@ -161,13 +161,16 @@ specific configuration; Layer 4 is the user-facing skin.</p>
 <h2>Directory map</h2>
 
 <p>Where each layer physically lives in the repo. The <code>regulations/</code>
-directory is the swap point: DPDP India sits there today; a UK pack would sit as a
-sibling, same shape, loaded by the same env var.</p>
+directory is the extension point: DPDP India sits there today; a UK pack sits as a
+sibling, same shape; both are loaded simultaneously, with per-row routing by
+<code>jurisdiction</code> column (see
+<a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a>).</p>
 
 <pre><span class="comment">repo root</span>
 │
 ├── governance_core/                   <span class="comment">← Layer 1/2 — regulation-agnostic code</span>
-│   ├── pack_loader.py                 <span class="comment">   reads REGULATION_PACK env var</span>
+│   ├── pack_loader.py                 <span class="comment">   loads every pack under regulations/</span>
+│   ├── resolver.py                    <span class="comment">   pack_for(jurisdiction); cross-cutting union</span>
 │   ├── rights.py                      <span class="comment">   9-entry RIGHT_CATALOGUE superset</span>
 │   ├── consent_model.py               <span class="comment">   consent-event schema contract</span>
 │   └── pii_patterns/
@@ -199,12 +202,12 @@ sibling, same shape, loaded by the same env var.</p>
 │
 ├── pipelines/                         <span class="comment">← Layer 1 — no edits needed for new regulations</span>
 │   ├── medallion.py                   <span class="comment">   Bronze → Silver DLT</span>
-│   ├── classification_dlt.py          <span class="comment">   PII classifier (uses active pack patterns)</span>
-│   ├── phase1_bootstrap.py            <span class="comment">   reads the pack, populates compliance tables</span>
+│   ├── classification_dlt.py          <span class="comment">   PII classifier (every loaded pack's patterns)</span>
+│   ├── phase1_bootstrap.py            <span class="comment">   reads all packs, populates compliance tables</span>
 │   └── retention_enforcement.py
 │
 ├── schemas/                           <span class="comment">← Layer 1 — no edits needed</span>
-│   └── pii_patterns.py                <span class="comment">   composition shim (universal + active pack)</span>
+│   └── pii_patterns.py                <span class="comment">   composition shim (universal + every loaded pack)</span>
 │
 ├── scripts/                           <span class="comment">← Layer 1 — no edits needed</span>
 │   ├── setup_all_personas.py          <span class="comment">   persona orchestrator (regulation-agnostic)</span>
@@ -222,10 +225,18 @@ sibling, same shape, loaded by the same env var.</p>
   <li><strong>Only <code>regulations/</code> grows</strong> when a new regulation is
   added. The UK pack is 9 files next to the 9 DPDP files — no file under any other
   directory changes.</li>
-  <li><strong>The active pack is selected at bootstrap time</strong> by one env var
-  (<code>REGULATION_PACK=dpdp_2023</code> today, <code>uk_gdpr</code> once that pack
-  is authored). Code elsewhere reads from the active pack via the loader; it never
-  references a regulation by name.</li>
+  <li><strong>All packs in <code>regulations/</code> are loaded simultaneously.</strong>
+  Each customer-level row carries a <code>jurisdiction</code> column that routes rule
+  evaluation to the pack governing that principal. An Indian SaaS with UK clients runs
+  both <code>dpdp_2023</code> and <code>uk_gdpr</code> active in the same workspace,
+  applying DPDP rules to Indian principals (730-day retention) and UK GDPR rules to UK
+  principals (90-day retention) in the same database. See
+  <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a> for the
+  per-data-subject routing design and 24 enumerated edge cases. (Earlier drafts of this
+  doc described a single-pack-active model selected by a <code>REGULATION_PACK</code>
+  env var; that approach was rejected as Mode 2 in ADR-0001's "Alternatives considered"
+  because forcing the strictest rule across packs onto every row destroys the product's
+  economic case for multinational customers.)</li>
 </ul>
 
 <!-- ================================================================== -->
@@ -277,16 +288,23 @@ the pack loader.</p>
 
 <p>The pack loader exposes typed accessors — consumers don't read yaml directly:</p>
 
-<pre><span class="keyword">from</span> governance_core.pack_loader <span class="keyword">import</span> active_pack
+<pre><span class="keyword">from</span> governance_core.pack_loader <span class="keyword">import</span> loaded_packs, pack_for
 
-pack = active_pack()
-<span class="keyword">for</span> rule <span class="keyword">in</span> pack.rules(): ...
-retention_days = pack.retention_default(purpose=<span class="string">"marketing_email"</span>)
-allowed = pack.residency_allowed_countries()</pre>
+<span class="comment"># Multi-pack iteration — every pack under regulations/ at deploy time:</span>
+<span class="keyword">for</span> pack <span class="keyword">in</span> loaded_packs():
+    <span class="keyword">for</span> rule <span class="keyword">in</span> pack.rules(): ...
 
-<p>Switching regulations is a two-touch operation — author a pack directory, set one
-env var. Nothing under <code>pipelines/</code>, <code>scripts/</code>, or
-<code>schemas/</code> changes.</p>
+<span class="comment"># Per-row routing — pick the pack governing this principal:</span>
+pack = pack_for(jurisdiction=<span class="string">"IN"</span>)
+retention_days = pack.retention_default(purpose=<span class="string">"marketing_email"</span>)  <span class="comment"># 730 (DPDP)</span>
+pack = pack_for(jurisdiction=<span class="string">"GB"</span>)
+retention_days = pack.retention_default(purpose=<span class="string">"marketing_email"</span>)  <span class="comment"># 90 (UK GDPR)</span></pre>
+
+<p>Adding a regulation is a one-touch operation — author a pack directory under
+<code>regulations/</code>, redeploy. Nothing under <code>pipelines/</code>,
+<code>scripts/</code>, or <code>schemas/</code> changes. The new pack becomes available
+to any principal whose <code>jurisdiction</code> matches its declared
+<code>jurisdiction</code> code.</p>
 
 <!-- ================================================================== -->
 <h2>Integrating the UK data protection regime (walkthrough)</h2>
@@ -350,7 +368,10 @@ listing the UK + adequacy countries, etc.) follow the same straightforward yaml 
 
 <h3>Activation</h3>
 
-<pre><span class="keyword">export</span> REGULATION_PACK=uk_gdpr
+<pre><span class="comment"># Drop the pack files under regulations/uk_gdpr/, then redeploy.</span>
+<span class="comment"># All packs in regulations/ load simultaneously. UK principals (rows where</span>
+<span class="comment"># customers_tagged.jurisdiction = 'GB') automatically pick up UK GDPR rules</span>
+<span class="comment"># on next phase1_bootstrap run; Indian principals continue under DPDP.</span>
 databricks bundle run phase1_bootstrap --target dev</pre>
 
 <h3>What the deploy then produces</h3>

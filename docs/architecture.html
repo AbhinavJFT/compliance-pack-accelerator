@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DPDP Compliance Platform — Architecture</title>
+<title>Compliance Pack Accelerator — Architecture</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -81,6 +81,13 @@
   .lakebase .title { color: #283593; }
   .lakebase .desc { color: rgba(0,0,0,0.5); }
 
+  .pack { background: #e0f7fa; border: 2px solid #00838f; position: relative; }
+  .pack .title { color: #006064; }
+  .pack .tag { background: #00838f; color: white; }
+  .pack.future { background: #f5f5f5; border: 2px dashed #b0bec5; }
+  .pack.future .title { color: #607d8b; }
+  .pack.future .tag { background: #607d8b; color: white; }
+
   .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -97,6 +104,32 @@
     background: #fafafa; padding: 0 16px; font-size: 10px; font-weight: 600;
     color: #aaa; letter-spacing: 1px; text-transform: uppercase;
   }
+
+  /* ADR callout */
+  .adr-callout {
+    background: #e0f7fa; border-left: 4px solid #00838f;
+    padding: 14px 20px; margin: 24px 0 32px; border-radius: 0 8px 8px 0;
+    font-size: 12.5px; line-height: 1.55; color: #004d40;
+  }
+  .adr-callout strong { color: #006064; }
+  .adr-callout a { color: #00838f; font-weight: 600; }
+
+  /* Routing diagram */
+  .routing {
+    background: white; border: 1.5px solid #b2dfdb;
+    border-radius: 8px; padding: 14px 18px; margin-top: 12px;
+    font-size: 11.5px; line-height: 1.6;
+  }
+  .routing b { color: #006064; }
+  .routing code {
+    background: #e0f2f1; padding: 1px 6px; border-radius: 4px;
+    font-size: 11px; color: #00695c;
+  }
+  .routing .row {
+    display: grid; grid-template-columns: 110px 30px 1fr; gap: 8px;
+    align-items: center; margin: 4px 0;
+  }
+  .routing .row .arr { text-align: center; color: #00838f; }
 
   /* Platform capabilities table */
   .capabilities { margin-top: 48px; border-top: 2px solid #e0e0e0; padding-top: 32px; }
@@ -124,8 +157,20 @@
 <body>
 
 <div class="header">
-  <h1>DPDP Audit Gap Finder & Consent Manager</h1>
-  <div class="subtitle">Databricks-native compliance platform for India's Digital Personal Data Protection Act 2023</div>
+  <h1>Compliance Pack Accelerator</h1>
+  <div class="subtitle">Databricks-native multi-jurisdiction compliance — pluggable regulation packs (DPDP India 2023 · UK GDPR · EU GDPR · CCPA · PIPEDA · …)</div>
+  <div class="badge">ADR-0001 · Per-data-subject routing</div>
+</div>
+
+<div class="adr-callout">
+  <strong>Architectural foundation.</strong> Compliance is per–data-subject, not per-deployment.
+  Every customer-level row carries a <code>jurisdiction</code> column; rules apply per principal
+  through the regulation pack governing them. An Indian SaaS with UK clients applies DPDP rules
+  to Indian principals (730-day retention) and UK GDPR rules to UK principals (90-day retention)
+  — same database, different rules per row, no manual sorting. Cross-cutting company-level
+  obligations (breach notification, DPIA filing, DPO requirement) apply as the union of all
+  loaded packs whose principals are present. Full rationale and 24 enumerated edge cases:
+  <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a>.
 </div>
 
 <!-- Stakeholders -->
@@ -134,19 +179,19 @@
   <div class="grid-4" style="gap: 10px;">
     <div class="box neutral" style="min-height:60px; text-align:center;">
       <div class="title">Chief Compliance Officer</div>
-      <div class="desc">PII register · Compliance score · DPIA · Gap remediation</div>
+      <div class="desc">PII register · Compliance score · DPIA · Gap remediation (per-jurisdiction breakdown)</div>
     </div>
     <div class="box neutral" style="min-height:60px; text-align:center;">
       <div class="title">General Counsel</div>
-      <div class="desc">Auto DPIA drafting · Consent evidence · Regulatory audit readiness</div>
+      <div class="desc">Auto DPIA drafting · Consent evidence · Multi-regulator audit readiness</div>
     </div>
     <div class="box neutral" style="min-height:60px; text-align:center;">
       <div class="title">Chief Marketing Officer</div>
-      <div class="desc">Consent coverage · Marketing eligible audience · Withdrawal propagation</div>
+      <div class="desc">Per-jurisdiction consent coverage · Marketing eligible audience · Withdrawal propagation</div>
     </div>
     <div class="box neutral" style="min-height:60px; text-align:center;">
       <div class="title">Chief Financial Officer</div>
-      <div class="desc">Risk score · Penalty exposure · Compliance ROI · Gap prioritization</div>
+      <div class="desc">Risk score · Penalty exposure across regulators · Compliance ROI · Gap prioritization</div>
     </div>
   </div>
 </div>
@@ -160,7 +205,7 @@
     <div class="box persona">
       <span class="tag">UC-ENFORCED</span>
       <div class="title">CCO Persona</div>
-      <div class="desc">DPDP — CCO View (6 pages) + CCO Genie space</div>
+      <div class="desc">CCO View (6 pages, jurisdiction-aware) + CCO Genie space</div>
       <div class="sub">
         <b>Scope:</b> personal_data_register · pii_findings · compliance_gaps · discovered_tables · consent_coverage_summary
       </div>
@@ -168,15 +213,15 @@
     <div class="box persona">
       <span class="tag">UC-ENFORCED</span>
       <div class="title">GC Persona</div>
-      <div class="desc">DPDP — GC View (5 pages) + GC Genie space</div>
+      <div class="desc">GC View (5 pages, jurisdiction-aware) + GC Genie space</div>
       <div class="sub">
-        <b>Scope:</b> compliance_gaps (critical/high) · consent_events_log · notice_versions · dsr_requests
+        <b>Scope:</b> compliance_gaps (critical/high) · consent_events_log · notice_versions · dsr_requests · dpia_runs
       </div>
     </div>
     <div class="box persona">
       <span class="tag">UC-ENFORCED</span>
       <div class="title">CMO Persona</div>
-      <div class="desc">DPDP — CMO View (3 pages, incl. Consent &amp; Audience) + CMO Genie space</div>
+      <div class="desc">CMO View (3 pages, incl. Consent &amp; Audience) + CMO Genie space</div>
       <div class="sub">
         <b>Scope:</b> marketing_eligible_principals · consent_events_log
       </div>
@@ -184,16 +229,18 @@
     <div class="box persona">
       <span class="tag">UC-ENFORCED</span>
       <div class="title">CFO Persona</div>
-      <div class="desc">DPDP — CFO View (4 pages, incl. Penalty Exposure) + CFO Genie space</div>
+      <div class="desc">CFO View (4 pages, incl. Penalty Exposure) + CFO Genie space</div>
       <div class="sub">
-        <b>Scope:</b> compliance_gaps · discovered_tables (penalty-weighted)
+        <b>Scope:</b> compliance_gaps · discovered_tables (penalty-weighted, per-regulator)
       </div>
     </div>
   </div>
   <div style="text-align:center; margin-top: 10px; font-size: 11px; color: #666;">
     Each persona user has CAN_READ only on their dashboard, CAN_RUN only on their Genie space,
     and UC SELECT only on their domain tables. Cross-persona access is blocked at the query layer,
-    not the UI layer.
+    not the UI layer. Persona scoping composes with per-data-subject jurisdiction routing —
+    a CMO sees marketing-eligible audiences across loaded jurisdictions, each row evaluated
+    under its principal's pack.
   </div>
 </div>
 
@@ -205,50 +252,126 @@
   <div class="grid-3">
     <div class="box consumer">
       <div class="title">Master AI/BI Dashboard + Genie</div>
-      <div class="desc">10-page dashboard with full data estate visibility · Risk/compliance scores · PII inventory · Compliance gaps · Remediation priorities · NL queries via Genie</div>
+      <div class="desc">10-page dashboard with full data estate visibility · Risk/compliance scores · PII inventory · Compliance gaps · Per-jurisdiction drilldown · NL queries via Genie</div>
     </div>
     <div class="box consumer">
       <div class="title">Consent API</div>
-      <div class="desc">Consented-only audience views · Real-time eligibility checks · has_active_consent() UDF · Marketing eligible principals</div>
+      <div class="desc">Consented-only audience views · Real-time eligibility checks · has_active_consent() UDF · Marketing eligible principals (per-jurisdiction)</div>
     </div>
     <div class="box consumer">
-      <div class="title">Compliance Q&A (Unscoped)</div>
-      <div class="desc">Admin-only full-estate queries · "What critical PII do we hold?" · Context-aware routing across all tables</div>
+      <div class="title">Compliance Q&amp;A (Unscoped)</div>
+      <div class="desc">Admin-only full-estate queries · "What critical PII do we hold under DPDP vs UK GDPR?" · Context-aware routing across all tables and packs</div>
     </div>
   </div>
 </div>
 
 <div class="arrow-down">▼</div>
 
-<!-- DPDP Modules -->
+<!-- Compliance Modules -->
 <div class="layer">
-  <div class="layer-label">DPDP Compliance Modules</div>
+  <div class="layer-label">Multi-Regulation Compliance Modules</div>
   <div class="grid-3">
     <div class="box module">
-      <div class="title">PII Discovery & Data Inventory</div>
+      <div class="title">PII Discovery &amp; Data Inventory</div>
       <div class="desc">
-        16-pattern regex + column-hint library<br>
-        9-category DPDP taxonomy · Sensitivity tiering<br>
-        36 PII findings across 10 silver objects · UC tags applied<br>
-        Living personal data register · 8 tables + 2 federation views
+        Universal patterns + every loaded pack's region-specific patterns<br>
+        Sensitivity tiering · UC tags · Per-finding pack attribution<br>
+        Pattern union catches Aadhaar, NHS Number, SSN, Personalausweis simultaneously<br>
+        Living personal data register, jurisdiction-aware
       </div>
     </div>
     <div class="box module">
       <div class="title">Consent Intelligence Engine</div>
       <div class="desc">
-        1,000 events · 292 principals · 6 purposes · 4 channels<br>
+        Per-pack purpose taxonomy + lawful-basis semantics<br>
         Immutable Delta log with CDF · Withdrawal propagation<br>
-        Notice version tracking · Marketing eligible view<br>
-        Consent coverage summary with grant rates
+        DPDP §8: opt-in default · UK GDPR Art. 7: granular per-purpose<br>
+        Notice version tracking per locale + per pack
       </div>
     </div>
     <div class="box module">
-      <div class="title">Compliance Audit & Gap Analysis</div>
+      <div class="title">Compliance Audit &amp; Gap Analysis</div>
       <div class="desc">
-        9 DPDP compliance rules (encryption, consent, retention, access, DSR, breach)<br>
-        135 gaps detected · 72 critical · 52 high · 11 medium<br>
-        Penalty-weighted risk scoring · Remediation tracker
+        Rules from every loaded pack run against the estate<br>
+        Each gap tagged with its source pack &amp; rule citation<br>
+        Penalty-weighted risk per regulator (₹ for DPBI · £ for ICO · €/% turnover for EDPB)<br>
+        Remediation tracker, jurisdiction-faceted
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- Regulation Packs Layer -->
+<div class="layer">
+  <div class="layer-label">Regulation Packs — Pluggable Data, Routed Per Principal</div>
+  <div class="grid-4">
+    <div class="box pack">
+      <span class="tag">ACTIVE</span>
+      <div class="title">DPDP India 2023</div>
+      <div class="desc">
+        9 rules · 5 IN-specific PII patterns (Aadhaar, PAN, IFSC, India phone, India passport)<br>
+        DPBI authority · ₹250cr/150cr/50cr/5cr penalty ceilings<br>
+        10 Indian languages · 730-day default retention
+      </div>
+    </div>
+    <div class="box pack">
+      <span class="tag">PLANNED · M2</span>
+      <div class="title">UK GDPR</div>
+      <div class="desc">
+        UK GDPR articles · UK-specific patterns (NI Number, NHS Number, postcode)<br>
+        ICO authority · £17.5M / 4% turnover ceilings<br>
+        en-GB + cy locales · 90-day default retention
+      </div>
+    </div>
+    <div class="box pack future">
+      <span class="tag">FUTURE</span>
+      <div class="title">EU GDPR</div>
+      <div class="desc">
+        Articles 5-22, 25, 30, 32-36 · 24 EU official locales<br>
+        EDPB + national supervisors · €20M / 4% turnover<br>
+        Drop-in 9-yaml-file authoring per pack contract
+      </div>
+    </div>
+    <div class="box pack future">
+      <span class="tag">FUTURE</span>
+      <div class="title">CCPA / PIPEDA / LGPD / APPI</div>
+      <div class="desc">
+        Each regulation = one directory under <code style="font-size:10px">regulations/&lt;code&gt;/</code><br>
+        No core code change to add a pack<br>
+        Customer's regulations/ directory is the deployment knob
+      </div>
+    </div>
+  </div>
+
+  <div class="routing">
+    <b>Per-data-subject routing — the core architectural primitive.</b><br>
+    <div class="row" style="margin-top: 6px;">
+      <span><code>jurisdiction = 'IN'</code></span>
+      <span class="arr">→</span>
+      <span>DPDP rules · 730-day retention · DPDP §11/§12 DSR rights · 10 Indian-language notices</span>
+    </div>
+    <div class="row">
+      <span><code>jurisdiction = 'GB'</code></span>
+      <span class="arr">→</span>
+      <span>UK GDPR rules · 90-day retention · UK GDPR Art. 15-22 DSR rights · en-GB notices</span>
+    </div>
+    <div class="row">
+      <span><code>jurisdiction = 'EU'</code></span>
+      <span class="arr">→</span>
+      <span>EU GDPR rules · per-Member-State retention · Art. 15-22 + Art. 7 lawful-basis · 24-locale notices</span>
+    </div>
+    <div class="row">
+      <span><code>jurisdiction IS NULL</code></span>
+      <span class="arr">→</span>
+      <span>High-severity compliance gap · "Unmapped principals" tile on CCO dashboard</span>
+    </div>
+    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #b2dfdb; font-size: 11px; color: #00695c;">
+      Cross-cutting company-level rules (breach notification, DPIA filing, DPO requirement,
+      Significant Data Fiduciary registration, audit-log retention) apply as the
+      <b>union</b> of every pack whose principals are present in the deployment — a
+      breach affecting both IN and GB principals notifies both DPBI and ICO in parallel.
     </div>
   </div>
 </div>
@@ -262,17 +385,17 @@
     <div class="box agent">
       <span class="tag">AGENT</span>
       <div class="title">DPIA Auto-Generator</div>
-      <div class="desc">Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft in 30 seconds<br><em>Replaces 3-month manual exercise</em></div>
+      <div class="desc">Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft in 30 seconds. Cites every regulation whose principals are in the activity's data scope (DPDP §… AND UK GDPR Art. 35 in the same document).<br><em>Replaces 3-month manual exercise · Quarterly cron + Review App</em></div>
     </div>
     <div class="box agent">
       <span class="tag">AGENT</span>
-      <div class="title">Compliance Q&A</div>
-      <div class="desc">Natural language queries against the compliance data estate · Context-aware routing to PII, consent, and gap tables · Foundation model: databricks-gpt-oss-120b</div>
+      <div class="title">Compliance Q&amp;A</div>
+      <div class="desc">Natural language queries against the compliance estate · Context-aware routing across PII, consent, gap, and pack tables · Foundation model: databricks-gpt-oss-120b · Persona text_instructions composed from loaded packs</div>
     </div>
     <div class="box agent">
       <span class="tag">AI FUNCTIONS</span>
       <div class="title">PII Classifier</div>
-      <div class="desc">ai_classify for unstructured fields (diagnosis, prescriptions, notes) · ai_extract for structured PII from free text · Handles what regex cannot</div>
+      <div class="desc">ai_classify for unstructured fields (diagnosis, prescriptions, notes) · ai_extract for structured PII from free text · Pattern union from all loaded packs catches what regex cannot</div>
     </div>
   </div>
 </div>
@@ -284,12 +407,13 @@
   <div class="layer-label">Governance Spine</div>
   <div style="display: flex;">
     <div class="box governance full">
-      <div class="title">Unity Catalog — Four Enforcement Layers</div>
+      <div class="title">Unity Catalog — Five Enforcement Layers</div>
       <div class="desc">
-        <b>Discovery:</b> 14 PII column tags · auto lineage (Bronze → Silver → Gold → Register) · sensitivity tiers · foreign catalogs for Lakehouse Federation<br>
+        <b>Discovery:</b> 36 PII column tags · auto lineage (Bronze → Silver → Gold → Register) · sensitivity tiers · foreign catalogs for Lakehouse Federation<br>
         <b style="color:#bf360c;">Per-persona grants:</b> each persona user has USE_CATALOG + USE_SCHEMA + SELECT only on scoped tables; out-of-scope queries fail PERMISSION_DENIED regardless of UI path<br>
-        <b style="color:#bf360c;">Column masks (DPDP §5(2)):</b> 17 PII columns on silver (<code>email</code>, <code>phone</code>, <code>aadhaar</code>, <code>pan</code>, medical free-text, ...) wrapped in <code>CASE WHEN is_member('admins') THEN val ELSE mask(val) END</code>; persona queries return redacted values<br>
-        <b style="color:#bf360c;">Audit trail (DPDP §18):</b> <code>system.access.audit</code> captures every query with user + timestamp; CCO Genie space surfaces it via sample questions
+        <b style="color:#bf360c;">Column masks (DPDP §5(2) · UK GDPR Art. 32):</b> 37 PII columns wrapped in <code>CASE WHEN is_member('admins') THEN val ELSE mask(val) END</code>; persona queries return redacted values<br>
+        <b style="color:#006064;">Per-data-subject jurisdiction routing:</b> rule evaluation, retention enforcement, and notice rendering route through <code>customers_tagged.jurisdiction</code> → the pack governing that principal<br>
+        <b style="color:#bf360c;">Audit trail (DPDP §18 · UK GDPR Art. 30):</b> <code>system.access.audit</code> captures every query with user + timestamp; CCO Genie space surfaces it via sample questions
       </div>
     </div>
   </div>
@@ -307,11 +431,11 @@
     </div>
     <div class="box data">
       <div class="title">Silver <span style="font-size:9px; background:#bf360c; color:white; padding:1px 6px; border-radius:6px; margin-left:4px;">MASKED</span></div>
-      <div class="desc">8 typed tables + 2 federation views + 3 metadata<br>33 PII columns UC-masked<br>pii_findings · compliance_gaps</div>
+      <div class="desc">8 typed tables + 2 federation views + 3 metadata<br>37 PII columns UC-masked<br><b style="color:#006064;"><code>jurisdiction</code> column on customer-level tables</b><br>pii_findings · compliance_gaps · access_patterns</div>
     </div>
     <div class="box data">
       <div class="title">Gold</div>
-      <div class="desc">marketing_eligible_principals<br>consent_coverage_summary<br>persona_overview_metrics</div>
+      <div class="desc">marketing_eligible_principals<br>consent_coverage_summary<br>persona_overview_metrics<br>sensitive_data_exposure · data_lineage</div>
     </div>
     <div class="box lakebase">
       <div class="title">Lakebase (Production)</div>
@@ -324,15 +448,15 @@
 
 <!-- Processing -->
 <div class="layer">
-  <div class="layer-label">Processing & Deployment</div>
+  <div class="layer-label">Processing &amp; Deployment</div>
   <div class="grid-3">
     <div class="box processing">
       <div class="title">Lakeflow Declarative Pipelines (DLT)</div>
-      <div class="desc">Bronze → Silver medallion · PII classification · <strong>16 DQ expectations across 5 silver tables</strong> (5 <code>expect_or_drop</code> for primary keys, 11 <code>expect</code> warn for PII format/enum rules) · metrics auto-emitted to DLT event log · <em>only writer to Bronze and Silver</em></div>
+      <div class="desc">Bronze → Silver medallion · PII classification (every loaded pack's patterns) · <strong>16 DQ expectations across 5 silver tables</strong> (5 <code>expect_or_drop</code> for primary keys, 11 <code>expect</code> warn for PII format/enum rules) · metrics auto-emitted to DLT event log · <em>only writer to Bronze and Silver</em></div>
     </div>
     <div class="box processing">
       <div class="title">Databricks Workflow Jobs</div>
-      <div class="desc"><code>run_medallion</code> (DLT trigger) · <code>phase1_bootstrap</code> (compliance rules + gaps + 1K consent events + views/UDFs · idempotent · seed=42)</div>
+      <div class="desc"><code>run_medallion</code> (DLT trigger) · <code>phase1_bootstrap</code> (multi-pack rule + gap derivation, jurisdiction-routed · 1K consent events · views/UDFs · idempotent · seed=42) · <code>dpia_generator</code> (quarterly cron, multi-regulator citations)</div>
     </div>
     <div class="box processing">
       <div class="title">Databricks Asset Bundle + GitHub Actions</div>
@@ -396,38 +520,38 @@
     <tbody>
       <tr class="highlight">
         <td><strong>Unity Catalog</strong></td>
-        <td>PII column tags · Auto lineage · Foreign catalogs · Sensitivity tiers · <strong>Per-persona grants</strong> + <strong>column masks (17 cols, DPDP §5(2))</strong> + <strong>bronze-is-pipeline-only fence</strong> + <strong>row filters (§16 residency + CMO persona purpose-scope)</strong> enforcing CCO/GC/CMO/CFO boundaries at query time</td>
+        <td>PII column tags · Auto lineage · Foreign catalogs · Sensitivity tiers · <strong>Per-persona grants</strong> + <strong>column masks (37 cols)</strong> + <strong>bronze-is-pipeline-only fence</strong> + <strong>row filters (residency + CMO persona purpose-scope)</strong> + <strong>per-data-subject jurisdiction routing</strong> enforcing CCO/GC/CMO/CFO boundaries at query time</td>
         <td>One governance boundary across the estate — an SA or regulator gets an answerable question in a single query instead of navigating a patchwork of app-level checks. Enforcement is at query time, so no UI path can leak what UC has blocked.</td>
       </tr>
-      <tr>
-        <td><strong>Regulation packs</strong> (Phase 0 framework)</td>
-        <td>All DPDP-specific values (9 rules, 3 notice bodies, per-purpose retention, allowed-country residency list, 5 region PII patterns, DSR SLAs) live in <code>regulations/dpdp_2023/</code>. <code>governance_core/</code> hosts the regulation-agnostic code. One env var (<code>REGULATION_PACK</code>) selects the active pack; zero code changes needed to add UK GDPR / CCPA / PIPEDA / LGPD / APPI.</td>
-        <td>Same lakehouse + same personas + same dashboards, different regulation. Makes the accelerator a Unity-Catalog implementation framework, not a single-jurisdiction compliance product. See <a href="modular_framework.html">modular_framework.html</a> for the 4-layer architecture and effort-to-add-a-regulation matrix.</td>
+      <tr class="highlight">
+        <td><strong>Regulation packs</strong> (the central abstraction)</td>
+        <td>Every regulation-specific value (rules, notices, retention, residency, region PII patterns, DSR SLAs, DPIA template) lives in <code>regulations/&lt;code&gt;/</code>. <code>governance_core/</code> hosts the regulation-agnostic loader + resolver. <strong>All packs in <code>regulations/</code> load simultaneously; each customer-level row's <code>jurisdiction</code> column routes rule evaluation per-row</strong>. Adding UK GDPR / EU GDPR / CCPA / PIPEDA / LGPD is authoring 9 yaml files plus a <code>pii_patterns.py</code> + <code>dpia_template.yaml</code> — zero core code change.</td>
+        <td>Same lakehouse + same personas + same dashboards, multiple regulations active per row. A multinational customer applies DPDP to Indian principals and UK GDPR to UK principals from the same query, no per-deployment forking. See <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a> for the per-data-subject routing decision and 24 enumerated edge cases.</td>
       </tr>
       <tr>
         <td><strong>system.access.audit</strong></td>
-        <td>Every SQL query + dashboard view + Genie question captured with user + timestamp (DPDP §18 evidence). CCO Genie space surfaces it via sample questions</td>
-        <td>DPDP §18 audit evidence available on demand. <em>"Who accessed patient X's record last week?"</em> answered live in seconds — the difference between surviving a regulator inquiry and scrambling to reconstruct logs from app traces.</td>
+        <td>Every SQL query + dashboard view + Genie question captured with user + timestamp (DPDP §18 · UK GDPR Art. 30 evidence). CCO Genie space surfaces it via sample questions.</td>
+        <td>Multi-regulator audit evidence available on demand. <em>"Who accessed patient X's record last week?"</em> answered live in seconds — same query satisfies a DPBI inquiry and an ICO inquiry.</td>
       </tr>
       <tr>
         <td><strong>Lakeview Dashboards + Genie (persona-sliced)</strong></td>
-        <td>4 persona-specific dashboards sliced from the master (idempotent PATCH on redeploy) + 4 Genie spaces scoped to that persona's data_sources. Dashboards published with <code>embed_credentials=false</code> so queries run as the viewer and UC enforces</td>
-        <td>Every executive (CCO/GC/CMO/CFO) gets a personal view tailored to their questions — not one firehose dashboard. Natural-language agents collapse <em>"file a ticket, wait two days, get a spreadsheet"</em> into a five-second Genie answer.</td>
+        <td>4 persona-specific dashboards sliced from the master (idempotent PATCH on redeploy) + 4 Genie spaces scoped to that persona's data_sources. Persona text_instructions auto-composed from loaded packs. Dashboards published with <code>embed_credentials=false</code> so queries run as the viewer and UC enforces.</td>
+        <td>Every executive (CCO/GC/CMO/CFO) gets a personal view tailored to their questions, with per-jurisdiction drilldown — not one firehose dashboard. Natural-language agents collapse <em>"file a ticket, wait two days, get a spreadsheet"</em> into a five-second Genie answer that already knows which regulation governs the principal you're asking about.</td>
       </tr>
       <tr>
         <td><strong>Lakeflow Declarative Pipelines</strong></td>
-        <td>Bronze → Silver medallion with 16 DQ expectations · PII classification pipeline · metrics to event log</td>
+        <td>Bronze → Silver medallion with 16 DQ expectations · PII classification pipeline running every loaded pack's patterns · metrics to event log</td>
         <td>Data quality becomes an always-on control, not a periodic review. The 16 expectations auto-emit pass/fail metrics to the event log, so a DPO can prove "our controls ran every night and caught these rows" without custom observability code.</td>
       </tr>
       <tr class="highlight">
         <td><strong>Agent Bricks + AI Functions</strong></td>
-        <td>DPIA auto-generation · Compliance Q&A · ai_classify/ai_extract for unstructured PII</td>
-        <td>DPIA production drops from ~3 months of legal + IT + compliance coordination to ~30 seconds of agent output + ~1-2 hours of human review. For an enterprise running 20+ DPIAs a year, that's ₹1.5–3 crore of external-consulting spend that goes away.</td>
+        <td>DPIA auto-generation (multi-regulator citations) · Compliance Q&amp;A · ai_classify/ai_extract for unstructured PII</td>
+        <td>DPIA production drops from ~3 months of legal + IT + compliance coordination to ~30 seconds of agent output + ~1-2 hours of human review. A processing activity touching IN and GB principals produces a single DPIA citing both DPDP §… and UK GDPR Art. 35 inline. For an enterprise running 20+ DPIAs a year across multiple regulators, the savings compound.</td>
       </tr>
       <tr>
         <td><strong>Lakehouse Federation</strong></td>
         <td>Foreign catalogs for Postgres, Snowflake, BigQuery — query in place, no ETL</td>
-        <td>Data residency stays compliant without engineering work — the source system never has to move its data. For cross-border concerns under DPDP §16, this is often the answer: query where the data already lives.</td>
+        <td>Data residency stays compliant without engineering work — the source system never has to move its data. Cross-border concerns under DPDP §16, UK GDPR Chapter V, GDPR Art. 44-50 — query where the data already lives, residency filter applied at query time.</td>
       </tr>
       <tr class="highlight">
         <td><strong>Lakeflow Connect</strong></td>
@@ -441,27 +565,27 @@
       </tr>
       <tr class="highlight">
         <td><strong>AI/BI Dashboard + Genie</strong></td>
-        <td>10-page compliance dashboard + NL query support · 4 persona-scoped Genie spaces</td>
-        <td>Compliance insight accessible to business users without SQL literacy. A CMO asks <em>"can I email this customer?"</em> in English/Hindi and gets a yes/no answer — no analyst ticket, no wait, no raw-PII exposure.</td>
+        <td>10-page compliance dashboard with per-jurisdiction filter · 4 persona-scoped Genie spaces with pack-aware instructions</td>
+        <td>Compliance insight accessible to business users without SQL literacy. A CMO asks <em>"can I email this customer?"</em> and Genie checks the principal's jurisdiction, applies that pack's consent rule, and returns a yes/no — no analyst ticket, no wait, no raw-PII exposure.</td>
       </tr>
       <tr>
         <td><strong>Delta Lake (CDF)</strong></td>
         <td>Immutable consent log · Withdrawal propagation · Time travel for audit</td>
-        <td>Real-time consent withdrawal propagation — DPDP §8(7) "without undue delay" is satisfied by the platform, not by a nightly batch job. Downstream marketing / ML systems auto-invalidate the moment a principal withdraws; no polling, no stale cache.</td>
+        <td>Real-time consent withdrawal propagation across regulators — DPDP §8(7) "without undue delay" and UK GDPR Art. 7(3) "as easily as it was given" both satisfied by the platform, not by a nightly batch job. Downstream marketing / ML systems auto-invalidate the moment a principal withdraws; no polling, no stale cache.</td>
       </tr>
       <tr>
         <td><strong>Delta Sharing</strong></td>
-        <td>Read-only audit share (<code>dpdp_audit_view_share</code>) — 4 objects: personal_data_register, compliance_gaps, notice_versions, consent_coverage_summary</td>
-        <td>External auditors query compliance evidence from their own workspace — no local accounts to provision, no VPN, no orphan credentials to clean up after the audit. Revoke in one command when the engagement ends.</td>
+        <td>Read-only audit share — 3 objects: personal_data_register, compliance_gaps, notice_versions</td>
+        <td>External auditors query compliance evidence from their own workspace — no local accounts to provision, no VPN, no orphan credentials to clean up after the audit. Revoke in one command when the engagement ends. Same share serves DPBI and ICO auditors.</td>
       </tr>
       <tr class="highlight">
         <td><strong>Databricks Asset Bundle</strong></td>
         <td>Full platform as IaC — one command deploy, one command destroy</td>
-        <td>Reproducibility becomes free. A teammate stands up the entire compliance stack on a fresh workspace in minutes instead of days; every environment looks identical; drift between dev and prod stops existing as a category.</td>
+        <td>Reproducibility becomes free. A teammate stands up the entire compliance stack on a fresh workspace in minutes instead of days; every environment looks identical; drift between dev and prod stops existing as a category. Per-customer regulation set is driven by the contents of <code>regulations/</code>, not by environment configuration.</td>
       </tr>
       <tr>
         <td><strong>Persona Orchestrator (scripts/setup_all_personas.py)</strong></td>
-        <td>One command stands up the full persona layer: slice → Genie → attach banners → SCIM users → UC grants → warehouse/dashboard/Genie ACLs. Auto-detects workspace/warehouse/deployer. Idempotent end-to-end</td>
+        <td>One command stands up the full persona layer: slice → Genie → attach banners → SCIM users → UC grants → warehouse/dashboard/Genie ACLs. Auto-detects workspace/warehouse/deployer. Idempotent end-to-end. Genie text_instructions composed from loaded packs.</td>
         <td>Governance is deployed the same way code is — scriptable, reviewable, reproducible. Onboarding a new persona (e.g. a Chief Risk Officer) becomes a code change with a PR, not a week of click-ops that quietly drifts between environments.</td>
       </tr>
       <tr class="highlight">
@@ -480,18 +604,17 @@
 
 <div class="footer" style="text-align:left; font-size: 12px; line-height: 1.5; color: #555; padding: 16px 20px; background: #fafafa; border-top: 1px solid #e0e0e0;">
   <p><strong>Note on numbers.</strong> Counts shown in the module cards and metric tiles
-  (33 PII findings, 14 auto-classified, 135 gaps, 72 critical, 52 high, 1,000 consent
-  events, 292 principals, 286 marketing eligible, 9 rules) are <strong>illustrative</strong>
-  — they come from the synthetic POC dataset on the <code>dpdp_poc</code> workspace and are
-  reproducible via the SQL in <code>docs/how_to_test.html</code>. In a real deployment the
-  absolute counts will differ with the customer's data estate and PII density; the
-  transferable signal is the shape of the ratios (critical-to-total gap mix, auto-classify
-  rate, consent-grant rate), not the specific numbers. The ₹1.5–3 cr DPIA-consulting
-  savings in the platform-features table is an industry-range estimate drawn from
-  Big-4 readiness benchmarks; actual per-enterprise savings vary with scale, SDF status,
-  and current tooling.</p>
-  <p style="margin-top: 10px; color: #777;">DPDP Audit Gap Finder &amp; Consent Manager ·
-  Databricks-Native Architecture · April 2026</p>
+  (36 PII findings across 10 silver objects, 37 column masks, 135 base compliance gaps from
+  the DPDP-only seed, 1,000 consent events, 292 principals, 9 DPDP rules) are
+  <strong>illustrative</strong> — they come from the synthetic POC dataset on a Databricks
+  Free Edition workspace (seed=42) and are reproducible via the SQL in
+  <a href="how_to_test.html">how_to_test.html</a>. With UK GDPR and additional packs loaded
+  the absolute counts grow (more PII patterns hit, more rules fire); the transferable signal
+  is the shape of the ratios (critical-to-total gap mix, auto-classify rate, consent-grant
+  rate per jurisdiction), not the specific numbers.</p>
+  <p style="margin-top: 10px; color: #777;">Compliance Pack Accelerator ·
+  Databricks-Native Multi-Jurisdiction Architecture · May 2026 ·
+  <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001 governs this design</a></p>
 </div>
 
 </body>
