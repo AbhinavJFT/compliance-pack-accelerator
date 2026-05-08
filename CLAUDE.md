@@ -2,9 +2,24 @@
 
 This file provides context for Claude Code or any AI assistant working on this repository.
 
+> **Architectural decisions live in [`docs/adr/`](docs/adr/README.md).** Read
+> the relevant ADR before changing the rule engine, the data model, the pack
+> contract, or anything cross-cutting. ADRs are the single source of truth
+> when code and docs disagree. ADR-0001 (multi-jurisdiction data-subject
+> routing) is the foundational one — read it before you touch the loader.
+
 ## What This Project Is
 
-**DPDP Audit Gap Finder & Consent Manager** — a Databricks-native compliance platform for India's DPDP Act 2023. It discovers PII, captures consent, identifies compliance gaps, and generates audit reports.
+**Compliance Pack Accelerator** — a Databricks-native compliance platform
+that handles multiple data-protection regulations through pluggable
+"regulation packs". Each pack (DPDP India 2023, UK GDPR, EU GDPR, CCPA,
+…) is a directory of yaml files plus a small region-specific PII-pattern
+module. Compliance applies *per data subject* — each principal's
+jurisdiction routes to the pack that governs them — so an Indian SaaS
+with UK clients applies DPDP rules to Indian principals and UK GDPR
+rules to UK principals, simultaneously, in the same database. See
+[ADR-0001](docs/adr/0001-multi-jurisdiction-data-subject-routing.md)
+for why.
 
 ## Current State (as of April 2026)
 

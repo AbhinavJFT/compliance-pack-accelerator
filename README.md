@@ -80,6 +80,7 @@ dpdp/
 ├── resources/                        ← DAB resource declarations (YAML)
 │
 ├── docs/                             ← shareable documents
+│   ├── adr/                          ← Architecture Decision Records — the WHY behind design choices
 │   ├── architecture.html             ← architecture diagram (open in browser → PDF)
 │   ├── presentation.html             ← 9-slide deck (open in browser → PDF)
 │   ├── how_to_test.html              ← step-by-step testing guide with SQL queries
