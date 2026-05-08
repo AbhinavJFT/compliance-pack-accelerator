@@ -1,0 +1,16 @@
+# The Databricks Apps base Python image ships streamlit, databricks-sdk,
+# pandas, jinja2 pre-installed. Listing them here causes pip resolution
+# conflicts that abort the container build (symptom: 502 / "App Not
+# Available" on the URL).
+#
+# We only list packages NOT in the base image:
+#   reportlab    — pure-Python PDF rendering (WeasyPrint dropped because
+#                  its cairo+pango system deps aren't in the Apps image)
+#   python-docx  — pure-Python Word doc rendering for the "Download Word"
+#                  button; reviewers can edit + sign + save-as-PDF themselves
+#   markdown     — Markdown→HTML conversion that feeds both render_pdf
+#                  (ReportLab Paragraph accepts a small HTML subset) and
+#                  the Streamlit "Rendered Document" tab
+reportlab>=4.0,<5.0
+python-docx>=1.1,<2.0
+markdown>=3.7,<4.0

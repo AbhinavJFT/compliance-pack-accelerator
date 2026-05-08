@@ -1,0 +1,33 @@
+# Local-machine dependencies for the DPDP POC.
+#
+# This file targets the deployer's machine — anything that runs OUTSIDE
+# the Databricks workspace (scripts/, tests/, headless infra checks,
+# synthetic data generation). The Databricks runtime already ships
+# pyspark / dlt / mlflow on the cluster side, so those are deliberately
+# omitted here; do not add them.
+#
+# Install once after cloning:
+#   python3 -m pip install -r requirements.txt
+#   # On Homebrew Python (PEP 668), add: --break-system-packages
+#   # or use a venv: python3 -m venv .venv && source .venv/bin/activate
+#
+# The DPIA Review Streamlit app has its own requirements.txt at
+# apps/dpia_review/requirements.txt — that one is for the app's runtime
+# image, not the deployer's machine.
+
+# governance_core/dpia.py — DPIA structured-output schema (Phase 3).
+# Without this, scripts/setup_agent_bricks.py and any local script that
+# imports governance_core.agent_prompts fails with ModuleNotFoundError.
+pydantic>=2.0
+
+# governance_core/pack_loader.py + various scripts — regulation pack YAML.
+PyYAML>=6.0
+
+# scripts/, notebooks running in --headless mode — Databricks REST API
+# helpers and statement polling.
+requests>=2.31
+
+# generate_synthetic_data.py + generate_salesforce_data.py +
+# generate_federation_data.py — deterministic synthetic data generation
+# (seed=42 / 43 / 44).
+faker>=20.0

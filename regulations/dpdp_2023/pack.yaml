@@ -1,0 +1,59 @@
+# Pack metadata — DPDP India 2023
+#
+# Phase 0 skeleton: values migrate here from CLAUDE.md, docs/architecture.html,
+# and hardcoded literals in pipelines/phase1_bootstrap.py. The TODOs below each
+# field point at the current source of truth.
+
+name: "Digital Personal Data Protection Act, 2023"
+code: dpdp_2023
+jurisdiction: IN                                    # ISO 3166-1 alpha-2
+effective_date: "2023-08-11"                        # Royal assent date
+supervising_authority: "Data Protection Board of India (DPBI)"
+primary_locale: en-IN
+
+# Penalty structure — per-contravention ceilings from DPDP §33.
+# TODO(phase-0): cross-check against docs/business_pitch.html penalty table.
+penalty_structure: per_contravention_ceiling
+max_penalty:
+  - amount: 250_00_00_000                           # ₹250 crore = 2.5 billion rupees
+    currency: INR
+    trigger: "failure to take reasonable security safeguards"
+  - amount: 200_00_00_000                           # ₹200 crore
+    currency: INR
+    trigger: "failure to notify the Board or affected principals of a breach"
+  - amount: 200_00_00_000
+    currency: INR
+    trigger: "failure to fulfil obligations regarding children's data"
+  - amount: 150_00_00_000                           # ₹150 crore
+    currency: INR
+    trigger: "failure to fulfil obligations of a Significant Data Fiduciary"
+  - amount: 50_00_00_000                            # ₹50 crore
+    currency: INR
+    trigger: "catch-all — breach of any other provision of the Act or Rules"
+
+# Which platform features this pack activates. Each activation line corresponds
+# to a canonical element defined in governance_core/*.
+activates:
+  # Rights from governance_core.rights.RIGHT_CATALOGUE. Current POC implements access +
+  # erasure only; the others are listed here as the regulation's intent even
+  # though the DSR scripts don't yet enact them.
+  rights:
+    - access          # DPDP §11
+    - rectification   # DPDP §12(a) — not yet implemented in DSR scripts
+    - erasure         # DPDP §12(b)
+    - grievance       # DPDP §13
+    - nominee         # DPDP §14
+
+  # Region-specific PII pattern pack. Universal patterns come from
+  # governance_core.pii_patterns.universal.
+  pii_pattern_packs:
+    - in              # India: Aadhaar, PAN, IFSC, Indian passport, phone
+
+  # DPO (Data Protection Officer) requirement
+  requires_dpo: conditional       # Required only for Significant Data Fiduciaries
+
+  # Minor protection — DPDP threshold (18 years)
+  minor_age: 18
+
+  # Consent default — opt-in required (vs. CCPA opt-out of sale)
+  consent_default: opt_in

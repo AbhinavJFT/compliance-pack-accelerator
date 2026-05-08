@@ -1,0 +1,120 @@
+# DPDP India 2023 — Compliance rules.
+#
+# Source of truth for bronze.compliance_rules. Loaded by
+# pipelines/phase1_bootstrap.py via governance_core.pack_loader at bootstrap time;
+# MERGE'd into the bronze.compliance_rules Delta table.
+#
+# Schema per entry:
+#   rule_id               — stable identifier (ENC-001, CNS-001, ...)
+#   rule_type             — one of: encryption, consent, retention, access_control,
+#                           data_subject_rights, breach_notification
+#   severity              — critical / high / medium / low
+#   regulations           — list of regulations this rule speaks to
+#   applicable_categories — PII categories this rule applies to
+#   description           — plain-English requirement
+#   remediation           — concrete action to close a gap
+#
+# Adding / editing a rule: this file is the only place to change. No code
+# changes needed.
+
+rules:
+  - rule_id: ENC-001
+    rule_type: encryption
+    severity: high
+    regulations: [DPDP, GDPR, HIPAA]
+    applicable_categories:
+      - direct_identifier_government
+      - direct_identifier_financial
+      - health
+      - biometric
+    description: "Personal data must be encrypted at rest per DPDP Section 8"
+    remediation: "Enable Delta table encryption and UC column masking for sensitive columns"
+
+  - rule_id: ENC-002
+    rule_type: encryption
+    severity: critical
+    regulations: [PCI-DSS, DPDP]
+    applicable_categories:
+      - direct_identifier_financial
+    description: "Payment card data requires PCI-DSS compliant encryption"
+    remediation: "Apply tokenization or format-preserving encryption to credit card and CVV columns"
+
+  - rule_id: CNS-001
+    rule_type: consent
+    severity: critical
+    regulations: [DPDP, GDPR]
+    applicable_categories:
+      - direct_identifier_contact
+      - direct_identifier_government
+      - indirect_identifier
+    description: "DPDP requires specific, informed consent before processing personal data"
+    remediation: "Implement consent capture per purpose with notice version tracking (Module 02)"
+
+  - rule_id: CNS-002
+    rule_type: consent
+    severity: high
+    regulations: [DPDP, GDPR]
+    applicable_categories:
+      - direct_identifier_contact
+      - direct_identifier_financial
+    description: "DPDP mandates consent withdrawal mechanism with downstream propagation"
+    remediation: "Deploy real-time withdrawal propagation via DLT CDC (Module 02)"
+
+  - rule_id: RET-001
+    rule_type: retention
+    severity: high
+    regulations: [DPDP, GDPR]
+    applicable_categories:
+      - direct_identifier_government
+      - direct_identifier_financial
+      - health
+    description: "Data retention policy must be defined and enforced per DPDP Section 8(7)"
+    remediation: "Define retention periods per data category and enforce via Module 06 workflows"
+
+  - rule_id: ACC-001
+    rule_type: access_control
+    severity: high
+    regulations: [DPDP, GDPR, HIPAA]
+    applicable_categories:
+      - direct_identifier_government
+      - health
+      - biometric
+      - sensitive_demographic
+    description: "Role-based access control required for personal data per DPDP Section 8"
+    remediation: "Implement UC row-level security and column masking for sensitive columns"
+
+  - rule_id: ACC-002
+    rule_type: access_control
+    severity: medium
+    regulations: [DPDP, GDPR, HIPAA]
+    applicable_categories:
+      - direct_identifier_government
+      - health
+      - direct_identifier_financial
+    description: "Access audit logging required for all personal data queries"
+    remediation: "Enable UC audit log monitoring and configure alerting for sensitive table access"
+
+  - rule_id: DSR-001
+    rule_type: data_subject_rights
+    severity: critical
+    regulations: [DPDP]
+    applicable_categories:
+      - direct_identifier_government
+      - direct_identifier_contact
+      - direct_identifier_financial
+      - indirect_identifier
+      - health
+    description: "Data principal rights (access, correction, erasure) must be fulfillable per DPDP Section 11-14"
+    remediation: "Deploy DSR hub with UC lineage-based discovery and Delta DELETE + VACUUM (Module 03)"
+
+  - rule_id: BRN-001
+    rule_type: breach_notification
+    severity: critical
+    regulations: [DPDP]
+    applicable_categories:
+      - direct_identifier_government
+      - direct_identifier_financial
+      - health
+      - biometric
+    description: "Breach notification to DPBI required within 72 hours per DPDP Section 8(6)"
+    remediation: "Deploy breach detection with Lakewatch and automated DPBI notification drafting (Module 04)"

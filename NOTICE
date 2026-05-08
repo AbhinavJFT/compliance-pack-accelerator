@@ -1,0 +1,127 @@
+DPDP Audit Gap Finder & Consent Manager
+Copyright 2026 Jellyfish Technologies
+
+This product includes software developed by Jellyfish Technologies
+(https://jellyfishtechnologies.com).
+
+Licensed under the Apache License, Version 2.0 (the "License"); you
+may not use this work except in compliance with the License. A copy
+of the License is included in the LICENSE file at the root of this
+repository, and is also available at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+THIRD-PARTY DEPENDENCIES
+================================================================================
+
+This project depends on third-party software listed below. Each
+component remains the property of its respective copyright holders and
+is used under the terms of its own license. License texts for each
+component are obtainable from the project URLs given.
+
+--------------------------------------------------------------------------------
+Local-machine dependencies (requirements.txt)
+--------------------------------------------------------------------------------
+
+  pydantic              MIT License
+                        https://github.com/pydantic/pydantic/blob/main/LICENSE
+                        Used in: governance_core/dpia.py for the DPIA
+                        structured-output schema (Phase 3).
+
+  PyYAML                MIT License
+                        https://github.com/yaml/pyyaml/blob/main/LICENSE
+                        Used in: governance_core/pack_loader.py and assorted
+                        scripts for regulation-pack YAML parsing.
+
+  requests              Apache License 2.0
+                        https://github.com/psf/requests/blob/main/LICENSE
+                        Used in: scripts/, notebooks/ for Databricks REST API
+                        calls and statement polling.
+
+  Faker                 MIT License
+                        https://github.com/joke2k/faker/blob/master/LICENSE.txt
+                        Used in: generate_synthetic_data.py,
+                        generate_salesforce_data.py,
+                        generate_federation_data.py for deterministic
+                        synthetic-data generation (seed=42 / 43 / 44).
+
+--------------------------------------------------------------------------------
+DPIA Review app runtime dependencies (apps/dpia_review/requirements.txt)
+--------------------------------------------------------------------------------
+
+  ReportLab Toolkit     BSD 3-Clause License
+                        https://www.reportlab.com/dev/docs/reportlab-license/
+                        Used in: apps/dpia_review/app.py for pure-Python PDF
+                        rendering of approved DPIAs.
+
+  python-docx           MIT License
+                        https://github.com/python-openxml/python-docx/blob/master/LICENSE
+                        Used in: apps/dpia_review/app.py for Word-document
+                        export from the approval UI.
+
+  Markdown              BSD 3-Clause License
+                        https://github.com/Python-Markdown/markdown/blob/master/LICENSE.md
+                        Used in: apps/dpia_review/app.py for markdown→HTML
+                        conversion feeding both PDF and Streamlit views.
+
+--------------------------------------------------------------------------------
+Databricks Apps base-image dependencies (provided by the runtime, not
+vendored by this repo)
+--------------------------------------------------------------------------------
+
+  Streamlit             Apache License 2.0
+                        https://github.com/streamlit/streamlit/blob/develop/LICENSE
+                        Used in: apps/dpia_review/app.py — the review UI.
+
+  Databricks SDK        Apache License 2.0
+                        https://github.com/databricks/databricks-sdk-py/blob/main/LICENSE
+                        Used in: apps/dpia_review/app.py for warehouse +
+                        volume + UC calls from the running app.
+
+  pandas                BSD 3-Clause License
+                        https://github.com/pandas-dev/pandas/blob/main/LICENSE
+                        Used transitively by the app for DataFrame handling.
+
+  Jinja2                BSD 3-Clause License
+                        https://github.com/pallets/jinja/blob/main/LICENSE.txt
+                        Used transitively by the app for HTML templating.
+
+--------------------------------------------------------------------------------
+Databricks runtime dependencies (provided by the workspace cluster, not
+vendored or pip-installed by this repo)
+--------------------------------------------------------------------------------
+
+  Apache Spark / PySpark    Apache License 2.0
+                            https://github.com/apache/spark/blob/master/LICENSE
+                            Used in: pipelines/ — DLT, classification,
+                            phase1 bootstrap.
+
+  Delta Lake (delta-spark)  Apache License 2.0
+                            https://github.com/delta-io/delta/blob/master/LICENSE.txt
+                            Used in: schemas/, pipelines/ — Delta tables,
+                            Change Data Feed, time travel.
+
+  Lakeflow Declarative      Provided by the Databricks platform.
+  Pipelines (dlt)           Used in: pipelines/medallion.py,
+                            pipelines/classification_dlt.py.
+
+  MLflow                    Apache License 2.0
+                            https://github.com/mlflow/mlflow/blob/master/LICENSE.txt
+                            Used in: notebooks/03_agent_bricks.py,
+                            governance_core/dpia.py — agent tracing +
+                            experiment registration.
+
+================================================================================
+TRADEMARKS
+================================================================================
+
+"Databricks", "Unity Catalog", "Delta Lake", "Lakeflow", "Genie",
+"Lakeview", "Lakebase", and "MLflow" are trademarks or registered
+trademarks of Databricks, Inc. and/or its affiliates. Their use in
+this repository is descriptive only and does not imply endorsement.
+
+"Apache", "Apache Spark", and the Apache feather logo are trademarks
+of The Apache Software Foundation.
+
+All other trademarks are the property of their respective owners.

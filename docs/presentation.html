@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPDP Audit Gap Finder & Consent Manager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body { font-family: 'Inter', sans-serif; background: #eee; }
+
+  .slide {
+    width: 1280px; min-height: 720px; margin: 24px auto;
+    background: #fff; border-radius: 4px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    padding: 56px 64px;
+    position: relative; overflow: hidden;
+    page-break-after: always;
+  }
+  .slide.dark { background: #1a1a2e; color: #fff; }
+
+  h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.15; }
+  h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+  .subtitle { font-size: 16px; color: #888; margin-top: 8px; line-height: 1.5; }
+  .dark .subtitle { color: #aaa; }
+
+  .accent-line { width: 80px; height: 4px; background: #FF3621; border-radius: 2px; margin: 20px 0; }
+
+  .grid { display: grid; gap: 16px; margin-top: 20px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  .g4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .g5 { grid-template-columns: repeat(5, 1fr); }
+
+  .card {
+    border-radius: 10px; padding: 20px 24px;
+    border: 2px solid #e0e0e0; background: #fff;
+  }
+  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .card p { font-size: 12px; color: #666; line-height: 1.55; }
+  .card .num { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+  .card .metric-label { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card .metric-sub { font-size: 10px; color: #aaa; margin-top: 2px; }
+
+  .red { border-color: #c62828; } .red h3, .red .num { color: #c62828; }
+  .orange { border-color: #e65100; } .orange h3, .orange .num { color: #e65100; }
+  .blue { border-color: #1565c0; } .blue h3, .blue .num { color: #1565c0; }
+  .purple { border-color: #4a148c; } .purple h3, .purple .num { color: #4a148c; }
+  .green { border-color: #2e7d32; } .green h3, .green .num { color: #2e7d32; }
+  .teal { border-color: #00695c; } .teal h3, .teal .num { color: #00695c; }
+
+  .dark-card {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 18px 20px; text-align: center;
+  }
+  .dark-card .num { font-size: 32px; font-weight: 800; color: #FF3621; }
+  .dark-card .metric-label { font-size: 12px; color: #fff; font-weight: 600; margin-top: 4px; }
+  .dark-card .metric-sub { font-size: 10px; color: #888; margin-top: 2px; }
+
+  .tag {
+    display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 10px;
+    border-radius: 10px; letter-spacing: 0.5px; margin-bottom: 6px;
+  }
+  .tag-green { background: #2e7d32; color: #fff; }
+  .tag-blue { background: #1565c0; color: #fff; }
+  .tag-purple { background: #4a148c; color: #fff; }
+  .tag-teal { background: #00695c; color: #fff; }
+
+  .impact-box {
+    background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px;
+    padding: 10px 16px; text-align: center; margin-top: 12px;
+  }
+  .impact-box strong { color: #2e7d32; font-size: 14px; }
+
+  .replaces { color: #c62828; font-size: 10px; margin-top: 8px; font-style: italic; }
+
+  .footer-note {
+    position: absolute; bottom: 20px; left: 64px; right: 64px;
+    font-size: 11px; color: #ccc; text-align: center;
+  }
+
+  ul { padding-left: 20px; }
+  ul li { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 4px; }
+
+  .phase-arrow {
+    text-align: center; font-size: 12px; color: #bbb; margin-top: 20px; letter-spacing: 1px;
+  }
+
+  .ask-item {
+    font-size: 18px; color: #fff; line-height: 2.2; font-weight: 400;
+  }
+  .ask-item strong { font-weight: 700; }
+
+  @media print {
+    body { background: #fff; }
+    .slide { box-shadow: none; margin: 0; border-radius: 0; page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 1 -->
+<div class="slide dark">
+  <div style="margin-top: 80px;">
+    <h1 style="font-size: 44px; line-height: 1.2;">DPDP Audit Gap Finder<br>& Consent Manager</h1>
+    <div class="accent-line"></div>
+    <div class="subtitle" style="font-size: 18px; max-width: 700px;">
+      A Databricks-native compliance platform for India's<br>Digital Personal Data Protection Act 2023
+    </div>
+  </div>
+  <div class="footer-note" style="color: #555;">
+    Built on: Unity Catalog &nbsp;|&nbsp; Agent Bricks &nbsp;|&nbsp; Lakeflow &nbsp;|&nbsp; Delta Lake &nbsp;|&nbsp; AI/BI Dashboard
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 2 -->
+<div class="slide">
+  <h2>The DPDP Problem</h2>
+  <div class="subtitle">The Digital Personal Data Protection Act 2023 exposes every Indian enterprise to material regulatory risk.</div>
+
+  <div class="grid g3" style="margin-top: 28px;">
+    <div class="card red" style="text-align: center; padding: 28px;">
+      <div class="num">₹250 Cr</div>
+      <h3 style="font-size: 13px; color: #666; font-weight: 600;">per contravention</h3>
+      <p style="margin-top: 12px;">Penalty for non-compliance with consent, rights, or security obligations</p>
+    </div>
+    <div class="card orange" style="text-align: center; padding: 28px;">
+      <div class="num">72 Hours</div>
+      <h3 style="font-size: 13px; color: #666; font-weight: 600;">breach notification</h3>
+      <p style="margin-top: 12px;">Clock starts whether or not the organization knows who is affected</p>
+    </div>
+    <div class="card blue" style="text-align: center; padding: 28px;">
+      <div class="num">Annual DPIA</div>
+      <h3 style="font-size: 13px; color: #666; font-weight: 600;">for Significant Data Fiduciaries</h3>
+      <p style="margin-top: 12px;">Must reflect current processing activities, not a 6-month-old snapshot</p>
+    </div>
+  </div>
+
+  <div style="margin-top: 32px;">
+    <h3 style="font-size: 16px; margin-bottom: 12px;">The operational reality today:</h3>
+    <ul>
+      <li>Personal data sits across <strong>40+ source systems</strong> — no single register exists</li>
+      <li>Consent is captured as a <strong>Terms & Conditions acceptance</strong> that predates the Act's specificity requirement</li>
+      <li>Data subject rights are handled <strong>manually through legal inboxes</strong> with multi-week SLAs</li>
+      <li>No organization can <strong>reproduce historical processing decisions</strong> under regulator inspection</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 3 -->
+<div class="slide">
+  <h2>What Most Enterprises Look Like Today</h2>
+
+  <div class="grid g2" style="margin-top: 24px; gap: 20px;">
+    <div class="card red">
+      <h3>Can't Find Their PII</h3>
+      <p>Personal data across CRM, HRMS, databases, SaaS apps, file shares — no unified inventory. Compliance team doesn't know what they hold.</p>
+    </div>
+    <div class="card orange">
+      <h3>Consent Is a Checkbox</h3>
+      <p>Legacy T&C acceptance predates DPDP's specificity requirement. No per-purpose granularity. No withdrawal mechanism. No evidence trail.</p>
+    </div>
+    <div class="card blue">
+      <h3>No Audit Trail</h3>
+      <p>Cannot reproduce historical decisions under regulator inspection. No evidence of when consent was given or revoked. No time-travel capability.</p>
+    </div>
+    <div class="card purple">
+      <h3>Manual Everything</h3>
+      <p>DSRs via legal inbox (weeks). DPIA as a document project (months). Compliance reporting as a quarterly fire drill. No automation.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 4 -->
+<div class="slide">
+  <h2>Our Solution: Three Integrated Capabilities</h2>
+  <div class="subtitle">One platform, one audit trail — built entirely on Databricks-native features.</div>
+
+  <div class="grid g3" style="margin-top: 24px;">
+    <div class="card green" style="padding: 24px;">
+      <h3>PII Discovery &<br>Data Inventory</h3>
+      <p style="margin-top: 8px;">Automatically scan every data source for personal data using regex patterns + AI classification. Living register with UC column tags and lineage.</p>
+      <div class="impact-box">
+        <strong>33 findings · 14 auto-classified</strong><br>
+        <span style="font-size: 11px; color: #666;">5 tables · 21,500 rows · 9 DPDP categories</span>
+      </div>
+    </div>
+    <div class="card blue" style="padding: 24px;">
+      <h3>Consent Intelligence<br>Engine</h3>
+      <p style="margin-top: 8px;">Capture every consent event with purpose-level granularity. Immutable Delta log. Real-time withdrawal propagation to downstream systems.</p>
+      <div class="impact-box" style="background: #e3f2fd; border-color: #90caf9;">
+        <strong style="color: #1565c0;">1,000 events · 292 principals</strong><br>
+        <span style="font-size: 11px; color: #666;">6 purposes · 4 channels · withdrawal verified</span>
+      </div>
+    </div>
+    <div class="card purple" style="padding: 24px;">
+      <h3>Compliance Audit &<br>Gap Analysis</h3>
+      <p style="margin-top: 8px;">9 DPDP compliance rules mapped against discovered PII. Penalty-weighted risk scoring. Remediation tracker with specific actions per gap.</p>
+      <div class="impact-box" style="background: #f3e5f5; border-color: #ce93d8;">
+        <strong style="color: #4a148c;">135 gaps · 72 critical · 52 high</strong><br>
+        <span style="font-size: 11px; color: #666;">9 rules mapped to DPDP sections</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 24px; font-size: 14px; color: #1565c0; font-weight: 600;">
+    + Agent Bricks: DPIA auto-generation in 30 seconds &nbsp;|&nbsp; Compliance Q&A in natural language &nbsp;|&nbsp; AI classification for unstructured data
+  </div>
+  <p style="margin-top: 16px; font-size: 11px; color: #888; text-align: center;">
+    Module counts (33 PII findings · 1,000 events · 292 principals · 135 gaps · 9 rules)
+    are from the synthetic POC dataset — illustrative only; absolute numbers will differ
+    in a real deployment.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 5 -->
+<div class="slide">
+  <h2>Why Databricks-Native Architecture</h2>
+  <div class="subtitle">Every component uses a Databricks platform feature — zero custom plumbing.</div>
+
+  <div class="grid g3" style="margin-top: 20px;">
+    <div class="card blue" style="padding: 18px;">
+      <span class="tag tag-blue">GOVERNANCE</span>
+      <h3>Unity Catalog</h3>
+      <p>PII column tags, auto lineage, audit log, foreign catalogs, sensitivity tiers, grants</p>
+      <div class="replaces">Replaces: separate metadata stores, manual lineage, custom tag systems</div>
+    </div>
+    <div class="card purple" style="padding: 18px;">
+      <span class="tag tag-purple">AI</span>
+      <h3>Agent Bricks + AI Functions</h3>
+      <p>DPIA in 30s, Compliance Q&A, ai_classify and ai_extract for unstructured PII</p>
+      <div class="replaces">Replaces: 3-month manual DPIA, SQL-only access, manual review</div>
+    </div>
+    <div class="card teal" style="padding: 18px;">
+      <span class="tag tag-teal">INGESTION</span>
+      <h3>Lakehouse Federation</h3>
+      <p>CREATE FOREIGN CATALOG — one SQL for Postgres, Snowflake, BigQuery</p>
+      <div class="replaces">Replaces: 28 Python connectors (400K lines of custom code)</div>
+    </div>
+    <div class="card green" style="padding: 18px;">
+      <span class="tag tag-green">PIPELINE</span>
+      <h3>Lakeflow DLT</h3>
+      <p>Bronze → Silver with data quality rules, CDC, schema evolution</p>
+      <div class="replaces">Replaces: standalone notebooks, manual orchestration</div>
+    </div>
+    <div class="card blue" style="padding: 18px;">
+      <span class="tag tag-blue">DATA</span>
+      <h3>Delta Lake (CDF)</h3>
+      <p>Immutable consent log, time travel, withdrawal propagation, regulator evidence</p>
+      <div class="replaces">Replaces: separate OLTP + audit systems</div>
+    </div>
+    <div class="card green" style="padding: 18px;">
+      <span class="tag tag-green">DEPLOY</span>
+      <h3>Databricks Asset Bundle</h3>
+      <p>One command deploy, one destroy. CI/CD ready, version controlled</p>
+      <div class="replaces">Replaces: shell scripts, manual notebook imports, click-ops</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 6 -->
+<div class="slide">
+  <h2>Agent Bricks — The AI Differentiator</h2>
+
+  <div style="margin-top: 24px;">
+    <div class="card purple" style="display: flex; align-items: center; gap: 24px; padding: 24px; margin-bottom: 16px;">
+      <div style="flex: 1;">
+        <span class="tag tag-purple">AGENT</span>
+        <h3>DPIA Auto-Generator</h3>
+        <p>Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft with specific table names, column names, gap counts, and DPDP section references.</p>
+      </div>
+      <div class="impact-box" style="flex: 0 0 200px; margin: 0;">
+        <strong>3 months → 30 seconds</strong>
+      </div>
+    </div>
+
+    <div class="card blue" style="display: flex; align-items: center; gap: 24px; padding: 24px; margin-bottom: 16px;">
+      <div style="flex: 1;">
+        <span class="tag tag-blue">AGENT</span>
+        <h3>Compliance Q&A</h3>
+        <p>Natural language interface to the compliance data estate. "What critical PII do we hold?" "Does customer X have marketing consent?" Context-aware routing to PII, consent, and gap tables.</p>
+      </div>
+      <div class="impact-box" style="flex: 0 0 200px; margin: 0; background: #e3f2fd; border-color: #90caf9;">
+        <strong style="color: #1565c0;">SQL expertise → plain English</strong>
+      </div>
+    </div>
+
+    <div class="card teal" style="display: flex; align-items: center; gap: 24px; padding: 24px;">
+      <div style="flex: 1;">
+        <span class="tag tag-teal">AI FUNCTIONS</span>
+        <h3>PII Classifier</h3>
+        <p>ai_classify for unstructured fields: diagnosis, prescriptions, clinical notes. ai_extract for structured PII from free text. Handles what regex patterns cannot.</p>
+      </div>
+      <div class="impact-box" style="flex: 0 0 200px; margin: 0; background: #e0f2f1; border-color: #80cbc4;">
+        <strong style="color: #00695c;">Manual review → automated</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">Model: databricks-gpt-oss-120b (open-source, hosted on Databricks) &nbsp;|&nbsp; All data stays within the workspace &nbsp;|&nbsp; No external API calls</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 7 -->
+<div class="slide dark">
+  <h2 style="color: #fff;">Live on Databricks — Right Now</h2>
+  <div class="subtitle">Every number below is queryable in the workspace. No mockups.</div>
+
+  <div class="grid g5" style="margin-top: 28px;">
+    <div class="dark-card">
+      <div class="num">21,500</div>
+      <div class="metric-label">Rows Ingested</div>
+      <div class="metric-sub">5 source tables in Bronze</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">33</div>
+      <div class="metric-label">PII Findings</div>
+      <div class="metric-sub">9 DPDP categories</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">14</div>
+      <div class="metric-label">Auto-Classified</div>
+      <div class="metric-sub">UC tags applied (≥85%)</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">135</div>
+      <div class="metric-label">Compliance Gaps</div>
+      <div class="metric-sub">72 critical · 52 high</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">1,000</div>
+      <div class="metric-label">Consent Events</div>
+      <div class="metric-sub">292 principals · 6 purposes</div>
+    </div>
+  </div>
+  <div class="grid g5" style="margin-top: 16px;">
+    <div class="dark-card">
+      <div class="num">286</div>
+      <div class="metric-label">Marketing Eligible</div>
+      <div class="metric-sub">Real-time Gold view</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">9</div>
+      <div class="metric-label">Compliance Rules</div>
+      <div class="metric-sub">Mapped to DPDP sections</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">10</div>
+      <div class="metric-label">Dashboard Pages</div>
+      <div class="metric-sub">Executive to detail</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">3</div>
+      <div class="metric-label">AI Agents</div>
+      <div class="metric-sub">DPIA · Q&A · Classifier</div>
+    </div>
+    <div class="dark-card">
+      <div class="num">30s</div>
+      <div class="metric-label">DPIA Generation</div>
+      <div class="metric-sub">Was 3 months manual</div>
+    </div>
+  </div>
+  <p style="margin-top: 20px; font-size: 11px; color: #888; text-align: center;">
+    Numbers above are from the synthetic POC dataset on <code>dpdp_poc</code> and are
+    <strong>illustrative</strong>. Actual counts in a real deployment depend on the
+    customer's data estate, PII density, and scan scope — the ratios and the workflow are
+    the transferable signal, not the specific numbers.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 8 -->
+<div class="slide">
+  <h2>Connecting to Real Data Sources</h2>
+  <div class="subtitle">Three Databricks-native patterns replace 28 Python connectors and 400K lines of custom code.</div>
+
+  <div class="grid g3" style="margin-top: 24px;">
+    <div class="card teal" style="padding: 24px;">
+      <h3>Lakehouse Federation</h3>
+      <p style="font-weight: 600; color: #333; margin-bottom: 8px;">Databases</p>
+      <p>Postgres · MySQL · SQL Server<br>Snowflake · BigQuery · Redshift</p>
+      <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-top: 12px; font-family: monospace; font-size: 11px; color: #00695c;">
+        CREATE FOREIGN CATALOG<br>USING CONNECTION
+      </div>
+      <p style="margin-top: 10px; color: #2e7d32; font-size: 11px;">Query in-place · No data movement · UC-governed</p>
+    </div>
+    <div class="card blue" style="padding: 24px;">
+      <h3>Lakeflow Connect</h3>
+      <p style="font-weight: 600; color: #333; margin-bottom: 8px;">SaaS Applications</p>
+      <p>Salesforce · Workday · ServiceNow<br>SharePoint · MongoDB · HubSpot</p>
+      <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-top: 12px; font-size: 11px; color: #1565c0;">
+        Managed ingestion pipeline<br>UI or SQL configuration
+      </div>
+      <p style="margin-top: 10px; color: #2e7d32; font-size: 11px;">Schema evolution · CDC built-in · No pip installs</p>
+    </div>
+    <div class="card purple" style="padding: 24px;">
+      <h3>Auto Loader + Volumes</h3>
+      <p style="font-weight: 600; color: #333; margin-bottom: 8px;">File Sources</p>
+      <p>S3 · ADLS · GCS<br>CSV · JSON · Parquet</p>
+      <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-top: 12px; font-family: monospace; font-size: 11px; color: #4a148c;">
+        cloudFiles format<br>in DLT pipeline
+      </div>
+      <p style="margin-top: 10px; color: #2e7d32; font-size: 11px;">Incremental · Exactly-once · Schema inference</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SLIDE 9 -->
+<div class="slide">
+  <h2>Expansion Path — What Comes Next</h2>
+  <div class="subtitle">The architecture is designed to grow. Each phase adds capabilities without re-architecture.</div>
+
+  <div class="grid g4" style="margin-top: 24px;">
+    <div class="card green" style="padding: 20px;">
+      <span class="tag tag-green">PHASE 1</span>
+      <h3 style="margin-top: 4px;">Connect Real Data</h3>
+      <p style="margin-top: 8px;">Connect client's actual CRM/HRMS via Lakehouse Federation or Lakeflow Connect. Re-run PII scan against real data. Immediate compliance visibility.</p>
+    </div>
+    <div class="card blue" style="padding: 20px;">
+      <span class="tag tag-blue">PHASE 2</span>
+      <h3 style="margin-top: 4px;">Data Subject Rights Hub</h3>
+      <p style="margin-top: 8px;">DSR portal (Databricks App). UC lineage-based discovery. Delta DELETE + VACUUM erasure. Erasure certificate generation.</p>
+    </div>
+    <div class="card orange" style="padding: 20px;">
+      <span class="tag" style="background: #e65100; color: #fff;">PHASE 3</span>
+      <h3 style="margin-top: 4px;">Breach Detection</h3>
+      <p style="margin-top: 8px;">Lakewatch agentic SIEM (post Private Preview). 72-hour alerting workflow. Agent Bricks DPBI notification drafting.</p>
+    </div>
+    <div class="card purple" style="padding: 20px;">
+      <span class="tag tag-purple">PHASE 4</span>
+      <h3 style="margin-top: 4px;">Retention & Scale</h3>
+      <p style="margin-top: 8px;">Lakebase for consent OLTP. Crypto-shredding for backups. Cross-border transfer monitoring. Full six-module platform.</p>
+    </div>
+  </div>
+
+  <div class="phase-arrow" style="margin-top: 28px;">
+    Current Platform &nbsp;──────►&nbsp; Phase 1 (4 weeks) &nbsp;──────►&nbsp; Phase 2 (8 weeks) &nbsp;──────►&nbsp; Phase 3–4 (12 weeks)
+  </div>
+</div>
+
+
+</body>
+</html>

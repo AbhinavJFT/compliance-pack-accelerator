@@ -1,0 +1,53 @@
+# DPDP India 2023 — Data principal rights activated by this pack.
+#
+# References governance_core/rights.RIGHT_CATALOGUE by code. Each entry adds
+# DPDP-specific metadata (citation, SLA, exemptions, default reason text for
+# DSR request records).
+#
+# Phase 0 skeleton: values below are stubs; fuller versions land once DSR scripts
+# are pack-aware.
+
+rights:
+  - code: access
+    citation: "DPDP §11"
+    sla_days: 30                              # DPDP Rules: "reasonable period"; POC uses 30
+    extendable_to_days: null
+    exemptions:
+      - legal_obligation                      # court order, RBI retention, etc.
+      - law_enforcement_investigation
+    default_reason_text: "DPDP §11 right to access"
+    implemented_in: scripts/dsr_discovery.py
+
+  - code: rectification
+    citation: "DPDP §12(a)"
+    sla_days: 30
+    extendable_to_days: null
+    exemptions: []
+    default_reason_text: "DPDP §12(a) right to correction"
+    implemented_in: null                      # TODO: write scripts/dsr_rectification.py
+
+  - code: erasure
+    citation: "DPDP §12(b)"
+    sla_days: 30
+    extendable_to_days: null
+    exemptions:
+      - legal_obligation                      # 7-year RBI retention on transactions
+      - tax_obligation
+    default_reason_text: "DPDP §12(b) right to erasure"
+    implemented_in: scripts/dsr_erasure.py
+
+  - code: grievance
+    citation: "DPDP §13"
+    sla_days: 7                               # Informal SLA for acknowledgement
+    extendable_to_days: null
+    exemptions: []
+    default_reason_text: "DPDP §13 grievance redressal"
+    implemented_in: null                      # Out of POC scope
+
+  - code: nominee
+    citation: "DPDP §14"
+    sla_days: 30
+    extendable_to_days: null
+    exemptions: []
+    default_reason_text: "DPDP §14 nominee designation"
+    implemented_in: null                      # Out of POC scope

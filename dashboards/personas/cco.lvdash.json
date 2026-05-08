@@ -1,0 +1,3880 @@
+{
+  "datasets": [
+    {
+      "name": "94dd0476",
+      "displayName": "risk_scores",
+      "queryLines": [
+        "WITH metrics AS (\n",
+        "  SELECT\n",
+        "    COUNT(DISTINCT table_name) AS total_tables,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'critical' THEN 1 ELSE 0 END) AS critical_pii,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'high' THEN 1 ELSE 0 END) AS high_pii,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'medium' THEN 1 ELSE 0 END) AS medium_pii,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'low' THEN 1 ELSE 0 END) AS low_pii\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "),\n",
+        "gap_metrics AS (\n",
+        "  SELECT\n",
+        "    COUNT(CASE WHEN severity = 'critical' THEN 1 END) AS critical_gaps,\n",
+        "    COUNT(CASE WHEN severity = 'high' THEN 1 END) AS high_gaps\n",
+        "  FROM dpdp_poc.silver.compliance_gaps\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n",
+        ")\n",
+        "SELECT\n",
+        "  LEAST(100, CAST((m.critical_pii * 25 + m.high_pii * 15 + g.critical_gaps * 20 + g.high_gaps * 10) / GREATEST(1, m.total_tables * 2) AS INT)) AS risk_score,\n",
+        "  GREATEST(0, 100 - LEAST(100, CAST((m.critical_pii * 25 + m.high_pii * 15 + g.critical_gaps * 20 + g.high_gaps * 10) / GREATEST(1, m.total_tables * 2) AS INT))) AS compliance_score,\n",
+        "  CASE\n",
+        "    WHEN LEAST(100, CAST((m.critical_pii * 25 + m.high_pii * 15 + g.critical_gaps * 20 + g.high_gaps * 10) / GREATEST(1, m.total_tables * 2) AS INT)) > 70 THEN 'CRITICAL'\n",
+        "    WHEN LEAST(100, CAST((m.critical_pii * 25 + m.high_pii * 15 + g.critical_gaps * 20 + g.high_gaps * 10) / GREATEST(1, m.total_tables * 2) AS INT)) > 50 THEN 'HIGH'\n",
+        "    WHEN LEAST(100, CAST((m.critical_pii * 25 + m.high_pii * 15 + g.critical_gaps * 20 + g.high_gaps * 10) / GREATEST(1, m.total_tables * 2) AS INT)) > 25 THEN 'MEDIUM'\n",
+        "    ELSE 'LOW'\n",
+        "  END AS risk_level\n",
+        "FROM metrics m\n",
+        "CROSS JOIN gap_metrics g;"
+      ]
+    },
+    {
+      "name": "c23c261a",
+      "displayName": "pii_by_category",
+      "queryLines": [
+        "SELECT\n",
+        "    pii_category,\n",
+        "    sensitivity_tier,\n",
+        "    COUNT(*) AS column_count,\n",
+        "    COUNT(DISTINCT table_name) AS table_count,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY pii_category, sensitivity_tier\n",
+        "  ORDER BY column_count DESC\n"
+      ]
+    },
+    {
+      "name": "495c015f",
+      "displayName": "gaps_by_regulation",
+      "queryLines": [
+        "SELECT\n",
+        "    regulation,\n",
+        "    severity,\n",
+        "    COUNT(*) AS gap_count,\n",
+        "    COUNT(DISTINCT table_name) AS tables_affected\n",
+        "  FROM dpdp_poc.silver.compliance_gaps\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n",
+        "  GROUP BY regulation, severity\n",
+        "  ORDER BY gap_count DESC"
+      ]
+    },
+    {
+      "name": "54bab87b",
+      "displayName": "remediation_priorities",
+      "queryLines": [
+        "SELECT\n",
+        "  ROW_NUMBER() OVER (ORDER BY\n",
+        "    CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END\n",
+        "  ) AS priority,\n",
+        "  severity,\n",
+        "  rule_type,\n",
+        "  regulation,\n",
+        "  COUNT(*) AS gap_count,\n",
+        "  COUNT(DISTINCT table_name) AS tables_affected,\n",
+        "  FIRST(description) AS issue_description,\n",
+        "  FIRST(remediation) AS recommended_action\n",
+        "FROM dpdp_poc.silver.compliance_gaps\n",
+        "WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n",
+        "GROUP BY severity, rule_type, regulation\n",
+        "ORDER BY priority\n",
+        "LIMIT 15;\n"
+      ]
+    },
+    {
+      "name": "c1f1f28b",
+      "displayName": "pii_discovery_trend",
+      "queryLines": [
+        "SELECT\n",
+        "    DATE(discovered_at) AS discovery_date,\n",
+        "    COUNT(*) AS pii_found,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'critical' THEN 1 ELSE 0 END) AS critical_count,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'high' THEN 1 ELSE 0 END) AS high_count,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE discovered_at >= DATE_SUB(CURRENT_DATE(), 30)\n",
+        "  GROUP BY DATE(discovered_at)\n",
+        "  ORDER BY discovery_date"
+      ]
+    },
+    {
+      "name": "262fcce2",
+      "displayName": "pii_types_distribution",
+      "queryLines": [
+        "SELECT\n",
+        "    pii_type,\n",
+        "    pii_category,\n",
+        "    COUNT(*) AS occurrences,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY pii_type, pii_category\n",
+        "  ORDER BY occurrences DESC\n",
+        "  LIMIT 15\n"
+      ]
+    },
+    {
+      "name": "a9a7c41b",
+      "displayName": "pii_inventory_full",
+      "queryLines": [
+        "SELECT\n",
+        "    catalog_name,\n",
+        "    schema_name,\n",
+        "    table_name,\n",
+        "    column_name,\n",
+        "    pii_type,\n",
+        "    pii_category,\n",
+        "    sensitivity_tier,\n",
+        "    ROUND(confidence, 2) AS confidence,\n",
+        "    classifier_source,\n",
+        "    regulations,\n",
+        "    discovered_at\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  ORDER BY\n",
+        "    CASE sensitivity_tier WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,\n",
+        "    table_name,\n",
+        "    column_name"
+      ]
+    },
+    {
+      "name": "0b22c1cc",
+      "displayName": "last_scan_info",
+      "queryLines": [
+        "SELECT\n",
+        "  MAX(scan_job_id) AS last_scan_job_id,\n",
+        "  MAX(discovered_at) AS last_scan_time,\n",
+        "  COUNT(DISTINCT scan_job_id) AS total_scans,\n",
+        "  DATEDIFF(CURRENT_TIMESTAMP(), MAX(discovered_at)) AS days_since_last_scan\n",
+        "FROM dpdp_poc.silver.pii_findings;"
+      ]
+    },
+    {
+      "name": "57781bd3",
+      "displayName": "compliance_gaps_detail",
+      "queryLines": [
+        "SELECT\n",
+        "  regulation,\n",
+        "  rule_type,\n",
+        "  severity,\n",
+        "  table_name,\n",
+        "  column_name,\n",
+        "  pii_type,\n",
+        "  description,\n",
+        "  remediation,\n",
+        "  detected_at\n",
+        "FROM dpdp_poc.silver.compliance_gaps\n",
+        "WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n",
+        "ORDER BY\n",
+        "  CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,\n",
+        "  regulation;\n"
+      ]
+    },
+    {
+      "name": "006b6b90",
+      "displayName": "executive_summary",
+      "queryLines": [
+        "WITH pii AS (\n",
+        "  SELECT\n",
+        "    COUNT(DISTINCT table_name) AS tables_scanned,\n",
+        "    COUNT(*) AS total_pii_columns,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'critical' THEN 1 ELSE 0 END) AS critical_pii,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'high' THEN 1 ELSE 0 END) AS high_sensitivity_pii,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "),\n",
+        "gaps AS (\n",
+        "  SELECT\n",
+        "    COUNT(*) AS total_gaps,\n",
+        "    SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) AS critical_gaps\n",
+        "  FROM dpdp_poc.silver.compliance_gaps\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n",
+        ")\n",
+        "SELECT p.*, g.total_gaps, g.critical_gaps\n",
+        "FROM pii p CROSS JOIN gaps g;\n"
+      ]
+    },
+    {
+      "name": "ab44b234",
+      "displayName": "pii_sensitivity_distribution",
+      "queryLines": [
+        "SELECT\n",
+        "    sensitivity_tier,\n",
+        "    COUNT(*) AS count\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY sensitivity_tier\n",
+        "  ORDER BY\n",
+        "    CASE sensitivity_tier\n",
+        "      WHEN 'critical' THEN 1\n",
+        "      WHEN 'high' THEN 2\n",
+        "      WHEN 'medium' THEN 3\n",
+        "      ELSE 4\n",
+        "    END"
+      ]
+    },
+    {
+      "name": "b4cbc6d9",
+      "displayName": "high_risk_tables_details",
+      "queryLines": [
+        "SELECT\n",
+        "    catalog_name,\n",
+        "    schema_name,\n",
+        "    table_name,\n",
+        "    COUNT(*) AS pii_columns,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'critical' THEN 1 ELSE 0 END) AS critical_count,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'high' THEN 1 ELSE 0 END) AS high_count,\n",
+        "    SUM(CASE\n",
+        "      WHEN sensitivity_tier = 'critical' THEN 3\n",
+        "      WHEN sensitivity_tier = 'high' THEN 2\n",
+        "      ELSE 1\n",
+        "    END) AS risk_score,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence,\n",
+        "    ARRAY_JOIN(ARRAY_DISTINCT(COLLECT_LIST(pii_type)), ', ') AS pii_types\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY catalog_name, schema_name, table_name\n",
+        "  ORDER BY risk_score DESC"
+      ]
+    },
+    {
+      "name": "7c293800",
+      "displayName": "gaps_summary_counter",
+      "queryLines": [
+        "SELECT\n",
+        "    COUNT(*) AS total_gaps,\n",
+        "    SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) AS critical_gaps,\n",
+        "    SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) AS high_gaps,\n",
+        "    SUM(CASE WHEN severity = 'medium' THEN 1 ELSE 0 END) AS medium_gaps,\n",
+        "    COUNT(DISTINCT regulation) AS regulations_affected,\n",
+        "    COUNT(DISTINCT table_name) AS tables_affected\n",
+        "  FROM dpdp_poc.silver.compliance_gaps\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n"
+      ]
+    },
+    {
+      "name": "2b551fa9",
+      "displayName": "gaps_by_rule_type",
+      "queryLines": [
+        "SELECT\n",
+        "    rule_type,\n",
+        "    COUNT(*) AS gap_count,\n",
+        "    COUNT(DISTINCT table_name) AS tables_affected,\n",
+        "    COUNT(DISTINCT regulation) AS regulations_count\n",
+        "  FROM dpdp_poc.silver.compliance_gaps\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n",
+        "  GROUP BY rule_type\n",
+        "  ORDER BY gap_count DESC"
+      ]
+    },
+    {
+      "name": "6850504a",
+      "displayName": "inventory_summary",
+      "queryLines": [
+        "SELECT\n",
+        "    COUNT(DISTINCT CONCAT(catalog_name, '.', schema_name, '.', table_name)) AS total_tables,\n",
+        "    COUNT(*) AS total_columns,\n",
+        "    COUNT(DISTINCT pii_type) AS pii_types_found,\n",
+        "    COUNT(DISTINCT pii_category) AS categories_found\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)"
+      ]
+    },
+    {
+      "name": "83e059c6",
+      "displayName": "schema_distribution",
+      "queryLines": [
+        "SELECT\n",
+        "    schema_name,\n",
+        "    COUNT(DISTINCT table_name) AS tables,\n",
+        "    COUNT(*) AS pii_columns,\n",
+        "    SUM(CASE WHEN sensitivity_tier IN ('critical', 'high') THEN 1 ELSE 0 END) AS high_risk_columns,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY schema_name\n",
+        "  ORDER BY pii_columns DESC"
+      ]
+    },
+    {
+      "name": "374f7b59",
+      "displayName": "high_risk_tables",
+      "queryLines": [
+        "SELECT\n",
+        "    CONCAT(catalog_name, '.', schema_name, '.', table_name) AS full_table_name,\n",
+        "    COUNT(*) AS pii_columns,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'critical' THEN 1 ELSE 0 END) AS critical_count,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'high' THEN 1 ELSE 0 END) AS high_count,\n",
+        "    SUM(CASE\n",
+        "      WHEN sensitivity_tier = 'critical' THEN 3\n",
+        "      WHEN sensitivity_tier = 'high' THEN 2\n",
+        "      ELSE 1\n",
+        "    END) AS risk_score\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY catalog_name, schema_name, table_name\n",
+        "  HAVING SUM(CASE WHEN sensitivity_tier IN ('critical', 'high') THEN 1 ELSE 0 END) > 0\n",
+        "  ORDER BY risk_score DESC\n",
+        "  LIMIT 20\n"
+      ]
+    },
+    {
+      "name": "e1a2b3c4",
+      "displayName": "confidence_distribution",
+      "queryLines": [
+        "SELECT\n",
+        "    CASE\n",
+        "      WHEN confidence >= 0.9 THEN '90-100%'\n",
+        "      WHEN confidence >= 0.8 THEN '80-89%'\n",
+        "      WHEN confidence >= 0.7 THEN '70-79%'\n",
+        "      WHEN confidence >= 0.6 THEN '60-69%'\n",
+        "      ELSE 'Below 60%'\n",
+        "    END AS confidence_bucket,\n",
+        "    CASE\n",
+        "      WHEN confidence >= 0.9 THEN 1\n",
+        "      WHEN confidence >= 0.8 THEN 2\n",
+        "      WHEN confidence >= 0.7 THEN 3\n",
+        "      WHEN confidence >= 0.6 THEN 4\n",
+        "      ELSE 5\n",
+        "    END AS bucket_order,\n",
+        "    COUNT(*) AS finding_count,\n",
+        "    COUNT(DISTINCT pii_type) AS pii_types\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY 1, 2\n",
+        "  ORDER BY bucket_order"
+      ]
+    },
+    {
+      "name": "f2b3c4d5",
+      "displayName": "classifier_source_stats",
+      "queryLines": [
+        "SELECT\n",
+        "    classifier_source,\n",
+        "    COUNT(*) AS finding_count,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence,\n",
+        "    COUNT(DISTINCT pii_type) AS pii_types_detected,\n",
+        "    COUNT(DISTINCT table_name) AS tables_scanned\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY classifier_source\n",
+        "  ORDER BY finding_count DESC"
+      ]
+    },
+    {
+      "name": "a3b4c5d6",
+      "displayName": "pii_gap_correlation",
+      "queryLines": [
+        "SELECT\n",
+        "    p.pii_type,\n",
+        "    p.sensitivity_tier,\n",
+        "    COUNT(DISTINCT p.column_name) AS pii_columns,\n",
+        "    COUNT(DISTINCT g.gap_id) AS gap_count,\n",
+        "    ROUND(COUNT(DISTINCT g.gap_id) * 1.0 / GREATEST(1, COUNT(DISTINCT p.column_name)), 1) AS gaps_per_column\n",
+        "  FROM dpdp_poc.silver.pii_findings p\n",
+        "  LEFT JOIN dpdp_poc.silver.compliance_gaps g\n",
+        "    ON p.table_name = g.table_name\n",
+        "    AND p.column_name = g.column_name\n",
+        "    AND p.scan_job_id = g.scan_job_id\n",
+        "  WHERE p.scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY p.pii_type, p.sensitivity_tier\n",
+        "  ORDER BY gap_count DESC"
+      ]
+    },
+    {
+      "name": "b4c5d6e7",
+      "displayName": "avg_confidence_by_type",
+      "queryLines": [
+        "SELECT\n",
+        "    pii_type,\n",
+        "    pii_category,\n",
+        "    COUNT(*) AS occurrences,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence,\n",
+        "    ROUND(MIN(confidence), 2) AS min_confidence,\n",
+        "    ROUND(MAX(confidence), 2) AS max_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY pii_type, pii_category\n",
+        "  ORDER BY avg_confidence ASC"
+      ]
+    },
+    {
+      "name": "c5d6e7f8",
+      "displayName": "severity_gap_matrix",
+      "queryLines": [
+        "SELECT\n",
+        "    g.regulation,\n",
+        "    g.rule_type,\n",
+        "    g.severity,\n",
+        "    COUNT(*) AS gap_count,\n",
+        "    COUNT(DISTINCT g.table_name) AS tables_affected,\n",
+        "    COUNT(DISTINCT g.pii_type) AS pii_types_involved\n",
+        "  FROM dpdp_poc.silver.compliance_gaps g\n",
+        "  WHERE g.scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.compliance_gaps)\n",
+        "  GROUP BY g.regulation, g.rule_type, g.severity\n",
+        "  ORDER BY\n",
+        "    CASE g.severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,\n",
+        "    gap_count DESC"
+      ]
+    },
+    {
+      "name": "d6e7f8a9",
+      "displayName": "scan_history",
+      "queryLines": [
+        "SELECT\n",
+        "    scan_job_id,\n",
+        "    MIN(discovered_at) AS scan_start,\n",
+        "    MAX(discovered_at) AS scan_end,\n",
+        "    COUNT(*) AS findings_count,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'critical' THEN 1 ELSE 0 END) AS critical_count,\n",
+        "    SUM(CASE WHEN sensitivity_tier = 'high' THEN 1 ELSE 0 END) AS high_count,\n",
+        "    COUNT(DISTINCT table_name) AS tables_scanned,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  GROUP BY scan_job_id\n",
+        "  ORDER BY scan_start DESC\n",
+        "  LIMIT 10"
+      ]
+    },
+    {
+      "name": "e7f8a9b0",
+      "displayName": "column_data_type_pii_risk",
+      "queryLines": [
+        "SELECT\n",
+        "    column_data_type,\n",
+        "    COUNT(*) AS pii_count,\n",
+        "    COUNT(DISTINCT pii_type) AS pii_types,\n",
+        "    SUM(CASE WHEN sensitivity_tier IN ('critical', 'high') THEN 1 ELSE 0 END) AS high_risk_count,\n",
+        "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
+        "  FROM dpdp_poc.silver.pii_findings\n",
+        "  WHERE scan_job_id = (SELECT MAX(scan_job_id) FROM dpdp_poc.silver.pii_findings)\n",
+        "  GROUP BY column_data_type\n",
+        "  ORDER BY pii_count DESC"
+      ]
+    },
+    {
+      "name": "d9a10001",
+      "displayName": "lineage_summary_counters",
+      "queryLines": [
+        "SELECT COUNT(*) AS total_flows,\n",
+        "  COALESCE(SUM(CASE WHEN has_pii_flow THEN 1 ELSE 0 END), 0) AS pii_flows,\n",
+        "  COALESCE(ROUND(SUM(CASE WHEN has_pii_flow THEN 1 ELSE 0 END) * 100.0 / GREATEST(COUNT(*), 1), 1), 0) AS pii_flow_pct\n",
+        "FROM dpdp_poc.gold.data_lineage\n"
+      ]
+    },
+    {
+      "name": "d9a10002",
+      "displayName": "lineage_by_source",
+      "queryLines": [
+        "SELECT source_table,\n",
+        "  COUNT(*) AS downstream_count,\n",
+        "  CASE WHEN MAX(CASE WHEN has_pii_flow THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS has_pii\n",
+        "FROM dpdp_poc.gold.data_lineage\n",
+        "GROUP BY source_table ORDER BY downstream_count DESC LIMIT 20\n"
+      ]
+    },
+    {
+      "name": "d9a10003",
+      "displayName": "lineage_detail",
+      "queryLines": [
+        "SELECT source_table, target_table, column_mapping,\n",
+        "  CASE WHEN has_pii_flow THEN 'Yes' ELSE 'No' END AS has_pii_flow,\n",
+        "  mapped_at\n",
+        "FROM dpdp_poc.gold.data_lineage\n",
+        "ORDER BY source_table, target_table\n"
+      ]
+    },
+    {
+      "name": "d0a10001",
+      "displayName": "exposure_summary_counters",
+      "queryLines": [
+        "SELECT\n",
+        "  COALESCE(SUM(CASE WHEN exposure_level = 'critical' THEN 1 ELSE 0 END), 0) AS critical_exposures,\n",
+        "  COALESCE(SUM(CASE WHEN exposure_level = 'high' THEN 1 ELSE 0 END), 0) AS high_exposures,\n",
+        "  COUNT(DISTINCT grantee) AS unique_principals,\n",
+        "  COUNT(DISTINCT table_name) AS unique_tables\n",
+        "FROM dpdp_poc.gold.sensitive_data_exposure\n"
+      ]
+    },
+    {
+      "name": "d0a10002",
+      "displayName": "exposure_by_level",
+      "queryLines": [
+        "SELECT exposure_level, COUNT(*) AS count\n",
+        "FROM dpdp_poc.gold.sensitive_data_exposure\n",
+        "GROUP BY exposure_level\n",
+        "ORDER BY CASE exposure_level WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END\n"
+      ]
+    },
+    {
+      "name": "d0a10003",
+      "displayName": "exposure_by_pii_type",
+      "queryLines": [
+        "SELECT pii_type, COUNT(*) AS count\n",
+        "FROM dpdp_poc.gold.sensitive_data_exposure\n",
+        "GROUP BY pii_type ORDER BY count DESC LIMIT 15\n"
+      ]
+    },
+    {
+      "name": "d0a10004",
+      "displayName": "exposure_by_grantee",
+      "queryLines": [
+        "SELECT grantee, COUNT(*) AS exposure_count\n",
+        "FROM dpdp_poc.gold.sensitive_data_exposure\n",
+        "GROUP BY grantee ORDER BY exposure_count DESC LIMIT 10\n"
+      ]
+    },
+    {
+      "name": "d0a10005",
+      "displayName": "exposure_detail",
+      "queryLines": [
+        "SELECT table_name, column_name, pii_type, grantee, privilege, exposure_level, detected_at\n",
+        "FROM dpdp_poc.gold.sensitive_data_exposure\n",
+        "ORDER BY CASE exposure_level WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, table_name\n"
+      ]
+    },
+    {
+      "name": "d8a10001",
+      "displayName": "ap_summary_counters",
+      "queryLines": [
+        "SELECT\n",
+        "  COALESCE(SUM(CASE WHEN anomaly_flag = true THEN 1 ELSE 0 END), 0) AS total_anomalous,\n",
+        "  COALESCE(COUNT(DISTINCT CASE WHEN has_pii = true THEN user_name END), 0) AS users_accessing_pii,\n",
+        "  COALESCE(COUNT(DISTINCT CASE WHEN has_pii = true AND anomaly_flag = true THEN table_name END), 0) AS pii_tables_anomalous\n",
+        "FROM dpdp_poc.gold.access_patterns\n"
+      ]
+    },
+    {
+      "name": "d8a10002",
+      "displayName": "ap_users_by_access",
+      "queryLines": [
+        "SELECT user_name,\n",
+        "  SUM(access_count) AS total_access,\n",
+        "  CASE WHEN MAX(CASE WHEN has_pii = true THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS accesses_pii\n",
+        "FROM dpdp_poc.gold.access_patterns\n",
+        "GROUP BY user_name ORDER BY total_access DESC LIMIT 15\n"
+      ]
+    },
+    {
+      "name": "d8a10003",
+      "displayName": "ap_detail",
+      "queryLines": [
+        "SELECT user_name, table_name, access_count, last_accessed,\n",
+        "  CASE WHEN has_pii = true THEN 'Yes' ELSE 'No' END AS has_pii,\n",
+        "  CASE WHEN anomaly_flag = true THEN 'Yes' ELSE 'No' END AS anomaly_flag,\n",
+        "  analyzed_at\n",
+        "FROM dpdp_poc.gold.access_patterns\n",
+        "ORDER BY access_count DESC\n"
+      ]
+    },
+    {
+      "name": "dpia_latest_001",
+      "displayName": "dpia_latest",
+      "queryLines": [
+        "SELECT\n",
+        "  CONCAT('Q', QUARTER(generated_at), ' ', YEAR(generated_at)) AS quarter,\n",
+        "  generated_at,\n",
+        "  status,\n",
+        "  COALESCE(reviewed_by, '\u2014') AS reviewer,\n",
+        "  reviewed_at,\n",
+        "  ROUND(latency_seconds, 1) AS latency_s,\n",
+        "  CASE WHEN parse_error IS NOT NULL THEN '\u26a0 parse error' ELSE 'OK' END AS parse_status,\n",
+        "  prompt_version,\n",
+        "  regulation_pack\n",
+        "FROM dpdp_poc.compliance.dpia_runs\n",
+        "ORDER BY generated_at DESC\n",
+        "LIMIT 1\n"
+      ]
+    },
+    {
+      "name": "dpia_history_001",
+      "displayName": "dpia_history",
+      "queryLines": [
+        "SELECT\n",
+        "  CONCAT('Q', QUARTER(generated_at), ' ', YEAR(generated_at)) AS quarter,\n",
+        "  generated_at,\n",
+        "  run_id,\n",
+        "  status,\n",
+        "  COALESCE(reviewed_by, '\u2014') AS reviewer,\n",
+        "  reviewed_at,\n",
+        "  ROUND(latency_seconds, 1) AS latency_s,\n",
+        "  CASE WHEN parse_error IS NOT NULL THEN '\u26a0 parse error' ELSE 'OK' END AS parse_status\n",
+        "FROM dpdp_poc.compliance.dpia_runs\n",
+        "ORDER BY generated_at DESC\n",
+        "LIMIT 8\n"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "d732d928",
+      "displayName": "Global Filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS"
+    },
+    {
+      "name": "6942c052",
+      "displayName": "Executive Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "dpdp-compliance-dashboard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0b22c1cc",
+                  "fields": [
+                    {
+                      "name": "minutely(last_scan_time)",
+                      "expression": "DATE_TRUNC(\"MINUTE\", `last_scan_time`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "DATE_TRUNC(\"MINUTE\", `last_scan_time`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "description": "Powered by sinki.ai",
+                "title": "DPDP Compliance Dashboard",
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#FFFFFF"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "period": {
+                  "fieldName": "minutely(last_scan_time)"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#008FFF"
+              },
+              "widgetBorderColor": {
+                "light": "#96C6ED"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "risk-score-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "94dd0476",
+                  "fields": [
+                    {
+                      "name": "sum(risk_score)",
+                      "expression": "SUM(`risk_score`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Risk Score %",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(risk_score)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "70"
+                          },
+                          "operator": ">="
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 12
+                        }
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "40"
+                          },
+                          "operator": ">="
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 13
+                        }
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "40"
+                          },
+                          "operator": "<"
+                        },
+                        "color": "#00A972"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "compliance-score-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "94dd0476",
+                  "fields": [
+                    {
+                      "name": "sum(compliance_score)",
+                      "expression": "SUM(`compliance_score`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Compliance Score %",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(compliance_score)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "80"
+                          },
+                          "operator": ">="
+                        },
+                        "color": "#00A972"
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "50"
+                          },
+                          "operator": ">="
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 13
+                        }
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "50"
+                          },
+                          "operator": "<"
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 12
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "tables-scanned-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "006b6b90",
+                  "fields": [
+                    {
+                      "name": "sum(tables_scanned)",
+                      "expression": "SUM(`tables_scanned`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Tables Scanned",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(tables_scanned)"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008DFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "critical-pii-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "006b6b90",
+                  "fields": [
+                    {
+                      "name": "sum(critical_pii)",
+                      "expression": "SUM(`critical_pii`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Critical PII",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(critical_pii)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 12
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 1,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-columns-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "006b6b90",
+                  "fields": [
+                    {
+                      "name": "sum(total_pii_columns)",
+                      "expression": "SUM(`total_pii_columns`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "PII Columns Found",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_pii_columns)"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "total-gaps-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "006b6b90",
+                  "fields": [
+                    {
+                      "name": "sum(total_gaps)",
+                      "expression": "SUM(`total_gaps`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Compliance Gaps",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_gaps)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 13
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "critical-gaps-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "006b6b90",
+                  "fields": [
+                    {
+                      "name": "sum(critical_gaps)",
+                      "expression": "SUM(`critical_gaps`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Critical Gaps",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(critical_gaps)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 12
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "avg-confidence-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "006b6b90",
+                  "fields": [
+                    {
+                      "name": "sum(avg_confidence)",
+                      "expression": "SUM(`avg_confidence`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Confidence",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(avg_confidence)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0.8"
+                          },
+                          "operator": ">="
+                        },
+                        "color": "#43A047"
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0.6"
+                          },
+                          "operator": ">="
+                        },
+                        "color": "#FFB300"
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0.6"
+                          },
+                          "operator": "<"
+                        },
+                        "color": "#E53935"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "sensitivity-pie",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ab44b234",
+                  "fields": [
+                    {
+                      "name": "count",
+                      "expression": "`count`"
+                    },
+                    {
+                      "name": "sensitivity_tier",
+                      "expression": "`sensitivity_tier`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "mark": {
+                "colors": [
+                  "#E53935",
+                  "#FF6D00",
+                  "#FFB300",
+                  "#43A047"
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "PII by Sensitivity Level"
+              },
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "count",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Count"
+                },
+                "color": {
+                  "fieldName": "sensitivity_tier",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Sensitivity"
+                },
+                "label": {
+                  "show": true,
+                  "text": {
+                    "fieldName": "sensitivity_tier"
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "high-risk-tables-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "374f7b59",
+                  "fields": [
+                    {
+                      "name": "sum(risk_score)",
+                      "expression": "SUM(`risk_score`)"
+                    },
+                    {
+                      "name": "full_table_name",
+                      "expression": "`full_table_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "High Risk Tables (Top 20)"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "full_table_name",
+                  "axis": {
+                    "hideTitle": false,
+                    "hideLabels": true
+                  },
+                  "displayName": "Table",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "natural-order-reversed"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(risk_score)",
+                  "displayName": "Risk Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "sum(risk_score)",
+                  "displayName": "Risk Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 6,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "sinki-branding-exec",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block;\">Powered by [sinki.ai](https://www.sinki.ai)</span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "79fb8f88",
+      "displayName": "PII Discovery",
+      "layout": [
+        {
+          "widget": {
+            "name": "pii-discovery-header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block\"><span style=\"font-size: 36px;line-height: 1.5;color: #E8ECF0;\">PII Discovery Analysis</span></span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#65AAE9"
+              },
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-by-category-sensitivity",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c23c261a",
+                  "fields": [
+                    {
+                      "name": "sensitivity_tier",
+                      "expression": "`sensitivity_tier`"
+                    },
+                    {
+                      "name": "pii_category",
+                      "expression": "`pii_category`"
+                    },
+                    {
+                      "name": "sum(column_count)",
+                      "expression": "SUM(`column_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "mark": {
+                "colors": [
+                  "#E53935",
+                  "#FF6D00",
+                  "#FFB300",
+                  "#43A047"
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "PII by Category & Sensitivity"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "pii_category",
+                  "displayName": "Category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(column_count)",
+                  "displayName": "Column Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "sensitivity_tier",
+                  "displayName": "Sensitivity",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "top-pii-types-found",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "262fcce2",
+                  "fields": [
+                    {
+                      "name": "pii_category",
+                      "expression": "`pii_category`"
+                    },
+                    {
+                      "name": "pii_type",
+                      "expression": "`pii_type`"
+                    },
+                    {
+                      "name": "sum(occurrences)",
+                      "expression": "SUM(`occurrences`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Top PII Types Found"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "pii_type",
+                  "displayName": "PII Type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(occurrences)",
+                  "displayName": "Occurrences",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "pii_category",
+                  "displayName": "Category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-discovery-trend-30d",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c1f1f28b",
+                  "fields": [
+                    {
+                      "name": "daily(discovery_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `discovery_date`)"
+                    },
+                    {
+                      "name": "sum(pii_found)",
+                      "expression": "SUM(`pii_found`)"
+                    },
+                    {
+                      "name": "sum(critical_count)",
+                      "expression": "SUM(`critical_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "PII Discovery Trend (Last 30 Days)"
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(discovery_date)",
+                  "displayName": "Discovery Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(pii_found)",
+                  "displayName": "Total PII Found",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-summary-category",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c23c261a",
+                  "fields": [
+                    {
+                      "name": "pii_category",
+                      "expression": "`pii_category`"
+                    },
+                    {
+                      "name": "sensitivity_tier",
+                      "expression": "`sensitivity_tier`"
+                    },
+                    {
+                      "name": "column_count",
+                      "expression": "`column_count`"
+                    },
+                    {
+                      "name": "table_count",
+                      "expression": "`table_count`"
+                    },
+                    {
+                      "name": "avg_confidence",
+                      "expression": "`avg_confidence`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "headerHeight": 43,
+              "frame": {
+                "showTitle": true,
+                "title": "PII Summary by Category",
+                "headerAlignment": "center"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "pii_category",
+                    "useForSearch": false,
+                    "contentAlignment": "left",
+                    "displayName": "Category",
+                    "style": {
+                      "type": "basic"
+                    }
+                  },
+                  {
+                    "fieldName": "sensitivity_tier",
+                    "displayName": "Sensitivity"
+                  },
+                  {
+                    "fieldName": "column_count",
+                    "contentAlignment": "center",
+                    "displayName": "Columns"
+                  },
+                  {
+                    "fieldName": "table_count",
+                    "contentAlignment": "center",
+                    "displayName": "Tables"
+                  },
+                  {
+                    "fieldName": "avg_confidence",
+                    "contentAlignment": "center",
+                    "displayName": "Avg Confidence"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#E3F6FF"
+              },
+              "widgetBorderColor": {
+                "light": "#009BFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "filter-category",
+            "queries": [
+              {
+                "name": "dashboards/01f1066061e715cb880e2ded156ae1b4/datasets/01f1069d5af4159095c9ffdc840e2e62_category",
+                "query": {
+                  "datasetName": "c23c261a",
+                  "fields": [
+                    {
+                      "name": "pii_category",
+                      "expression": "`pii_category`"
+                    },
+                    {
+                      "name": "category_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Filter by Category",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "pii_category",
+                    "queryName": "dashboards/01f1066061e715cb880e2ded156ae1b4/datasets/01f1069d5af4159095c9ffdc840e2e62_category"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter-sensitivity",
+            "queries": [
+              {
+                "name": "dashboards/01f1066061e715cb880e2ded156ae1b4/datasets/01f1069d5af4159095c9ffdc840e2e62_sensitivity",
+                "query": {
+                  "datasetName": "c23c261a",
+                  "fields": [
+                    {
+                      "name": "sensitivity_tier",
+                      "expression": "`sensitivity_tier`"
+                    },
+                    {
+                      "name": "sensitivity_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Filter by Sensitivity",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "sensitivity_tier",
+                    "queryName": "dashboards/01f1066061e715cb880e2ded156ae1b4/datasets/01f1069d5af4159095c9ffdc840e2e62_sensitivity"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "sinki-branding-pii",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block;\">Powered by [sinki.ai](https://www.sinki.ai)</span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "4cde1c77",
+      "displayName": "Compliance Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "compliance-header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block\"><span style=\"font-size: 36px;line-height: 1.5;color: #E8ECF0;\">Compliance Gap Analysis</span></span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#65AAE9"
+              },
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "total-gaps",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "7c293800",
+                  "fields": [
+                    {
+                      "name": "sum(total_gaps)",
+                      "expression": "SUM(`total_gaps`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Total Gaps",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_gaps)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "10"
+                          },
+                          "operator": ">="
+                        },
+                        "color": "#E53935"
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "5"
+                          },
+                          "operator": ">="
+                        },
+                        "color": "#FF6D00"
+                      },
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "5"
+                          },
+                          "operator": "<"
+                        },
+                        "color": "#43A047"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "critical-gaps",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "7c293800",
+                  "fields": [
+                    {
+                      "name": "sum(critical_gaps)",
+                      "expression": "SUM(`critical_gaps`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Critical Gaps",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(critical_gaps)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 12
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "high-gaps",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "7c293800",
+                  "fields": [
+                    {
+                      "name": "sum(high_gaps)",
+                      "expression": "SUM(`high_gaps`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "High Gaps",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(high_gaps)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 13
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "regulations-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "7c293800",
+                  "fields": [
+                    {
+                      "name": "sum(regulations_affected)",
+                      "expression": "SUM(`regulations_affected`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Regulations",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(regulations_affected)"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "tables-affected-counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "7c293800",
+                  "fields": [
+                    {
+                      "name": "sum(tables_affected)",
+                      "expression": "SUM(`tables_affected`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Tables Affected",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(tables_affected)"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "gaps-by-regulation-chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "495c015f",
+                  "fields": [
+                    {
+                      "name": "severity",
+                      "expression": "`severity`"
+                    },
+                    {
+                      "name": "regulation",
+                      "expression": "`regulation`"
+                    },
+                    {
+                      "name": "gap_count",
+                      "expression": "`gap_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "mark": {
+                "colors": [
+                  "#E53935",
+                  "#FF6D00",
+                  "#FFB300",
+                  "#43A047"
+                ]
+              },
+              "frame": {
+                "title": "Gaps by Regulation & Severity",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "regulation",
+                  "displayName": "Regulation",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "gap_count",
+                  "displayName": "Gap Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "severity",
+                  "displayName": "Severity",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "gaps-by-rule-type-pie",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "2b551fa9",
+                  "fields": [
+                    {
+                      "name": "gap_count",
+                      "expression": "`gap_count`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Gaps by Rule Type",
+                "showTitle": true
+              },
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "gap_count",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Gap Count"
+                },
+                "color": {
+                  "fieldName": "rule_type",
+                  "displayName": "Rule Type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true,
+                  "text": {
+                    "fieldName": "rule_type"
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 4,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "severity-gap-matrix-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c5d6e7f8",
+                  "fields": [
+                    {
+                      "name": "regulation",
+                      "expression": "`regulation`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "severity",
+                      "expression": "`severity`"
+                    },
+                    {
+                      "name": "gap_count",
+                      "expression": "`gap_count`"
+                    },
+                    {
+                      "name": "tables_affected",
+                      "expression": "`tables_affected`"
+                    },
+                    {
+                      "name": "pii_types_involved",
+                      "expression": "`pii_types_involved`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Compliance Gap Breakdown",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "regulation",
+                    "displayName": "Regulation"
+                  },
+                  {
+                    "fieldName": "rule_type",
+                    "displayName": "Rule Type"
+                  },
+                  {
+                    "fieldName": "severity",
+                    "displayName": "Severity"
+                  },
+                  {
+                    "fieldName": "gap_count",
+                    "displayName": "Gaps",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "tables_affected",
+                    "displayName": "Tables",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "pii_types_involved",
+                    "displayName": "PII Types",
+                    "contentAlignment": "center"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#E3F6FF"
+              },
+              "widgetBorderColor": {
+                "light": "#009BFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "remediation-priorities-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "54bab87b",
+                  "fields": [
+                    {
+                      "name": "priority",
+                      "expression": "`priority`"
+                    },
+                    {
+                      "name": "severity",
+                      "expression": "`severity`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "regulation",
+                      "expression": "`regulation`"
+                    },
+                    {
+                      "name": "gap_count",
+                      "expression": "`gap_count`"
+                    },
+                    {
+                      "name": "tables_affected",
+                      "expression": "`tables_affected`"
+                    },
+                    {
+                      "name": "issue_description",
+                      "expression": "`issue_description`"
+                    },
+                    {
+                      "name": "recommended_action",
+                      "expression": "`recommended_action`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Remediation Priorities",
+                "showTitle": true
+              },
+              "itemsPerPage": 25,
+              "condensed": true,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "priority",
+                    "displayName": "#",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "severity",
+                    "displayName": "Severity"
+                  },
+                  {
+                    "fieldName": "regulation",
+                    "displayName": "Regulation"
+                  },
+                  {
+                    "fieldName": "rule_type",
+                    "displayName": "Rule Type"
+                  },
+                  {
+                    "fieldName": "gap_count",
+                    "displayName": "Gaps",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "tables_affected",
+                    "displayName": "Tables",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "issue_description",
+                    "displayName": "Issue"
+                  },
+                  {
+                    "fieldName": "recommended_action",
+                    "displayName": "Recommended Action"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 16,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "sinki-branding-compliance",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block;\">Powered by [sinki.ai](https://www.sinki.ai)</span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 22,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "28e94de2",
+      "displayName": "Data Inventory",
+      "layout": [
+        {
+          "widget": {
+            "name": "data-inventory-header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block\"><span style=\"font-size: 36px;line-height: 1.5;color: #E8ECF0;\">Data Inventory & Risk Assessment</span></span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#65AAE9"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "tables-with-pii",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6850504a",
+                  "fields": [
+                    {
+                      "name": "total_tables",
+                      "expression": "`total_tables`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Tables with PII",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_tables"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-columns",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6850504a",
+                  "fields": [
+                    {
+                      "name": "total_columns",
+                      "expression": "`total_columns`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "PII Columns",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_columns"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-types",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6850504a",
+                  "fields": [
+                    {
+                      "name": "pii_types_found",
+                      "expression": "`pii_types_found`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "PII Types",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "pii_types_found"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "categories",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6850504a",
+                  "fields": [
+                    {
+                      "name": "categories_found",
+                      "expression": "`categories_found`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Categories",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "categories_found"
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-distribution-by-schema",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "83e059c6",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "pii_columns",
+                      "expression": "`pii_columns`"
+                    },
+                    {
+                      "name": "high_risk_columns",
+                      "expression": "`high_risk_columns`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "PII Distribution by Schema",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "schema_name",
+                  "displayName": "Schema",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "pii_columns",
+                  "displayName": "PII Columns",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "high_risk_columns",
+                  "displayName": "High Risk Columns",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "table-risk-summary",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4cbc6d9",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "pii_columns",
+                      "expression": "`pii_columns`"
+                    },
+                    {
+                      "name": "risk_score",
+                      "expression": "`risk_score`"
+                    },
+                    {
+                      "name": "critical_count",
+                      "expression": "`critical_count`"
+                    },
+                    {
+                      "name": "high_count",
+                      "expression": "`high_count`"
+                    },
+                    {
+                      "name": "avg_confidence",
+                      "expression": "`avg_confidence`"
+                    },
+                    {
+                      "name": "pii_types",
+                      "expression": "`pii_types`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Table Risk Summary",
+                "showTitle": true
+              },
+              "itemsPerPage": 25,
+              "condensed": true,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "pii_columns",
+                    "displayName": "PII Cols",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "risk_score",
+                    "displayName": "Risk",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "critical_count",
+                    "displayName": "Critical",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "high_count",
+                    "displayName": "High",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "avg_confidence",
+                    "displayName": "Confidence",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "pii_types",
+                    "displayName": "PII Types"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 4,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "complete-pii-inventory",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a9a7c41b",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "pii_type",
+                      "expression": "`pii_type`"
+                    },
+                    {
+                      "name": "pii_category",
+                      "expression": "`pii_category`"
+                    },
+                    {
+                      "name": "sensitivity_tier",
+                      "expression": "`sensitivity_tier`"
+                    },
+                    {
+                      "name": "confidence",
+                      "expression": "`confidence`"
+                    },
+                    {
+                      "name": "classifier_source",
+                      "expression": "`classifier_source`"
+                    },
+                    {
+                      "name": "regulations",
+                      "expression": "`regulations`"
+                    },
+                    {
+                      "name": "discovered_at",
+                      "expression": "`discovered_at`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Complete PII Inventory",
+                "showTitle": true
+              },
+              "itemsPerPage": 25,
+              "condensed": true,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "catalog_name",
+                    "displayName": "Catalog"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "displayName": "Schema"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "column_name",
+                    "displayName": "Column"
+                  },
+                  {
+                    "fieldName": "pii_type",
+                    "displayName": "PII Type"
+                  },
+                  {
+                    "fieldName": "pii_category",
+                    "displayName": "Category"
+                  },
+                  {
+                    "fieldName": "sensitivity_tier",
+                    "displayName": "Sensitivity"
+                  },
+                  {
+                    "fieldName": "confidence",
+                    "displayName": "Confidence"
+                  },
+                  {
+                    "fieldName": "classifier_source",
+                    "displayName": "Detection"
+                  },
+                  {
+                    "fieldName": "regulations",
+                    "displayName": "Regulations"
+                  },
+                  {
+                    "fieldName": "discovered_at",
+                    "displayName": "Discovered"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "sinki-branding-inventory",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block;\">Powered by [sinki.ai](https://www.sinki.ai)</span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "a1b2c3d4",
+      "displayName": "Detection Quality",
+      "layout": [
+        {
+          "widget": {
+            "name": "detection-quality-header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block\"><span style=\"font-size: 36px;line-height: 1.5;color: #E8ECF0;\">Detection Quality & Insights</span></span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#65AAE9"
+              },
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "confidence-distribution-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "e1a2b3c4",
+                  "fields": [
+                    {
+                      "name": "confidence_bucket",
+                      "expression": "`confidence_bucket`"
+                    },
+                    {
+                      "name": "finding_count",
+                      "expression": "`finding_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Detection Confidence Distribution"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "confidence_bucket",
+                  "displayName": "Confidence Range",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "finding_count",
+                  "displayName": "Findings",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "finding_count",
+                  "displayName": "Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "detection-method-pie",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f2b3c4d5",
+                  "fields": [
+                    {
+                      "name": "classifier_source",
+                      "expression": "`classifier_source`"
+                    },
+                    {
+                      "name": "finding_count",
+                      "expression": "`finding_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Detection Methods Used"
+              },
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "finding_count",
+                  "displayName": "Findings",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "classifier_source",
+                  "displayName": "Method",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true,
+                  "text": {
+                    "fieldName": "classifier_source"
+                  }
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "avg-confidence-by-type-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4c5d6e7",
+                  "fields": [
+                    {
+                      "name": "pii_type",
+                      "expression": "`pii_type`"
+                    },
+                    {
+                      "name": "avg_confidence",
+                      "expression": "`avg_confidence`"
+                    },
+                    {
+                      "name": "pii_category",
+                      "expression": "`pii_category`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Confidence by PII Type"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "pii_type",
+                  "displayName": "PII Type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg_confidence",
+                  "displayName": "Avg Confidence",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "pii_category",
+                  "displayName": "Category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "detection-method-detail-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f2b3c4d5",
+                  "fields": [
+                    {
+                      "name": "classifier_source",
+                      "expression": "`classifier_source`"
+                    },
+                    {
+                      "name": "finding_count",
+                      "expression": "`finding_count`"
+                    },
+                    {
+                      "name": "avg_confidence",
+                      "expression": "`avg_confidence`"
+                    },
+                    {
+                      "name": "pii_types_detected",
+                      "expression": "`pii_types_detected`"
+                    },
+                    {
+                      "name": "tables_scanned",
+                      "expression": "`tables_scanned`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Detection Method Performance"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "classifier_source",
+                    "displayName": "Method"
+                  },
+                  {
+                    "fieldName": "finding_count",
+                    "displayName": "Findings",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "avg_confidence",
+                    "displayName": "Avg Confidence",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "pii_types_detected",
+                    "displayName": "PII Types",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "tables_scanned",
+                    "displayName": "Tables",
+                    "contentAlignment": "center"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#E3F6FF"
+              },
+              "widgetBorderColor": {
+                "light": "#009BFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "data-type-risk-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "e7f8a9b0",
+                  "fields": [
+                    {
+                      "name": "column_data_type",
+                      "expression": "`column_data_type`"
+                    },
+                    {
+                      "name": "pii_count",
+                      "expression": "`pii_count`"
+                    },
+                    {
+                      "name": "high_risk_count",
+                      "expression": "`high_risk_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "PII Risk by Data Type"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "column_data_type",
+                  "displayName": "Data Type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "pii_count",
+                  "displayName": "PII Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "high_risk_count",
+                  "displayName": "High Risk Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 14,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "pii-gap-correlation-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a3b4c5d6",
+                  "fields": [
+                    {
+                      "name": "pii_type",
+                      "expression": "`pii_type`"
+                    },
+                    {
+                      "name": "sensitivity_tier",
+                      "expression": "`sensitivity_tier`"
+                    },
+                    {
+                      "name": "pii_columns",
+                      "expression": "`pii_columns`"
+                    },
+                    {
+                      "name": "gap_count",
+                      "expression": "`gap_count`"
+                    },
+                    {
+                      "name": "gaps_per_column",
+                      "expression": "`gaps_per_column`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "PII Type to Compliance Gap Correlation"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "pii_type",
+                    "displayName": "PII Type"
+                  },
+                  {
+                    "fieldName": "sensitivity_tier",
+                    "displayName": "Sensitivity"
+                  },
+                  {
+                    "fieldName": "pii_columns",
+                    "displayName": "PII Columns",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "gap_count",
+                    "displayName": "Gaps",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "gaps_per_column",
+                    "displayName": "Gaps/Column",
+                    "contentAlignment": "center"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#E3F6FF"
+              },
+              "widgetBorderColor": {
+                "light": "#009BFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "scan-history-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d6e7f8a9",
+                  "fields": [
+                    {
+                      "name": "scan_job_id",
+                      "expression": "`scan_job_id`"
+                    },
+                    {
+                      "name": "scan_start",
+                      "expression": "`scan_start`"
+                    },
+                    {
+                      "name": "findings_count",
+                      "expression": "`findings_count`"
+                    },
+                    {
+                      "name": "critical_count",
+                      "expression": "`critical_count`"
+                    },
+                    {
+                      "name": "high_count",
+                      "expression": "`high_count`"
+                    },
+                    {
+                      "name": "tables_scanned",
+                      "expression": "`tables_scanned`"
+                    },
+                    {
+                      "name": "avg_confidence",
+                      "expression": "`avg_confidence`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Scan History (Last 10 Runs)"
+              },
+              "itemsPerPage": 10,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "scan_job_id",
+                    "displayName": "Job ID"
+                  },
+                  {
+                    "fieldName": "scan_start",
+                    "displayName": "Scan Time"
+                  },
+                  {
+                    "fieldName": "findings_count",
+                    "displayName": "Findings",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "critical_count",
+                    "displayName": "Critical",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "high_count",
+                    "displayName": "High",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "tables_scanned",
+                    "displayName": "Tables",
+                    "contentAlignment": "center"
+                  },
+                  {
+                    "fieldName": "avg_confidence",
+                    "displayName": "Confidence",
+                    "contentAlignment": "center"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#008EFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 24,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "sinki-branding-quality",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block;\">Powered by [sinki.ai](https://www.sinki.ai)</span>"
+              ]
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "light": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 29,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "pg_dpia_001",
+      "displayName": "DPIA",
+      "layout": [
+        {
+          "widget": {
+            "name": "dpia-latest-summary",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "dpia_latest_001",
+                  "fields": [
+                    {
+                      "name": "quarter",
+                      "expression": "`quarter`"
+                    },
+                    {
+                      "name": "generated_at",
+                      "expression": "`generated_at`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "reviewer",
+                      "expression": "`reviewer`"
+                    },
+                    {
+                      "name": "reviewed_at",
+                      "expression": "`reviewed_at`"
+                    },
+                    {
+                      "name": "latency_s",
+                      "expression": "`latency_s`"
+                    },
+                    {
+                      "name": "parse_status",
+                      "expression": "`parse_status`"
+                    },
+                    {
+                      "name": "prompt_version",
+                      "expression": "`prompt_version`"
+                    },
+                    {
+                      "name": "regulation_pack",
+                      "expression": "`regulation_pack`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Latest DPIA",
+                "headerAlignment": "center"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "quarter",
+                    "displayName": "Quarter"
+                  },
+                  {
+                    "fieldName": "generated_at",
+                    "displayName": "Generated at"
+                  },
+                  {
+                    "fieldName": "status",
+                    "displayName": "Status"
+                  },
+                  {
+                    "fieldName": "reviewer",
+                    "displayName": "Reviewer"
+                  },
+                  {
+                    "fieldName": "reviewed_at",
+                    "displayName": "Reviewed at"
+                  },
+                  {
+                    "fieldName": "latency_s",
+                    "displayName": "Latency (s)"
+                  },
+                  {
+                    "fieldName": "parse_status",
+                    "displayName": "Parse status"
+                  },
+                  {
+                    "fieldName": "prompt_version",
+                    "displayName": "Prompt version"
+                  },
+                  {
+                    "fieldName": "regulation_pack",
+                    "displayName": "Regulation pack"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "dpia-history-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "dpia_history_001",
+                  "fields": [
+                    {
+                      "name": "quarter",
+                      "expression": "`quarter`"
+                    },
+                    {
+                      "name": "generated_at",
+                      "expression": "`generated_at`"
+                    },
+                    {
+                      "name": "run_id",
+                      "expression": "`run_id`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "reviewer",
+                      "expression": "`reviewer`"
+                    },
+                    {
+                      "name": "reviewed_at",
+                      "expression": "`reviewed_at`"
+                    },
+                    {
+                      "name": "latency_s",
+                      "expression": "`latency_s`"
+                    },
+                    {
+                      "name": "parse_status",
+                      "expression": "`parse_status`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "DPIA history (last 8 runs)",
+                "headerAlignment": "center"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "quarter",
+                    "displayName": "Quarter"
+                  },
+                  {
+                    "fieldName": "generated_at",
+                    "displayName": "Generated at"
+                  },
+                  {
+                    "fieldName": "run_id",
+                    "displayName": "Run ID"
+                  },
+                  {
+                    "fieldName": "status",
+                    "displayName": "Status"
+                  },
+                  {
+                    "fieldName": "reviewer",
+                    "displayName": "Reviewer"
+                  },
+                  {
+                    "fieldName": "reviewed_at",
+                    "displayName": "Reviewed at"
+                  },
+                  {
+                    "fieldName": "latency_s",
+                    "displayName": "Latency (s)"
+                  },
+                  {
+                    "fieldName": "parse_status",
+                    "displayName": "Parse status"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 12,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

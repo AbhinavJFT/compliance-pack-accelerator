@@ -1,0 +1,31 @@
+# AI/BI Dashboard: the stakeholder-facing consumption layer.
+#
+# An AI/BI dashboard (formerly Lakeview) is the Databricks-native BI surface.
+# Tiles query Unity Catalog tables/views directly; Genie provides
+# natural-language query over the same data.
+#
+# The POC dashboard has four panels matching the three POC artifacts plus
+# an overview tile:
+#
+#   1. Personal data register (Artifact 1)
+#   2. Consent events by channel × purpose (Artifact 2)
+#   3. Marketing-eligible principals (live-propagation demo)
+#   4. DSR request status (Artifact 3)
+#
+# The dashboard file is dashboards/dpdp_compliance.lvdash.json.
+# On Day 14, the dashboard is the primary demo surface — not raw SQL notebooks.
+
+resources:
+  dashboards:
+    dpdp_compliance_dashboard:
+      display_name: "DPDP Compliance POC"
+      warehouse_id: ${var.sql_warehouse_id}
+      file_path: ../dashboards/dpdp_compliance.lvdash.json
+
+      # Dashboard permissions: anyone in the workspace can view; the service
+      # principal can edit.
+      permissions:
+        - user_name: ${workspace.current_user.userName}
+          level: CAN_EDIT
+        - group_name: "users"
+          level: CAN_READ

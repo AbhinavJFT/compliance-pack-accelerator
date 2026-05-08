@@ -1,0 +1,185 @@
+# Databricks Asset Bundle for the DPDP POC
+# Deploy with:   databricks bundle deploy --target dev
+# Tear down:    databricks bundle destroy --target dev
+#
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ TEAMMATES: before your first deploy, edit the ONE literal URL on    │
+# │ `targets.dev.workspace.host` (near the bottom of this file) to      │
+# │ point at YOUR workspace. DAB does not allow variable interpolation  │
+# │ on auth fields, so a literal is the only option.                    │
+# │                                                                     │
+# │ After that, `sql_warehouse_id` auto-resolves via the                │
+# │ "Serverless Starter Warehouse" name lookup — no other edits needed  │
+# │ for a Databricks trial workspace.                                   │
+# └─────────────────────────────────────────────────────────────────────┘
+#
+# This bundle defines the base POC infrastructure:
+#   - Unity Catalog: catalog, schemas, volumes
+#   - DLT pipeline:  Bronze + Silver medallion
+#   - Workflow jobs: run_medallion, phase1_bootstrap, retention_enforcement
+#   - AI/BI Dashboard: the stakeholder consumption layer
+#
+# Lakebase + the DSR-portal Databricks App are commented out in
+# resources/catalog_and_storage.yml and resources/apps.yml because
+# Lakebase is not available on Databricks free-trial workspaces. The
+# DSR equivalent on free-tier is scripts/dsr_discovery.py +
+# scripts/dsr_erasure.py.
+#
+# The persona governance layer (4 persona dashboards + Genie spaces +
+# users + UC grants + ACLs) is separate — deployed via:
+#
+#   python3 scripts/setup_all_personas.py
+#
+# That script is not part of this bundle because DAB cannot declare
+# Genie spaces, SCIM users, or per-principal UC grants. See
+# docs/persona_deploy.md for the full teammate deployment guide.
+
+bundle:
+  name: dpdp-poc
+  uuid: ${var.bundle_uuid}
+
+# ---------------------------------------------------------------------------
+# Variables
+# ---------------------------------------------------------------------------
+# These vary per deployment target. Override via --var or in target block.
+variables:
+  bundle_uuid:
+    description: Stable UUID for this bundle (generate once, commit)
+    default: "a7f3b2c1-9e8d-4f5a-b6c3-2d1e8f0a9b5c"
+
+  catalog_name:
+    description: Unity Catalog name for the POC
+    default: dpdp_poc
+
+  catalog_storage_root:
+    description: >
+      S3/ADLS/GCS location for the UC catalog's managed storage. Only used
+      if you UNCOMMENT the `catalogs:` block in
+      resources/catalog_and_storage.yml (normally left commented out on
+      Default-Storage workspaces that require UI/CLI catalog creation).
+      If you uncomment that block, override this with your workspace's
+      storage_root via --var:
+        databricks bundle deploy --target dev \
+          --var catalog_storage_root=s3://YOUR-BUCKET/uc/YOUR-METASTORE/YOUR-CATALOG
+      Find your existing catalog's path via: databricks catalogs get <catalog>
+      Leave as empty string on the default path (catalog block commented out).
+    default: ""
+
+  landing_volume_path:
+    description: Path to the synthetic data landing volume
+    default: /Volumes/${var.catalog_name}/bronze/landing
+
+  lakebase_instance_name:
+    description: Name of the Lakebase instance for consent OLTP
+    default: dpdp-poc-consent
+
+  lakebase_database_name:
+    description: Database name within the Lakebase instance
+    default: dpdp_poc_consent
+
+  service_principal_name:
+    description: Service principal that runs all bundle resources
+    default: dpdp-poc-builder
+
+  notification_email:
+    description: Email for job failure notifications
+    default: "dpdp-poc-team@example.com"
+
+  run_as_user:
+    description: User or service principal to run jobs as (varies by target)
+    default: "${workspace.current_user.userName}"
+
+  workspace_host_dev:
+    description: >
+      Databricks workspace URL for the dev target. Set per-deployer via
+      `scripts/configure_workspace_host.sh https://dbc-<your-id>.cloud.databricks.com`
+      (which rewrites the literal under `targets.dev.workspace.host` below —
+      DAB does not allow variable interpolation on auth fields).
+    default: ""
+
+  workspace_host_prod:
+    description: Customer production workspace URL (Phase 1)
+    default: ""
+
+  sql_warehouse_id:
+    description: >
+      Serverless SQL warehouse id used by SQL tasks and the bundled
+      dashboard. Auto-resolved by name (Databricks trial default:
+      "Serverless Starter Warehouse"). Override via
+      `--var sql_warehouse_id=<id>` if your workspace uses a different
+      warehouse name.
+    lookup:
+      warehouse: "Serverless Starter Warehouse"
+
+# ---------------------------------------------------------------------------
+# Workspace
+# ---------------------------------------------------------------------------
+workspace:
+  # host is set per-target below
+  root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+
+# ---------------------------------------------------------------------------
+# Top-level permissions
+# ---------------------------------------------------------------------------
+# The deployer (current user) needs CAN_MANAGE on every resource so
+# they can re-deploy and clean up. Using the workspace-resolved user
+# means any teammate deploying the bundle gets this automatically.
+permissions:
+  - user_name: ${workspace.current_user.userName}
+    level: CAN_MANAGE
+
+# ---------------------------------------------------------------------------
+# Resource includes
+# ---------------------------------------------------------------------------
+# Each file in resources/ declares one logical group of Databricks resources.
+include:
+  - resources/catalog_and_storage.yml
+  - resources/pipelines.yml
+  - resources/jobs.yml
+  - resources/apps.yml
+  - resources/dashboards.yml
+
+# ---------------------------------------------------------------------------
+# Targets
+# ---------------------------------------------------------------------------
+# 'dev' is the trial-workspace target; 'prod' is a placeholder for Phase 1.
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      # ↓↓↓ Run `scripts/configure_workspace_host.sh https://dbc-<your-id>.cloud.databricks.com`
+      #     once per clone — it rewrites the line below in place. ↓↓↓
+      host: https://dbc-REPLACE-ME.cloud.databricks.com
+    run_as:
+      user_name: ${var.run_as_user}
+
+  # prod target removed intentionally — the original scaffold left
+  # workspace.host as an empty string, which fails with an obscure auth
+  # error on `--target prod`. Restore this target only when you have a
+  # real prod workspace URL to put in it.
+  #
+  # prod:
+  #   mode: production
+  #   workspace:
+  #     host: https://<prod-workspace>.cloud.databricks.com
+  #   run_as:
+  #     service_principal_name: ${var.service_principal_name}
+
+# ---------------------------------------------------------------------------
+# Sync: what the bundle uploads to the workspace
+# ---------------------------------------------------------------------------
+sync:
+  include:
+    - pipelines/**
+    - schemas/**
+    - dashboards/**
+    - tests/**
+    - governance_core/**
+    - regulations/**
+    - apps/**
+    - notebooks/**
+  exclude:
+    - "**/__pycache__/**"
+    - "**/*.pyc"
+    - "**/.DS_Store"

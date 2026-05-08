@@ -1,0 +1,17 @@
+# Databricks Apps manifest for the DPIA Review app.
+#
+# Apps inject DATABRICKS_APP_PORT at runtime; the app must bind to
+# that port, not a hardcoded one, or the load balancer can't route
+# traffic (symptom: HTTP 502 / "App Not Available" on the URL even
+# though `app_status: RUNNING`). YAML command lists don't expand
+# env vars, so we wrap the streamlit invocation in `sh -c` and let
+# the shell expand $DATABRICKS_APP_PORT.
+
+command:
+  - sh
+  - -c
+  - "streamlit run app.py --server.port $DATABRICKS_APP_PORT --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false"
+
+env:
+  - name: DPDP_CATALOG
+    value: "dpdp_poc"

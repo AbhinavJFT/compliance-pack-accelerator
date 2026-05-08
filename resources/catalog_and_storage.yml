@@ -1,0 +1,73 @@
+# Unity Catalog scaffolding.
+#
+# NOTE (2026-04-23): On newer Databricks workspaces with the Default-Storage
+# metastore enabled, catalog/schema/volume resources CANNOT be created via the
+# DAB API — the workspace returns `Please use the UI to create a catalog with
+# Default Storage.` The original catalog + schemas + volumes blocks are
+# preserved in git history for workspaces that still allow API-side creation.
+# On free-trial/default-storage workspaces:
+#   1. Create the catalog (+ schemas + volumes) once via the Databricks UI
+#      (Catalog Explorer → + Create → Catalog) or via the CLI:
+#        databricks catalogs create dpdp_poc
+#        databricks schemas create bronze dpdp_poc
+#        ... (see the commented block below for the full list)
+#   2. Bundle deploys only manage the pipeline, jobs, and dashboards against
+#      the pre-created catalog.
+#
+# resources:
+#   catalogs:
+#     dpdp_poc_catalog:
+#       name: ${var.catalog_name}
+#       comment: "DPDP Compliance POC. Covers Modules 01 (PII inventory) and 02 (consent)."
+#       storage_root: ${var.catalog_storage_root}
+#       properties:
+#         dpdp_scope: "modules_01_02"
+#         data_classification: "synthetic_pii"
+#
+#   schemas:
+#     bronze_schema:     { catalog_name: ${var.catalog_name}, name: bronze     }
+#     silver_schema:     { catalog_name: ${var.catalog_name}, name: silver     }
+#     gold_schema:       { catalog_name: ${var.catalog_name}, name: gold       }
+#     compliance_schema: { catalog_name: ${var.catalog_name}, name: compliance }
+#
+#   volumes:
+#     landing_volume:
+#       catalog_name: ${var.catalog_name}
+#       schema_name: bronze
+#       name: landing
+#       volume_type: MANAGED
+#     checkpoints_volume:
+#       catalog_name: ${var.catalog_name}
+#       schema_name: bronze
+#       name: checkpoints
+#       volume_type: MANAGED
+#     dsr_bundles_volume:
+#       catalog_name: ${var.catalog_name}
+#       schema_name: compliance
+#       name: dsr_bundles
+#       volume_type: MANAGED
+
+# ---------------------------------------------------------------------------
+# Lakebase (paid tier — commented out for free-trial compatibility)
+# ---------------------------------------------------------------------------
+# In the full POC, consent events and DSR intake write to a Lakebase instance,
+# then sync to Delta at dpdp_poc.compliance.*. Lakebase is NOT available on
+# Databricks free-trial workspaces.
+#
+# On the free tier, compliance.consent_events_log and compliance.dsr_requests
+# are plain Delta tables (created by pipelines/phase1_bootstrap.py).
+#
+# Uncomment on a workspace that has Lakebase:
+#
+# resources:
+#   database_instances:
+#     consent_oltp:
+#       name: ${var.lakebase_instance_name}
+#       capacity: "CU_1"
+#
+#   database_catalogs:
+#     consent_catalog:
+#       name: ${var.lakebase_database_name}
+#       database_name: ${var.lakebase_database_name}
+#       database_instance_name: ${resources.database_instances.consent_oltp.name}
+#       create_database_if_not_exists: true

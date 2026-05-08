@@ -1,0 +1,145 @@
+# DPDP POC — Scope and Phase-1 Boundary
+
+This is a one-pager for reviewers. It says exactly what the POC delivers,
+what it stops short of, and what is tracked for Phase 1. The intent is
+to prevent two failure modes: (a) reviewers expecting a full DPDP
+production system, and (b) reviewers under-counting what's already live.
+
+The authoritative work-tracking list is `BACKLOG.md`.
+
+---
+
+## In scope (delivered, runnable, reviewable)
+
+The POC delivers **Modules 01 and 02 at full spec depth**, with
+demo-grade slices of 03, 05, and 06 to prove extensibility.
+
+### Module 01 — PII discovery & data inventory (full)
+
+Status: **COMPLETE** end-to-end
+
+- **16-pattern PII library** — 11 universal + 5 India-specific (Aadhaar, PAN, IFSC, India phone, India passport)
+- **Vectorized DLT classifier** — `pipelines/classification_dlt.py`, no driver-side `.collect()` on data, scans every silver column. The list of silver objects to scan is sourced dynamically from `bronze.data_sources` (see decision 6 below) — adding a new ingestion path is one row in `scripts/seed_data_sources.py:DATA_SOURCES_SEED` (which runs in `deploy_all.sh` ahead of the medallion refresh), no classifier code change.
+- **Three ingestion patterns** all feeding the same governance layer:
+  - **Landing zone (Auto Loader)** — 5 silver tables (`employees_tagged`, `customers_tagged`, `patients_tagged`, `transactions_tagged`, `users_tagged`)
+  - **Lakeflow Connect simulation** — 3 silver tables (`sf_leads_tagged`, `sf_contacts_tagged`, `sf_accounts_tagged`), populated by direct-write seed (no Auto Loader — that's the visible pattern signal)
+  - **Federation simulation** — 2 silver views (`federation_lead_scoring_tagged`, `federation_campaign_response_tagged`) over a `federation_mock` schema
+- **Living `personal_data_register`** — 36 PII columns auto-derived from `pii_findings`
+- **UC column masks** on 33 columns (5 mask UDFs in `compliance.mask_*`)
+- **UC column tags** auto-applied from findings via `apply_uc_tags.py`
+- **Persona governance layer** — 4 sliced dashboards + 4 scoped Genie spaces (CCO/GC/CMO/CFO) with UC-enforced boundaries
+
+### Module 02 — Consent intelligence (full)
+
+Status: **COMPLETE** end-to-end
+
+- **Immutable consent event log** — `compliance.consent_events_log`, 1,000 events / 292 principals / 6 purposes / 4 channels
+- **Granular per-purpose consent** — supersession via `superseded_by_event_id`
+- **Notice version tracking** — `compliance.notice_versions` with 10 Indian languages (3 hand-authored + 7 machine-translated, watermarked)
+- **`has_active_consent()` UDF** — single-source-of-truth for "can I email customer X for purpose Y?"
+- **Marketing-eligible audience view** — `gold.marketing_eligible_principals` filters down at query time
+- **Consent withdrawal propagation** — Delta CDF on silver tables drives downstream re-aggregation
+
+### Module 03 — DSR (demo-grade slice)
+
+Status: **MINIMAL VIABLE STUB + automated chain test**
+
+- `scripts/dsr_discovery.py` — UC lineage-based PII column discovery for a principal
+- `scripts/dsr_erasure.py` — Delta DELETE + VACUUM with audit-bundle JSON; built-in `--confirm` gate (dry-run by default)
+- Test principal `customer_04217` (Oeshi Desai) walks the full lifecycle
+- `tests/test_dsr_e2e.py` (added 2026-04-27) chains discovery → erasure dry-run → audit-bundle, 11 assertions. Non-destructive — verifies the chain without consuming the principal.
+- **Not in scope**: a Databricks App–hosted DSR portal (commented out — paid-tier feature; the script-based path is the free-tier equivalent)
+
+### Module 05 — Compliance audit (demo-grade slice)
+
+Status: **PARTIAL**
+
+- `silver.compliance_gaps` — 9 DPDP rules drive 135 gaps with severity tiers
+- `compliance_rules.sql` is regulation-pack-driven (Phase 0 refactor) — adding a UK GDPR pack is a Phase-1 expansion, not a rewrite
+- Penalty-weighted exposure rendered via the CFO Genie agent (₹250cr/150cr/50cr/5cr ceilings)
+- **DPIA generator** — productionised in Phase 4: structured pydantic output, quarterly cron (`dpia_generator` job, UNPAUSED on deploy), `compliance.dpia_runs` table with status workflow (draft → approved), `compliance.dpia_artifacts` volume for the JSON+PDF artefacts, and a Databricks Review App (`dpdp-dpia-review`) where CCO/GC approve and CFO views read-only
+- **Not in scope**: real-time scoring engine
+
+### Module 06 — Retention (demo-grade slice)
+
+Status: **STUB ONLY**
+
+- `pipelines/retention_enforcement.py` — purge logic per `retention_defaults.yaml`
+- Bundle job declared in `resources/jobs.yml` with default `mode=dry-run`
+- **Not in scope**: tokenization vault integration, scheduled production purges
+
+### Cross-cutting: regulation-pack framework (Phase 0, full)
+
+Status: **COMPLETE** — merged 2026-04-24 (commit 7fce83f)
+
+- `governance_core/` — regulation-agnostic core (pack loader, universal patterns, rights catalogue, consent model)
+- `regulations/dpdp_2023/` — 9 pack files (rules, rights, notices, retention, residency, breach SLA, languages, India PII patterns)
+- Adding a UK GDPR or CCPA pack is authoring 9 new yaml files — no core changes
+
+### Cross-cutting: AI agents (full)
+
+Status: **COMPLETE**
+
+- DPIA generator, Compliance Q&A, PII classifier — all on Foundation Model serving
+- MLflow tracing, retries + timeouts, versioned prompts (`governance_core/agent_prompts.py`)
+- `scripts/setup_agent_bricks.py` (added 2026-04-27) — headless infra check: serving endpoint READY, MLflow experiment idempotent create, prompts module loads. Runnable inside `deploy_all.sh` (step `agents`) and standalone with `--smoke` for an actual LLM round-trip
+- **Caveat**: prompts hardcode DPDP-specific text; Phase-1 work tracked as `AI-PROMPT-PACK`
+
+---
+
+## Explicitly NOT in scope (deferred to Phase 1)
+
+These are tracked in `BACKLOG.md` under "Deferred to Phase 1." None of
+them are bugs; they are scope decisions made because the POC's job is
+to prove the *approach* works, not to deliver every production feature.
+
+| Phase-1 item | Why deferred |
+|---|---|
+| Dynamic column masks (drive `pii_column_masks.sql` from `pii_findings`) | Static SQL is acceptable for 10 silver objects; auto-generation is a productionization concern |
+| Persona row filters beyond `consent_events_log` | Demo personas don't need cross-table row scoping; a real deployment would |
+| Lakebase + Databricks-App-hosted DSR portal | Lakebase is a paid-tier feature unavailable on Free Edition |
+| CI workflow for the test suite | Requires workspace auth in CI; mechanical setup, not an architectural concern |
+| CDF withdrawal-propagation test | The mechanism works (verified manually); a regression test is productionization |
+| Persona-boundary runtime test (auto) | Requires 4 logged-in persona users; manual procedure documented |
+| Agent Bricks DPIA roundtrip test | Validates output quality, which is non-deterministic — production-quality test design is a separate task |
+| Workspace-portability of literals | Each teammate currently edits one URL; a config-driven path is convenience, not architecture |
+| Regulation-specific values out of YAMLs (`GENIE-CFG`, `AI-PROMPT-PACK`) | First UK GDPR pack will exercise this. Templating ahead of a real second pack risks over-design |
+| Universal pattern lib gaps (`PII-NAME-GST`) | Names are intrinsically false-positive-prone; GST is a clean addition for Phase 1 |
+
+---
+
+## Real, before-review polish remaining (BACKLOG P1)
+
+Tracked separately because these *are* worth doing pre-review:
+
+- **3.1** — `scripts/deploy_all.sh` (one-shot deploy)
+- **3.2** — README "Step 0" + workspace_host env-var
+- **4.2** — Post-deploy smoke test (`pii_findings >= 36` across all 3 ingestion patterns)
+- **5.2** — This document
+
+---
+
+## Decision log (the choices reviewers will ask about)
+
+1. **Self-contained POC, no external services** (2026-04-24). Three ingestion *patterns* shown via synthetic data; no AWS/SF/Postgres dependencies. Reason: tier-3 demo convention (Databricks `dbdemos`, Snowflake quickstarts), Free Edition workspace constraints. The S3 external-volume experiment from earlier was rolled back.
+
+2. **Free Edition workspace, no account-admin** (2026-04-24). Persona OAuth apps cannot be self-served; PAT auth is the only option for external integrations.
+
+3. **Phase-0 regulation-pack refactor merged before three-path expansion** (2026-04-24). Means the new ingestion paths benefit from the pack framework: when UK GDPR is authored later, the existing 8 silver tables + 2 views are already pack-aware.
+
+4. **Self-contained federation via `federation_mock` + silver views** (2026-04-27). Views (not tables) are the visible code-shape signal that distinguishes Federation from Lakeflow Connect ingestion.
+
+5. **Genie scope expanded for CCO only in B-pass** (2026-04-27). Other personas have narrow domains by design; a per-persona expansion is documented but not done.
+
+6. **Classifier reads from `bronze.data_sources`, not a hardcoded list** (2026-04-27, Day 1). Closes colleague's gap **1.2** (data_sources never seeded) + **2.2** (classifier hardcoded). The 10 canonical rows (5 Auto Loader + 3 Salesforce + 2 federation) are MERGEd by `scripts/seed_data_sources.py` in the `seed_ds` step of `deploy_all.sh` (added 2026-04-28 because seeding in phase1_bootstrap was too late — the medallion refresh fires before phase1, and the classifier needs `data_sources` already populated). Phase1_bootstrap.py:§2.5 keeps the same MERGE as a partial-deploy backstop. Fresh deploys before `seed_ds` runs use a 5-table fallback list inside `_resolve_silver_tables()`.
+
+---
+
+## What a reviewer should run
+
+1. `scripts/configure_workspace_host.sh https://<their-host>` (one-time)
+2. `scripts/deploy_all.sh` — single command, 19 idempotent steps (UC bootstrap → bundle → synthetic → medallion → SF + federation seeders → seed data_sources → refresh → phase1_bootstrap → tags + masks + filters → multilang → agents → smoke → Phase-2 personas → app_deploy → app_perms → dpia_first_run)
+3. `python3 tests/test_dsr_e2e.py` — DSR chain (11 checks; not part of deploy_all)
+4. Open the dashboard, query each persona's Genie, run a DSR walkthrough on `customer_04217`
+
+Expected end state: 36 PII findings, 164 compliance gaps, 10 silver objects, 37 column masks, 4 working Genie agents, productionised DPIA generator (quarterly cron + Review App + first draft seeded on deploy). Smoke + DSR + Agent Bricks + baseline-counts suites currently green.

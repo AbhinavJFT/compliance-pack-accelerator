@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPDP Compliance Platform — Business Case</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #fff;
+    color: #1a1a2e;
+    padding: 48px 56px;
+    max-width: 1040px;
+    margin: 0 auto;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 3px solid #1565c0;
+  }
+  .hero h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; color: #0d47a1; }
+  .hero .sub { font-size: 15px; color: #555; margin-top: 10px; font-weight: 500; }
+  .hero .context {
+    display: inline-block; margin-top: 18px; padding: 8px 20px;
+    background: #e3f2fd; color: #0d47a1; border-radius: 20px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+  }
+
+  h2 {
+    font-size: 22px; font-weight: 700; margin-top: 52px; margin-bottom: 18px;
+    letter-spacing: -0.3px;
+  }
+  h2.sec   { color: #c62828; }
+  h2.ops   { color: #2e7d32; }
+  h2.sum   { color: #0d47a1; }
+
+  h3 {
+    font-size: 16px; font-weight: 600; color: #1a1a2e;
+    margin-top: 24px; margin-bottom: 10px;
+  }
+
+  p { margin-bottom: 12px; color: #333; }
+  strong { color: #1a1a2e; font-weight: 700; }
+  em { color: #666; font-style: italic; }
+
+  .big-number {
+    display: flex; align-items: baseline; gap: 14px;
+    margin: 18px 0;
+  }
+  .big-number .n {
+    font-size: 40px; font-weight: 800; letter-spacing: -1px; color: inherit;
+  }
+  .big-number .unit { font-size: 14px; color: #666; font-weight: 500; }
+
+  /* Panels */
+  .panel {
+    border-radius: 12px; padding: 20px 24px; margin: 18px 0;
+  }
+  .panel-sec  { background: #ffebee; border-left: 6px solid #c62828; }
+  .panel-ops  { background: #e8f5e9; border-left: 6px solid #2e7d32; }
+  .panel-info { background: #e3f2fd; border-left: 6px solid #1565c0; }
+
+  .panel h3 { margin-top: 0; color: inherit; font-size: 15px; }
+  .panel-sec h3  { color: #b71c1c; }
+  .panel-ops h3  { color: #1b5e20; }
+  .panel-info h3 { color: #0d47a1; }
+
+  /* Data panels — styled mockups using real numbers */
+  .mock {
+    border: 2px solid #ddd; border-radius: 10px; padding: 18px 22px;
+    margin: 16px 0; background: #fafafa;
+    position: relative;
+  }
+  .mock-label {
+    position: absolute; top: -11px; left: 18px;
+    background: #fff; padding: 0 8px; font-size: 10px; color: #777;
+    font-weight: 600; letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    margin: 12px 0;
+  }
+  .kpi {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+    padding: 14px; text-align: center;
+  }
+  .kpi .v { font-size: 26px; font-weight: 800; color: #0d47a1; }
+  .kpi.crit .v { color: #c62828; }
+  .kpi.warn .v { color: #e65100; }
+  .kpi.ok .v   { color: #2e7d32; }
+  .kpi .k { font-size: 10px; color: #666; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .chat {
+    background: #f5f5f7; border-radius: 10px; padding: 14px 16px; margin: 10px 0;
+    font-size: 13px;
+  }
+  .chat .q { color: #444; font-weight: 600; margin-bottom: 8px; }
+  .chat .q::before { content: "Q: "; color: #1565c0; }
+  .chat .a { color: #333; }
+  .chat .a::before { content: "A: "; color: #c62828; font-weight: 700; }
+
+  .before-after {
+    display: grid; grid-template-columns: 1fr 40px 1fr; gap: 12px;
+    margin: 16px 0; align-items: stretch;
+  }
+  .ba-col {
+    padding: 14px 18px; border-radius: 10px; font-size: 13px;
+  }
+  .ba-before { background: #ffebee; border: 1px solid #ef9a9a; }
+  .ba-after  { background: #e8f5e9; border: 1px solid #a5d6a7; }
+  .ba-arrow  {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: #999;
+  }
+  .ba-col .tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase; margin-bottom: 6px; display: block;
+  }
+  .ba-before .tag { color: #c62828; }
+  .ba-after  .tag { color: #2e7d32; }
+  .ba-col .h { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13px; margin: 14px 0;
+  }
+  th {
+    text-align: left; padding: 10px 14px; background: #f5f5f5;
+    font-weight: 600; border-bottom: 2px solid #ddd;
+    font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid #eee; vertical-align: top; }
+  tr.hl { background: #fff8e1; }
+
+  .quote {
+    font-size: 15px; font-style: italic; color: #555;
+    border-left: 4px solid #1565c0; padding: 12px 20px;
+    margin: 18px 0; background: #f9f9f9;
+  }
+
+  .screenshot-slot {
+    border: 2px dashed #bbb; border-radius: 10px;
+    padding: 28px 20px; text-align: center;
+    color: #888; font-size: 12px; margin: 16px 0;
+    background: repeating-linear-gradient(45deg, #fafafa, #fafafa 10px, #f3f3f3 10px, #f3f3f3 20px);
+  }
+  .screenshot-slot b { color: #666; }
+
+  .footer {
+    margin-top: 52px; padding-top: 22px; border-top: 1px solid #eee;
+    font-size: 11px; color: #999;
+  }
+  .footer strong { color: #555; }
+  .footer ol { margin: 8px 0 0 20px; }
+  .footer li { margin-bottom: 4px; }
+
+  @media print {
+    body { padding: 32px 40px; }
+    h2 { page-break-after: avoid; }
+    .panel, .mock, .before-after { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>DPDP Compliance Platform</h1>
+  <div class="sub">The business case — why it matters to your P&amp;L, not just your DPO</div>
+  <div class="context">Digital Personal Data Protection Act 2023 · Rules in force since January 2025</div>
+</div>
+
+<!-- ================================================================== -->
+<!-- WHY NOW -->
+<!-- ================================================================== -->
+<h2>Why this matters now</h2>
+
+<p>India's Digital Personal Data Protection Act became law in <strong>August 2023</strong>.
+The executive Rules were notified in <strong>January 2025</strong>, and the Data Protection
+Board of India began accepting complaints and issuing penalty orders from that point
+onward.<sup>[1]</sup> For any Indian enterprise that holds customer, employee, or patient
+personal data, the question is no longer <em>whether</em> to comply — it's whether the
+compliance posture holds up to a Data Protection Board inquiry.</p>
+
+<div class="panel panel-info">
+  <h3>What the Act actually penalises (Schedule, §33)</h3>
+  <table>
+    <thead><tr><th>Violation</th><th>Max penalty</th></tr></thead>
+    <tbody>
+      <tr class="hl"><td>Failure to take reasonable security safeguards to prevent a personal-data breach</td><td><strong>₹250 crore</strong></td></tr>
+      <tr><td>Failure to notify the Board or affected principals of a breach</td><td>₹200 crore</td></tr>
+      <tr><td>Failure to fulfil obligations regarding children's data</td><td>₹200 crore</td></tr>
+      <tr><td>Failure to fulfil obligations of a Significant Data Fiduciary</td><td>₹150 crore</td></tr>
+      <tr><td>Catch-all — breach of any other provision of the Act or Rules</td><td>₹50 crore</td></tr>
+    </tbody>
+  </table>
+  <p style="margin: 8px 0 0 0; font-size: 12px; color: #555;">The Board can impose these on
+  a per-incident basis. One material breach → one penalty up to ₹250 crore. Repeat incidents
+  or distinct violation types → separate penalties that stack.</p>
+</div>
+
+<p>For reference, India hasn't yet produced a landmark DPDP fine, but comparable regimes have.
+GDPR — which DPDP broadly follows — has produced
+<strong>€1.2 billion</strong> (Meta, 2023)<sup>[2]</sup>,
+<strong>€746 million</strong> (Amazon, 2021)<sup>[3]</sup>, and
+<strong>€345 million</strong> (TikTok, 2023, children's data)<sup>[4]</sup>. Indian enterprises
+are not immune: pre-DPDP, <strong>Mobikwik</strong> allegedly exposed 99 million users'
+records (2021)<sup>[5]</sup>, <strong>Domino's India</strong> had 180 million order records
+leak (2021)<sup>[6]</sup>, <strong>Air India</strong> lost data on 4.5 million passengers
+(2021)<sup>[7]</sup>. Under DPDP, any of those would have triggered a ₹250-crore-class
+inquiry.</p>
+
+<!-- ================================================================== -->
+<!-- SECURITY PITCH -->
+<!-- ================================================================== -->
+<h2 class="sec">Security — what this platform protects</h2>
+
+<p>The platform implements four <strong>independent enforcement layers</strong> against
+DPDP exposure. Each layer is Databricks-native — no bolt-on app, no custom ACL engine, no
+bypassable middleware. Each is verifiable in front of a regulator.</p>
+
+<div class="panel panel-sec">
+  <h3>Layer 1 — PII discovery and sensitivity tiering</h3>
+  <p>The platform automatically scans every table across your data estate and identifies
+  PII columns by type (Aadhaar, PAN, email, phone, medical record, etc.) and sensitivity
+  tier (critical, high, medium, low). Today's POC inventory:</p>
+  <div class="kpi-grid">
+    <div class="kpi crit"><div class="v">33</div><div class="k">PII columns<br>detected</div></div>
+    <div class="kpi warn"><div class="v">14</div><div class="k">auto-tagged<br>in UC</div></div>
+    <div class="kpi"><div class="v">5</div><div class="k">source tables<br>scanned</div></div>
+    <div class="kpi ok"><div class="v">9</div><div class="k">PII<br>categories</div></div>
+  </div>
+  <p style="margin: 10px 0 0 0;"><em>Regulator asks: "what personal data do you hold?" Your
+  DPO opens the Personal Data Register and it's a live view — not a PowerPoint from last
+  year.</em></p>
+</div>
+
+<div class="panel panel-sec">
+  <h3>Layer 2 — column-level masking (DPDP §5(2) data minimization)</h3>
+  <p>Sensitive PII columns (email, phone, Aadhaar, PAN, passport, medical diagnosis) are
+  masked at the Unity Catalog layer. A marketing analyst querying the customer table sees
+  <code>o****@****.net</code>, not the real email. The mask applies to every query path —
+  SQL editor, dashboard tile, Genie question, REST API, notebook — not just the UI.</p>
+  <div class="before-after">
+    <div class="ba-col ba-before">
+      <span class="tag">Without masks</span>
+      <div class="h">Typical approach</div>
+      <div>Marketing analyst runs a query → sees raw <code>priya.kumar@acme.com</code> →
+      copies to spreadsheet → emails vendor → breach waiting to happen</div>
+    </div>
+    <div class="ba-arrow">→</div>
+    <div class="ba-col ba-after">
+      <span class="tag">With this platform</span>
+      <div class="h">UC column masks</div>
+      <div>Same analyst, same query, sees <code>p****@****.com</code>. Query patterns
+      unchanged; data minimization enforced at the column-read boundary.</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel panel-sec">
+  <h3>Layer 3 — persona-scoped access (CCO / GC / CMO / CFO)</h3>
+  <p>Four role-specific dashboards and four role-scoped Genie agents. Each persona sees only
+  the data relevant to their role. A CMO asking <em>"can I email customer X?"</em> can't
+  accidentally pull up the employee register; a General Counsel reviewing consent evidence
+  can't accidentally browse marketing targeting lists. Boundaries are enforced by Unity
+  Catalog grants at query time — not by UI hiding.</p>
+  <div class="mock">
+    <div class="mock-label">Mockup — CCO dashboard, topline card</div>
+    <div class="kpi-grid">
+      <div class="kpi crit"><div class="v">72</div><div class="k">critical<br>gaps</div></div>
+      <div class="kpi warn"><div class="v">52</div><div class="k">high<br>gaps</div></div>
+      <div class="kpi"><div class="v">33</div><div class="k">PII<br>columns</div></div>
+      <div class="kpi ok"><div class="v">292</div><div class="k">consenting<br>principals</div></div>
+    </div>
+  </div>
+  <div class="screenshot-slot">
+    <b>Replace with screenshot:</b> one persona dashboard (e.g. CCO Executive Overview) with
+    real tile values, scoped Genie panel visible on the right.
+  </div>
+</div>
+
+<div class="panel panel-sec">
+  <h3>Layer 4 — DPDP §18 audit trail</h3>
+  <p>Every query — by any user, from any UI path — is captured in Databricks' system audit
+  log with user identity, timestamp, and the exact SQL. When a regulator asks <em>"who
+  accessed patient record XYZ on March 15?"</em>, the DPO runs one query and gets a live
+  answer in seconds. Compare to the industry norm of extracting and reconstructing from
+  application logs, which takes weeks and rarely reconstructs completely.</p>
+  <div class="chat">
+    <div class="q">Who queried our patient records in the last 7 days?</div>
+    <div class="a">Three users: dr.patel@acme (14 queries, clinical-access role),
+    audit.singh@acme (2 queries, compliance review on Tuesday), and the DPIA agent
+    (1 automated query for DPIA generation). Full list with timestamps
+    available in the audit console.</div>
+  </div>
+</div>
+
+<h3 class="sec" style="margin-top: 28px;">Consent is a platform capability, not just a marketing feature</h3>
+<p>The same consent layer that answers <em>"can I email this customer?"</em> answers every
+downstream personal-data question across the enterprise. The <code>has_active_consent()</code>
+function is purpose-scoped and callable from anywhere — ML training pipelines, recommendation
+engines, product personalization layers, third-party enrichment flows. Each downstream
+system stops reimplementing its own consent logic and delegates to a single source of truth.</p>
+
+<div class="panel panel-sec">
+  <h3>One function, six purposes, every downstream system</h3>
+  <div class="chat">
+    <div class="q">[Recommendation engine] Can we use customer_04217's clickstream for model training?</div>
+    <div class="a"><code>has_active_consent('customer_04217', 'analytics')</code> → <strong>true</strong>. OK to include.</div>
+  </div>
+  <div class="chat">
+    <div class="q">[Marketing] Can we email customer_04217 about the new loyalty offer?</div>
+    <div class="a"><code>has_active_consent('customer_04217', 'marketing_email')</code> → <strong>false</strong>. Withdrawn 2026-04-12. Do not email.</div>
+  </div>
+  <div class="chat">
+    <div class="q">[Partner enrichment] Can we share this customer's profile with data-partner X?</div>
+    <div class="a"><code>has_active_consent('customer_04217', 'third_party_sharing')</code> → <strong>false</strong>. Declined at capture. Do not share.</div>
+  </div>
+  <p style="margin: 10px 0 0 0;">Every consented action in the enterprise passes through the
+  same gate. Withdrawals propagate in real time via Delta CDF — downstream systems react the
+  moment a principal withdraws, no polling, no stale state.</p>
+</div>
+
+<h3 class="sec" style="margin-top: 28px;">What this means for your risk exposure</h3>
+<p>The platform doesn't eliminate the penalty risk — nothing does — but it puts the enterprise
+on the defensible side of the key DPDP questions:</p>
+<table>
+  <thead><tr><th>Regulator question</th><th>Answer without platform</th><th>Answer with platform</th></tr></thead>
+  <tbody>
+    <tr class="hl"><td>"Show us your personal data inventory."</td>
+        <td>Manual PII audit, stale spreadsheet</td>
+        <td>Live view queried in seconds (36 columns across 10 silver objects: file-arrival, Lakeflow Connect, and Federation)</td></tr>
+    <tr><td>"Who accessed principal X's PII last month?"</td>
+        <td>Extract app logs, reconstruct — weeks</td>
+        <td>One SQL query against audit log — minutes</td></tr>
+    <tr class="hl"><td>"Demonstrate reasonable security safeguards."</td>
+        <td>Describe policy, hope regulator accepts</td>
+        <td>Show column masks + UC grants + audit log running live</td></tr>
+    <tr><td>"Prove withdrawal propagates without undue delay (§8(7))."</td>
+        <td>Batch jobs run nightly</td>
+        <td>Delta CDF streams withdrawals; downstream views auto-invalidate</td></tr>
+  </tbody>
+</table>
+
+<h3 class="sec" style="margin-top: 28px;">Vertical fit — the same masks work for every regulated sector</h3>
+<p>The POC's synthetic data deliberately spans four sensitivity profiles. The same UC mask
+framework adapts to each — no per-sector custom code needed:</p>
+
+<table>
+  <thead><tr><th>Sector</th><th>Sensitive columns in scope</th><th>Mask applied (non-admin view)</th></tr></thead>
+  <tbody>
+    <tr class="hl">
+      <td><strong>Healthcare</strong><br><em>patients_tagged</em></td>
+      <td>aadhaar_number, email, phone, emergency_contact_phone, insurance_id, medical_record_number, primary_diagnosis, current_prescription, allergies</td>
+      <td>IDs → <code>****XXXX</code> (last 4) · Medical free-text → <code>&lt;REDACTED&gt;</code> · Contact → partial mask</td>
+    </tr>
+    <tr>
+      <td><strong>Financial</strong><br><em>employees_tagged, transactions_tagged</em></td>
+      <td>pan_number, bank_account, ifsc_code, passport_number, aadhaar_number</td>
+      <td>PAN/Aadhaar/bank → <code>****XXXX</code> · IFSC/passport → <code>&lt;REDACTED&gt;</code></td>
+    </tr>
+    <tr class="hl">
+      <td><strong>HR / Workforce</strong><br><em>employees_tagged</em></td>
+      <td>email, phone_number, aadhaar_number, pan_number, passport_number, bank_account</td>
+      <td>Contact → partial mask · Gov IDs → last-4 · Passport → full redaction</td>
+    </tr>
+    <tr>
+      <td><strong>Consumer / B2C</strong><br><em>customers_tagged, users_tagged</em></td>
+      <td>email_address, mobile, phone</td>
+      <td>Email → <code>x****@****.com</code> · Phone → <code>******XXXX</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="margin: 12px 0 0 0; font-size: 13px; color: #555;"><em>A single platform covers four
+regulatory overlays without custom tooling: DPDP for all, plus sector-specific obligations —
+HIPAA-style controls for health data, RBI's Storage of Payment Systems Data mandate for
+financial, employment-law safeguards for workforce data.</em></p>
+
+<h3 class="sec" style="margin-top: 28px;">Delta Sharing — audit evidence without granting workspace access</h3>
+<p>When an external auditor, regulator, or DPBI inspector asks for evidence, the common
+failure mode is: <em>give them a workspace account, watch them struggle with SQL, worry about
+what they'll see.</em> This platform uses <strong>Databricks Delta Sharing</strong> to share
+read-only, time-boxed, auditor-scoped views (PII register, compliance gaps, audit log slice) —
+the auditor queries from their own workspace or tool of choice, never touches yours, and
+access is revocable in one command.</p>
+
+<div class="panel panel-sec">
+  <h3>Auditor workflow, start to finish</h3>
+  <ol style="margin: 8px 0 8px 24px; font-size: 13px;">
+    <li>DPO creates a Delta Share named <code>dpdp_audit_2026_q2</code> containing the
+        PII register + compliance gap list + audit-log slice for the relevant period.</li>
+    <li>Auditor's email is added as a recipient; they receive an activation link.</li>
+    <li>Auditor queries the shared views from their own Databricks workspace (or any
+        Delta Sharing client — DuckDB, Tableau, Power BI).</li>
+    <li>After the audit concludes, the DPO revokes the recipient — auditor's access is
+        immediately invalidated; no residual workspace accounts to clean up.</li>
+  </ol>
+  <p style="margin: 6px 0 0 0;"><em>Zero additional infrastructure. Zero data copies. Zero
+  risk of orphan auditor accounts. Standard enterprise-audit workflow replaced with an
+  idiomatic Databricks pattern.</em></p>
+</div>
+
+<!-- ================================================================== -->
+<!-- OPERATIONAL EFFICIENCY PITCH -->
+<!-- ================================================================== -->
+<h2 class="ops">Operational efficiency — what this platform saves</h2>
+
+<p>DPDP compliance isn't a one-time project; it's an ongoing cost centre. Typical large
+Indian enterprises spend <strong>₹2–10 crore annually</strong> on compliance tooling,
+privacy consulting, and dedicated DPO staff<sup>[8]</sup>. Much of that spend is repetitive,
+knowledge-worker time that this platform automates or eliminates.</p>
+
+<div class="panel panel-ops">
+  <h3>Saving 1 — DPIA automation</h3>
+  <p>A Data Protection Impact Assessment (DPIA) is a structured review of how personal data
+  is processed for a given purpose. Under DPDP's Significant Data Fiduciary obligations and
+  GDPR Article 35, DPIAs are required for high-risk processing activities. Large enterprises
+  typically conduct <strong>15–30 DPIAs per year</strong>.</p>
+  <div class="before-after">
+    <div class="ba-col ba-before">
+      <span class="tag">Traditional DPIA</span>
+      <div class="h">~3 months, 3 teams</div>
+      <div>
+        Legal ·  IT ·  Compliance coordinate via email.<br>
+        Interviews, documentation, sign-offs.<br>
+        External consultant: ₹10–50 lakh per DPIA<sup>[9]</sup>.<br>
+        Internal effort: ~60 person-hours.
+      </div>
+    </div>
+    <div class="ba-arrow">→</div>
+    <div class="ba-col ba-after">
+      <span class="tag">Agent Bricks DPIA</span>
+      <div class="h">~30 seconds + human review</div>
+      <div>
+        Agent reads UC metadata, PII register, compliance gaps, consent coverage.<br>
+        Produces a structured DPIA draft with citations to actual table names + column counts.<br>
+        Human review: ~1–2 hours.
+      </div>
+    </div>
+  </div>
+  <div class="big-number" style="color: #2e7d32;">
+    <span class="n">~₹1.5–3 cr</span>
+    <span class="unit">annual consulting-fee reduction (20 DPIAs × ₹10 lakh median)</span>
+  </div>
+  <div class="screenshot-slot">
+    <b>Replace with screenshot:</b> Agent Bricks notebook showing the DPIA generator cell
+    output — the structured DPIA document it produces.
+  </div>
+</div>
+
+<div class="panel panel-ops">
+  <h3>Saving 2 — self-service compliance access</h3>
+  <p>Every compliance question a business user has today creates a ticket for the DPO or a
+  data analyst. Aggregate across a hundred-person compliance org, and it's thousands of
+  analyst-hours per quarter spent answering questions that are lookups, not analysis.</p>
+  <p>Four persona-specific dashboards + Genie spaces. The CMO asks Genie directly; the CCO
+  pulls the gap list themselves; the CFO sees penalty exposure without emailing anyone.</p>
+  <div class="chat">
+    <div class="q">Can I email customer_04217 for next week's campaign?</div>
+    <div class="a">No — <code>customer_04217</code> withdrew marketing-email consent on
+    2026-04-12 via mobile app. Analytics consent is still active, but marketing
+    communications are not authorised.</div>
+  </div>
+  <p style="margin: 12px 0 0 0;">Answered in <strong>5 seconds</strong> by a CMO from their
+  Genie space — without a ticket, without waiting, without touching raw PII.</p>
+</div>
+
+<div class="panel panel-ops">
+  <h3>Saving 3 — faster regulatory response</h3>
+  <p>DPDP's breach-notification clock is <strong>72 hours from discovery</strong> under the
+  draft Rules<sup>[10]</sup>. DSR (Data Subject Request) fulfillment SLA is commonly
+  interpreted as <strong>30 days</strong>. These are hard deadlines; missing them triggers
+  §33 penalties independently of the underlying incident.</p>
+  <div class="before-after">
+    <div class="ba-col ba-before">
+      <span class="tag">Without platform</span>
+      <div class="h">Breach response: days to weeks</div>
+      <div>Scope assessment via manual log extraction; DPIA drafted by hand; principal list
+      compiled across siloed systems. 72-hour clock often missed.</div>
+    </div>
+    <div class="ba-arrow">→</div>
+    <div class="ba-col ba-after">
+      <span class="tag">With platform</span>
+      <div class="h">Breach response: hours</div>
+      <div>Audit log query + PII register + consent coverage in minutes. DPIA agent drafts
+      the initial notification. Principal list from UC lineage.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SUMMARY -->
+<!-- ================================================================== -->
+<h2 class="sum">Business case — rolled up</h2>
+
+<table>
+  <thead>
+    <tr><th>Lever</th><th>Annual impact (mid-case)</th><th>Why this platform</th></tr>
+  </thead>
+  <tbody>
+    <tr class="hl">
+      <td><strong>Penalty avoidance</strong></td>
+      <td>Risk reduction against <strong>₹250 crore</strong> per-incident ceiling</td>
+      <td>4-layer independent enforcement (discovery, masks, persona grants, audit trail)</td>
+    </tr>
+    <tr>
+      <td><strong>DPIA automation</strong></td>
+      <td><strong>₹1.5–3 crore</strong> saved on external consulting</td>
+      <td>Agent Bricks DPIA generator — minutes, not months</td>
+    </tr>
+    <tr class="hl">
+      <td><strong>Self-service compliance</strong></td>
+      <td><strong>Hundreds of analyst-hours</strong> saved per quarter</td>
+      <td>Persona dashboards + Genie NL queries, no ticket queue</td>
+    </tr>
+    <tr>
+      <td><strong>Regulatory responsiveness</strong></td>
+      <td>72-hour breach-notification compliance; 30-day DSR SLA</td>
+      <td>Live audit log + live PII register + Delta CDF withdrawal stream</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="quote">
+  "The enterprises that turn DPDP compliance from an annual audit scramble into a live
+  operational capability will have a real advantage — in regulator trust, in customer trust,
+  and in the flexibility to launch into regulated sectors without a compliance bottleneck."
+</div>
+
+<!-- ================================================================== -->
+<!-- FOOTNOTES -->
+<!-- ================================================================== -->
+<div class="footer">
+  <strong>Sources and notes</strong>
+  <ol>
+    <li>Digital Personal Data Protection Act, 2023 (Act 22 of 2023); DPDP Rules, 2025. Penalty schedule §33.</li>
+    <li>Data Protection Commission (Ireland), decision against Meta Platforms Ireland Ltd., 12 May 2023.</li>
+    <li>CNPD (Luxembourg), decision against Amazon Europe Core S.à.r.l., 16 July 2021.</li>
+    <li>Data Protection Commission (Ireland), decision against TikTok Technology Ltd., 1 September 2023.</li>
+    <li>Multiple press reports, March 2021; company denied scope of breach. CERT-In investigation.</li>
+    <li>Press reports, April 2021, Redmorph / Alon Gal disclosure.</li>
+    <li>Air India public disclosure, May 2021; SITA SaaS provider attributed source.</li>
+    <li>Industry benchmarks from IAPP India Privacy Landscape survey, Big-4 DPDP readiness assessments (typical range across ₹500+ crore revenue enterprises).</li>
+    <li>Typical engagement fees from Big-4 consulting firms for single DPIA engagements, 2024–2026.</li>
+    <li>DPDP Rules, 2025 (draft and notified versions) — Rule 7 breach-notification obligations.</li>
+  </ol>
+  <p style="margin-top: 14px;"><strong>Note on numbers.</strong> This page mixes three
+  kinds of numbers; read them accordingly.</p>
+  <ul style="margin: 4px 0 0 0;">
+    <li><strong>Regulatory ceilings</strong> (₹250 cr / ₹200 cr / ₹150 cr / ₹50 cr per
+    contravention, 72-hour breach clock, 30-day DSR SLA) are set by DPDP §33 and the 2025
+    Rules — these are law, not estimates.</li>
+    <li><strong>POC dataset measurements</strong> (33 PII columns, 72 critical gaps, 52
+    high gaps, 135 total gaps, 292 consenting principals, 1,000 consent events, etc.)
+    come from the synthetic <code>dpdp_poc</code> workspace and are reproducible via the
+    SQL in <code>docs/how_to_test.html</code>. They are <strong>illustrative only</strong>
+    — in a real deployment the absolute counts depend on the customer's data estate, PII
+    density, consent-capture maturity, and scan scope. The transferable signal is the
+    <em>ratio and operational pattern</em> (critical-to-total gap mix, withdrawal
+    propagation latency, self-service lift), not the specific numbers.</li>
+    <li><strong>Industry-range estimates</strong> (₹2–10 cr annual compliance spend,
+    ₹10–50 lakh per DPIA, ₹1.5–3 cr annual DPIA-consulting reduction, "thousands of
+    analyst-hours saved") are directional industry benchmarks drawn from IAPP and Big-4
+    readiness assessments. Actual per-enterprise savings will vary with organization size,
+    regulatory designation (SDF vs. standard), and current tooling. Treat these as
+    indicative ranges for business-case framing, not as committed outcomes.</li>
+  </ul>
+</div>
+
+</body>
+</html>

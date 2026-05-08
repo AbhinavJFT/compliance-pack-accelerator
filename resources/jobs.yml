@@ -1,0 +1,153 @@
+# Workflow jobs for the DPDP POC.
+#
+# Jobs that reference notebooks under pipelines/ or tests/ require those
+# notebooks to exist. Several jobs from the original spec (§2.8) declared
+# notebooks that were never written:
+#
+#   • init_lakebase_schema         → pipelines/init_lakebase.py
+#   • ingest_synthetic_data        → pipelines/generate_synthetic.py
+#   • materialize_register_and_tags→ pipelines/apply_uc_tags.py
+#   • generate_consent_events      → pipelines/generate_consent_events.py
+#   • sync_consent_to_delta        → pipelines/sync_lakebase_to_delta.py
+#   • process_dsr_request          → pipelines/dsr_{discovery,execute,bundle}.py
+#   • e2e_verify                   → tests/e2e_suite.py
+#
+# To keep `databricks bundle validate/deploy` clean for the persona
+# layer, those orphan jobs are not declared here. Restore them as the
+# notebooks are authored (see git history for the pre-removal shape).
+# In the current POC, the equivalent work is performed by standalone
+# scripts at the repo root or notebooks triggered manually in the UI.
+
+resources:
+  jobs:
+
+    # -------------------------------------------------------------------------
+    # run_medallion
+    # -------------------------------------------------------------------------
+    # Triggers the DLT pipeline. Runs Bronze (Auto Loader) → Silver (typed)
+    # → pii_findings + discovered_tables.
+    run_medallion:
+      name: dpdp_poc_run_medallion
+      description: "Trigger the medallion DLT pipeline. Produces Bronze + Silver + pii_findings."
+      max_concurrent_runs: 1
+
+      tasks:
+        - task_key: run_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.medallion_pipeline.id}
+            full_refresh: false
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+    # -------------------------------------------------------------------------
+    # retention_enforcement
+    # -------------------------------------------------------------------------
+    # DPDP §8(7) retention enforcement. Identifies consent events past their
+    # retention deadline (event_timestamp + retention_duration_days) and, in
+    # apply mode, DELETEs + VACUUMs them. Writes every run to
+    # compliance.retention_audit for DPIA / regulator evidence.
+    # Safe default: mode=dry-run. Schedule weekly.
+    retention_enforcement:
+      name: dpdp_poc_retention_enforcement
+      description: "DPDP §8(7): identify + delete consent events past their retention deadline. Produces compliance.retention_audit evidence."
+      max_concurrent_runs: 1
+
+      # Serverless compute — required on newer workspaces. Classic single-node
+      # job_clusters block is preserved in git history.
+      tasks:
+        - task_key: enforce_retention
+          notebook_task:
+            notebook_path: ../pipelines/retention_enforcement.py
+            base_parameters:
+              catalog: ${var.catalog_name}
+              mode: "dry-run"
+              vacuum_retention_hours: "168"
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+    # -------------------------------------------------------------------------
+    # phase1_bootstrap
+    # -------------------------------------------------------------------------
+    # Populates the compliance layer on a fresh workspace after the DLT
+    # medallion pipeline has run. Produces:
+    #   bronze.compliance_rules (9 rules), silver.compliance_gaps (~135),
+    #   compliance.consent_events_log (1,000 events, seed=42),
+    #   compliance.notice_versions (1), compliance.dsr_requests (schema only),
+    #   compliance.personal_data_register view, has_active_consent UDF,
+    #   gold.marketing_eligible_principals + gold.consent_coverage_summary views.
+    # Idempotent: MERGE + TRUNCATE+INSERT patterns inside.
+    phase1_bootstrap:
+      name: dpdp_poc_phase1_bootstrap
+      description: "Populate bronze.compliance_rules + silver.compliance_gaps + consent events + notice versions + gold views. Run once after run_medallion on a fresh workspace."
+      max_concurrent_runs: 1
+
+      # Serverless compute — required on newer workspaces.
+      tasks:
+        - task_key: bootstrap
+          notebook_task:
+            notebook_path: ../pipelines/phase1_bootstrap.py
+            base_parameters:
+              catalog: ${var.catalog_name}
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+    # -------------------------------------------------------------------------
+    # dpia_generator
+    # -------------------------------------------------------------------------
+    # DPDP §10 / GDPR Art. 35: Data Protection Impact Assessment.
+    # Auto-drafts the DPIA from live UC metadata (PII register + compliance
+    # gaps + consent coverage + discovered tables + data sources), writes a
+    # JSON artifact to the dpia_artifacts volume, and appends one row per run
+    # to compliance.dpia_runs with status='draft'.
+    #
+    # The human review checkpoint is the approval CLI:
+    #   python3 scripts/approve_dpia.py --list-drafts
+    #   python3 scripts/approve_dpia.py --run-id <id> --reviewer <email>
+    #
+    # Cadence is quarterly — the regulatory cadence per DPDP guidance.
+    # Schedule ships UNPAUSED so the cron fires automatically on the
+    # first applicable quarterly boundary after deploy. The companion
+    # `dpia_first_run` step in scripts/deploy_all.sh triggers an
+    # immediate seed run during deploy itself, so day-1 has an artifact
+    # to review without waiting for the cron's first firing.
+    #
+    # Service-principal note: when the deploy target's run_as is changed
+    # from a user to a service principal, that SP must be granted CAN_QUERY
+    # on the foundation-model serving endpoint named in the model_endpoint
+    # parameter below. Otherwise the scheduled run hits a 403 and the DPIA
+    # silently fails to generate. Today the bundle's run_as is the deployer
+    # (workspace user), so this isn't required for the POC.
+    dpia_generator:
+      name: dpdp_poc_dpia_generator
+      description: "Quarterly DPIA generation. Reads UC metadata, writes JSON artifact + audit row in compliance.dpia_runs (status='draft'). Approve drafts via scripts/approve_dpia.py."
+      max_concurrent_runs: 1
+
+      # Quartz cron: 02:00 IST on the 1st of Jan / Apr / Jul / Oct.
+      # Format: <sec> <min> <hour> <day-of-month> <month> <day-of-week>.
+      schedule:
+        quartz_cron_expression: "0 0 2 1 1,4,7,10 ?"
+        timezone_id: "Asia/Kolkata"
+        pause_status: "UNPAUSED"
+
+      tasks:
+        - task_key: generate_dpia
+          notebook_task:
+            notebook_path: ../pipelines/dpia_generator.py
+            base_parameters:
+              catalog: ${var.catalog_name}
+              model_endpoint: "databricks-gpt-oss-120b"
+              mlflow_experiment_path: "/Shared/dpdp_agent_bricks"
+              regulation_pack: "dpdp_2023"
+
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+
+# sql_warehouse_id is declared at the top level of databricks.yml
+# (auto-resolves via warehouse-name lookup).

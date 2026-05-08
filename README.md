@@ -1,0 +1,528 @@
+# DPDP Audit Gap Finder & Consent Manager
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Databricks](https://img.shields.io/badge/Databricks-native-FF3621.svg?logo=databricks&logoColor=white)](https://www.databricks.com/)
+
+A Databricks-native compliance platform for India's Digital Personal Data Protection Act 2023. Discovers PII across data sources, captures granular consent, identifies compliance gaps, and generates audit reports — all using Databricks platform features with zero custom plumbing.
+
+## What's Built
+
+| Capability | Status | Key Numbers |
+|---|---|---|
+| **PII Discovery & Data Inventory** | Live | 36 findings across 10 silver objects (8 tables + 2 federation views) · UC tags · 21.5K base rows |
+| **Consent Intelligence Engine** | Live | 1,000 events · 292 principals · 6 purposes · 4 channels |
+| **Compliance Audit & Gap Analysis** | Live | 9 DPDP rules · 135 gaps · 72 critical · 52 high |
+| **Agent Bricks (AI Agents)** | Live | DPIA generator (30s) · Compliance Q&A · PII classifier |
+| **AI/BI Dashboard** | Live | 10-page professional dashboard with Genie NL queries |
+| **Persona Governance Layer** | Live | 4 sliced dashboards + 4 scoped Genie spaces (CCO/GC/CMO/CFO) with UC-enforced boundaries |
+| **Three-path ingestion demo** | Live | Auto Loader (5 tables) + Lakeflow Connect sim (3 SF tables) + Federation sim (2 views over `federation_mock`) |
+
+## Databricks Workspace
+
+This POC is workspace-portable — every deployer stands it up in their own
+Databricks workspace. The pieces a teammate needs to know about:
+
+- **Workspace URL**: yours. Run `scripts/configure_workspace_host.sh https://dbc-<your-id>.cloud.databricks.com` once after cloning to rewrite the literal under `targets.dev.workspace.host` in `databricks.yml`.
+- **Catalog**: `dpdp_poc` (schemas: `bronze`, `silver`, `gold`, `compliance`, `federation_mock`) — created by `scripts/bootstrap_catalog.py`, the first step of `scripts/deploy_all.sh`.
+- **SQL Warehouse**: a Serverless warehouse named `Serverless Starter Warehouse` is auto-discovered by `databricks.yml`'s `lookup` block; override the name with `--var sql_warehouse_id=<id>` if your workspace uses a different one.
+- **Dashboard**: `DPDP Compliance Platform` (10 pages), uploaded by `databricks bundle deploy`.
+- **Notebooks**: deployed under `/Workspace/Users/<your-email>/.bundle/dpdp-poc/dev/files/notebooks/` by the bundle.
+
+## Repository Structure
+
+```
+dpdp/
+├── README.md                         ← you are here
+├── SPEC.md                           ← original POC specification
+├── databricks.yml                    ← DAB root (deploy entry point)
+├── generate_synthetic_data.py        ← Auto Loader source generator (seed=42, 5 tables)
+├── generate_salesforce_data.py       ← Lakeflow Connect sim generator (seed=43, 3 tables)
+├── generate_federation_data.py       ← Federation sim generator (seed=44, 2 views)
+│
+├── governance_core/                  ← Layer 1/2 regulation-agnostic code (Phase 0)
+│   ├── pack_loader.py                ← reads REGULATION_PACK env var + yaml pack
+│   ├── rights.py                     ← 9-entry RIGHT_CATALOGUE
+│   ├── consent_model.py              ← consent-event schema contract
+│   └── pii_patterns/universal.py     ← 11 universal PIIPatterns + constants
+│
+├── regulations/                      ← Layer 3 regulation packs (Phase 0)
+│   ├── README.md                     ← pack authoring contract
+│   └── dpdp_2023/                    ← DPDP India 2023 pack
+│       ├── pack.yaml                 ← metadata (authority, penalties, activations)
+│       ├── rules.yaml                ← 9 compliance rules
+│       ├── rights.yaml               ← 5 DPDP rights with SLAs
+│       ├── notices.yaml              ← 3 notice bodies + default purposes
+│       ├── retention_defaults.yaml   ← per-purpose retention days
+│       ├── residency.yaml            ← §16 allowed countries
+│       ├── breach_sla.yaml           ← §8(6) 72h + CERT-In 6h
+│       ├── languages.yaml            ← 10 Indian languages
+│       └── pii_patterns.py           ← 5 India-specific patterns
+│
+├── schemas/                          ← DDL + pattern composition shim
+│   ├── bronze.sql                    ← 5 Auto Loader source tables + data_sources (SF + federation tables created by their seed scripts)
+│   ├── silver.sql                    ← 5 Auto Loader silver tables + pii_findings + discovered_tables (3 SF + 2 federation views layered on top)
+│   ├── register.sql                  ← personal_data_register view
+│   ├── compliance_rules.sql          ← 9 DPDP rules + compliance_gaps table
+│   ├── consent_events_delta.sql      ← consent log + Gold views
+│   ├── notice_versions.sql           ← consent notice templates
+│   └── pii_patterns.py               ← composition shim (governance_core + active pack)
+│
+├── notebooks/                        ← Databricks notebooks
+│   ├── 01_add_data_source.py         ← Databricks-native data source onboarding
+│   └── 03_agent_bricks.py            ← DPIA generator + Compliance Q&A + PII classifier
+│
+├── pipelines/                        ← DLT pipeline code
+│   ├── medallion.py                  ← Bronze → Silver (Auto Loader + type casting)
+│   ├── classification_dlt.py         ← PII classification DLT
+│   └── phase1_bootstrap.py           ← pack-driven compliance bootstrap
+│
+├── dashboards/                       ← AI/BI dashboard (Lakeview JSON)
+├── resources/                        ← DAB resource declarations (YAML)
+│
+├── docs/                             ← shareable documents
+│   ├── architecture.html             ← architecture diagram (open in browser → PDF)
+│   ├── presentation.html             ← 9-slide deck (open in browser → PDF)
+│   ├── how_to_test.html              ← step-by-step testing guide with SQL queries
+│   ├── test_results.html             ← screenshots of every test case execution
+│   └── DPDP_Audit_Gap_Finder.pptx   ← PowerPoint version of the deck
+│
+├── synthetic_data/                   ← generator specs
+├── tests/                            ← test specs (unit, integration, checkpoint, demo)
+├── runbook/                          ← setup, troubleshooting, rollback
+└── reference/                        ← DPDP glossary, trial limits, proposal PDF
+```
+
+## Deploying in your own workspace
+
+> **New teammate? Start here.** The POC has two deployment phases. Phase 2
+> (persona layer) has a single-command orchestrator and is fully automated.
+> Phase 1 (base POC) has a gap to close before it works end-to-end on a
+> fresh workspace — see the honest note below.
+
+### Step −1 — local Python deps (one-time)
+
+Some scripts run on your machine before they touch the workspace
+(`setup_agent_bricks.py`, the synthetic-data generators, headless tests).
+Install the local-machine deps once:
+
+```bash
+python3 -m pip install -r requirements.txt
+# On Homebrew Python (PEP 668), add: --break-system-packages
+# or use a venv: python3 -m venv .venv && source .venv/bin/activate
+```
+
+This file targets the deployer's machine. Databricks runtime ships
+pyspark / dlt / mlflow on the cluster side. The DPIA Streamlit app's
+own deps live in `apps/dpia_review/requirements.txt` — that one is for
+the app's runtime image and is installed automatically by `databricks
+apps deploy`.
+
+### Step 0 — point the bundle at your workspace (one-time)
+
+DAB does not allow variable interpolation on auth fields, so the
+workspace URL must be a literal in `databricks.yml`. Flip it idempotently:
+
+```bash
+# Option A — use $DATABRICKS_HOST (already set if you've configured the CLI):
+scripts/configure_workspace_host.sh
+
+# Option B — pass the URL explicitly:
+scripts/configure_workspace_host.sh https://dbc-XXXX.cloud.databricks.com
+```
+
+The script rewrites the one literal under `targets.dev.workspace.host`
+in `databricks.yml`. Re-running with the same URL is a no-op.
+
+### The two phases
+
+| Phase | What it deploys | Automation status |
+|---|---|---|
+| **Phase 1** — base POC | Catalog · schemas · Bronze source tables · DLT medallion (Silver) · master dashboard · Lakebase | Partially automated (see gap below) |
+| **Phase 2** — persona governance | 4 sliced dashboards · 4 Genie spaces · 4 persona users · UC grants · warehouse/dashboard/Genie ACLs | Fully automated via `scripts/setup_all_personas.py` |
+
+### Phase 2 — one-command deploy
+
+Once Phase 1 is live, run:
+
+```bash
+python3 scripts/setup_all_personas.py
+```
+
+Auto-detects your workspace URL, warehouse, and deployer email; creates
+`<you>+dpdp-{cco,gc,cmo,cfo}@<your-domain>` users (all login tokens route
+to your real inbox via plus-addressing); wires up everything. Two manual
+UI steps remain (Consumer-access toggle + token login).
+
+**Full guide:** [`docs/persona_deploy.md`](docs/persona_deploy.md) — includes
+prerequisites (Terraform PGP workaround for `bundle deploy`), one-command
+deploy, per-script reference, troubleshooting, and cleanup recipe.
+
+### Lakebase is commented out for free-trial compatibility
+
+**If you're deploying on a Databricks free-trial workspace**, note that
+Lakebase — the sub-second OLTP tier — is a paid-tier feature and is
+**not** provisioned by this bundle. The following resources are
+commented out in their respective files and a teammate without Lakebase
+entitlement does not need to change anything:
+
+| Commented-out resource | File | Free-tier substitute |
+|---|---|---|
+| `database_instances.consent_oltp` | `resources/catalog_and_storage.yml` | `compliance.consent_events_log` as a Delta table |
+| `database_catalogs.consent_catalog` | `resources/catalog_and_storage.yml` | (same — no Lakebase database needed) |
+| `apps.dsr_portal` (Databricks App) | `resources/apps.yml` | `scripts/dsr_discovery.py` + `scripts/dsr_erasure.py` (standalone, Delta-native) |
+
+Uncomment those blocks if you're on a paid workspace that has Lakebase.
+Everything else deploys identically; the POC's behavioural story
+(consent capture → withdrawal propagation via CDF → downstream view
+invalidation) works end-to-end on the Delta substitute.
+
+### Phase 1 + Phase 2 — single-command deploy
+
+After Step 0 (`configure_workspace_host.sh`), the entire deploy is one
+command:
+
+```bash
+scripts/deploy_all.sh
+```
+
+That script runs 19 idempotent steps end-to-end:
+
+```
+bootstrap_uc → bundle → synthetic → medallion → sf → federation →
+seed_ds → refresh → bootstrap → tags → masks → filters → multilang →
+agents → smoke → personas → app_deploy → app_perms → dpia_first_run
+```
+
+`bootstrap_uc` creates the catalog + 4 schemas + 4 volumes via the SQL
+API (DAB cannot do this on Default-Storage workspaces — see
+`scripts/bootstrap_catalog.py`). `personas` runs the Phase-2 orchestrator
+(4 sliced dashboards + 4 Genie spaces + 4 plus-addressed users + UC
+grants + workspace ACLs). The trailing three steps productionise the
+DPIA Generator: `app_deploy` provisions the DPIA Review Streamlit app
+(auto-starts a STOPPED app and polls for `ACTIVE` before deploying
+source), `app_perms` grants the runtime SP its UC reads + persona
+CAN_USE on the app, and `dpia_first_run` seeds one draft DPIA so the
+app has something to render on day one and unpauses the quarterly
+cron.
+
+Re-runs are safe: every step is idempotent. `--from <step>` resumes from
+a specific step; `--smoke-only` runs just the post-deploy assertion suite.
+
+**When you change rules / patterns / seeds:** the deterministic counts in
+`docs/how_to_test.html` go stale. Re-run
+`python3 scripts/regenerate_test_expected.py --write` after deploying —
+it refreshes `tests/_baseline.json` and prints copy-paste-ready doc
+updates for every test card. `python3 tests/test_baseline_counts.py`
+fails CI on any silent drift.
+
+To start over from a truly clean slate (drops the catalog AND the local
+DAB resource-id cache so DAB doesn't carry phantom resource IDs forward
+into the next deploy):
+
+```bash
+scripts/clean.sh           # dry-run — prints the plan
+scripts/clean.sh --yes     # actually wipes both sides
+scripts/deploy_all.sh      # then redeploy
+```
+
+**Behind the scenes (what the steps do, if you want the long form):**
+
+```bash
+export DATABRICKS_BUNDLE_ENGINE=direct     # required on newer workspaces
+export REGULATION_PACK=dpdp_2023           # default; swap for uk_gdpr / ccpa etc. once a pack is authored
+
+# 0. UC bootstrap (catalog + schemas + volumes; Default-Storage workspaces reject DAB UC creation)
+python3 scripts/bootstrap_catalog.py
+
+# 1. Deploy bundle (DLT pipeline + 3 jobs + dashboard)
+databricks bundle deploy --target dev
+
+# 2. Generate synthetic CSVs locally
+python3 generate_synthetic_data.py --output-dir /tmp/dpdp_landing
+
+# 3. Upload CSVs to the landing volume (one folder per source table)
+for tbl in employees customers patients transactions users; do
+  databricks fs mkdir "dbfs:/Volumes/dpdp_poc/bronze/landing/${tbl}" 2>/dev/null || true
+  databricks fs cp --recursive --overwrite \
+    "/tmp/dpdp_landing/${tbl}/" \
+    "dbfs:/Volumes/dpdp_poc/bronze/landing/${tbl}/"
+done
+
+# 4. Run medallion — Bronze (Auto Loader) → Silver tables
+databricks bundle run run_medallion --target dev
+
+# 5. Seed Lakeflow Connect simulation (Salesforce) + Federation simulation
+python3 scripts/seed_salesforce_data.py
+python3 scripts/seed_federation_data.py
+
+# 5b. Seed bronze.data_sources with all 10 canonical sources. MUST run
+#     before the refresh below — the classifier reads silver_table_name
+#     from data_sources at pipeline-load time; if data_sources is empty
+#     when the refresh fires it falls back to a 5-table list and
+#     silently skips the SF + federation silvers (pii_findings = 20
+#     instead of 36).
+python3 scripts/seed_data_sources.py
+
+# 6. Refresh — targeted full-refresh of pii_findings so the classifier
+#    re-scans all 10 silver objects (including the SF + federation
+#    tables seeded above). Two reasons full-refresh, not incremental:
+#    (a) DLT race on the first run: pii_findings reads silver via
+#        spark.table() and can fire before the silver flows commit;
+#    (b) SF + federation tables aren't DLT-managed, so DLT skips
+#        pii_findings on incremental updates because it sees no change
+#        to known upstream sources.
+databricks api post "/api/2.0/pipelines/${PIPELINE_ID}/updates" \
+  --json '{"full_refresh_selection": ["dpdp_poc.silver.pii_findings"]}'
+# Then poll /api/2.0/pipelines/${PIPELINE_ID}/updates/<update_id> for
+# state == "COMPLETED" before continuing — deploy_all.sh:do_refresh has
+# the polling loop.
+
+# 7. Populate compliance layer (rules, gaps, consent events, views, data_sources)
+databricks bundle run phase1_bootstrap --target dev
+
+# 8. Apply UC column tags + column masks + persona row filter
+python3 scripts/apply_uc_tags.py
+python3 scripts/apply_pii_masks.py
+python3 scripts/apply_persona_row_filters.py
+
+# 9. (Optional) Generate notices in the pack's other languages via foundation model
+python3 scripts/generate_multilang_notices.py
+
+# 10. Verify Agent Bricks infra + run smoke assertions
+python3 scripts/setup_agent_bricks.py
+python3 tests/test_post_deploy_smoke.py
+
+# 11. Phase 2 — sliced dashboards + Genie spaces + persona users + UC grants + ACLs
+python3 scripts/setup_all_personas.py
+```
+
+The `phase1_bootstrap` job runs `pipelines/phase1_bootstrap.py` and produces:
+
+- `bronze.compliance_rules` — 9 DPDP rules
+- `bronze.data_sources` — ingestion-source registry seeded with 10 canonical rows (5 Auto Loader + 3 Salesforce + 2 federation); the classifier reads `silver_table_name` from here, so adding a new ingestion path is a single row in `scripts/seed_data_sources.py:DATA_SOURCES_SEED` (the seed step runs in `deploy_all.sh` between the federation seeder and the medallion refresh; phase1_bootstrap also has an idempotent copy of the MERGE for partial-deploy resilience)
+- `silver.compliance_gaps` — ~135 rules × findings
+- `compliance.consent_events_log` — 1,000 deterministic events (seed=42)
+- `compliance.notice_versions` — 3 language versions (en-IN, hi-IN, ta-IN)
+- `compliance.dsr_requests` — schema only; populated by DSR workflows
+- `compliance.retention_audit` — for §8(7) enforcement evidence
+- `compliance.personal_data_register` — live view over pii_findings + discovered_tables
+- `compliance.has_active_consent()` — UDF for downstream consent checks
+- `gold.marketing_eligible_principals`, `gold.consent_coverage_summary`
+- `gold.persona_overview_metrics` + `gold.persona_sensitivity_histogram` — aggregate views backing non-CCO Executive Overview tiles
+- **37 UC column masks** on PII columns (email, phone, aadhaar, pan, medical, ifsc) — non-admins see redacted values automatically across all 3 ingestion patterns
+- **Residency row filter** on `employees_tagged.country` — non-admins see India-resident rows only (DPDP §16)
+
+All of that is one job run, idempotent, seed=42 reproducible. Then
+`setup_all_personas.py` wires the persona governance layer on top.
+
+## Optional post-deploy steps
+
+Workspace-wide capabilities that extend the platform beyond what the
+persona layer needs. Not part of the orchestrator because they are
+cross-persona or external-facing.
+
+```bash
+# Delta Share for external auditors (creates dpdp_audit_view_share)
+python3 scripts/create_audit_share.py
+
+# Discovery of a specific principal's data (DSR access request)
+python3 scripts/dsr_discovery.py --principal-id customer_04217 --verbose
+
+# Erasure of a specific principal (DSR §12(b) — destructive!)
+python3 scripts/dsr_erasure.py --principal-id customer_xxx --request-id dsr_xxx --confirm
+```
+
+## Document index
+
+| Purpose | File |
+|---|---|
+| Architecture diagram | [`docs/architecture.html`](docs/architecture.html) |
+| Step-by-step test suite (Tests 1–16 with SQL + Genie variants) | [`docs/how_to_test.html`](docs/how_to_test.html) |
+| Test execution evidence — screenshots of every test case | [`docs/test_results.html`](docs/test_results.html) |
+| **Teammate deploy guide (Phase 2)** | [`docs/persona_deploy.md`](docs/persona_deploy.md) |
+| **SA-review governance writeup** | [`docs/persona_governance.md`](docs/persona_governance.md) |
+| **Business pitch — Security + Ops efficiency** | [`docs/business_pitch.html`](docs/business_pitch.html) |
+| **Changelog + gap analysis** | [`docs/changelog_and_gaps.html`](docs/changelog_and_gaps.html) |
+| 9-slide presentation | [`docs/presentation.html`](docs/presentation.html) |
+| Genie knowledge-store config (YAML source, auto-applied by step `instr`) | [`configs/genie/`](configs/genie/) |
+| Original full specification | [`SPEC.md`](SPEC.md) |
+| AI assistant context | [`CLAUDE.md`](CLAUDE.md) |
+
+## Verify the platform is live (existing workspace)
+
+If you're on a workspace where Phase 1 is already complete (e.g. the
+current deployment), run these in the SQL Editor:
+
+```sql
+-- Check catalog exists
+SHOW SCHEMAS IN dpdp_poc;
+-- Expected: bronze, silver, gold, compliance
+
+-- Check PII register
+SELECT COUNT(*) FROM dpdp_poc.compliance.personal_data_register;
+-- Expected: 33
+
+-- Check consent events
+SELECT COUNT(*) FROM dpdp_poc.compliance.consent_events_log;
+-- Expected: 1000
+
+-- Check compliance gaps
+SELECT COUNT(*) FROM dpdp_poc.silver.compliance_gaps;
+-- Expected: 135
+```
+
+Then open `docs/how_to_test.html` for 16 SQL/Genie test cases plus the
+persona governance boundary suite, and `docs/test_results.html` for
+screenshots of every test case as actually executed against the live
+workspace. The automated equivalents live under `tests/test_*.py` —
+chiefly `test_post_deploy_smoke.py` (10 deploy-gate checks) and
+`test_dsr_e2e.py` (11 DSR-chain assertions).
+
+## Run the Agent Bricks notebook (optional demo)
+
+1. Open the workspace → navigate to `dpdp_poc/03_agent_bricks`
+2. Attach a cluster
+3. Run cells sequentially
+4. The DPIA generator is the most demo-worthy cell
+
+## Architecture
+
+Open `docs/architecture.html` in a browser for the full visual diagram. Key layers:
+
+```
+Stakeholders (CCO, GC, CMO, CFO)
+    ▼
+Consumer Interfaces (Dashboard, Consent API, Q&A Agent)
+    ▼
+Compliance Modules (PII Discovery, Consent Intelligence, Compliance Audit)
+    ▼
+Agent Bricks (DPIA Generator, Compliance Q&A, PII Classifier)
+    ▼
+Unity Catalog (tags, lineage, audit log, grants)
+    ▼
+Lakehouse (Bronze → Silver → Gold + Lakebase in production)
+    ▼
+Processing (DLT, Workflows, DAB)
+    ▼
+Ingestion (Lakehouse Federation, Lakeflow Connect, Auto Loader)
+    ▼
+Client Source Systems (CRM, HRMS, Databases, Cloud Storage, SaaS)
+```
+
+## Databricks Features Used
+
+| Feature | How It's Used |
+|---|---|
+| **Unity Catalog** | PII column tags, auto lineage, audit log, foreign catalogs |
+| **Agent Bricks + AI Functions** | DPIA generation, Compliance Q&A, ai_classify/ai_extract |
+| **Lakehouse Federation** | Foreign catalogs for Postgres, Snowflake, BigQuery |
+| **Lakeflow Connect** | Managed ingestion for Salesforce, Workday, ServiceNow |
+| **Lakeflow DLT** | Bronze → Silver medallion with data quality expectations |
+| **Delta Lake (CDF)** | Immutable consent log, time travel, withdrawal propagation |
+| **Auto Loader** | Incremental file ingestion from cloud storage |
+| **AI/BI Dashboard + Genie** | 10-page compliance dashboard with NL queries |
+| **Databricks Asset Bundle** | Full platform as IaC — one command deploy/destroy |
+| **Lakebase** | Consent OLTP at production scale (Delta in POC) |
+
+## Key Tables
+
+| Schema | Table | Rows | Purpose |
+|---|---|---|---|
+| bronze | source_employees | 2,000 | Raw HR data |
+| bronze | source_customers | 5,000 | Raw CRM data |
+| bronze | source_patients | 1,500 | Raw health data |
+| bronze | source_transactions | 10,000 | Raw financial data |
+| bronze | source_users | 3,000 | Raw application data |
+| bronze | sf_leads | 100 | Salesforce leads (Lakeflow Connect simulation) |
+| bronze | sf_contacts | 60 | Salesforce contacts |
+| bronze | sf_accounts | 30 | Salesforce accounts |
+| federation_mock | lead_scoring | 200 | Postgres-shape marketing lead scores (Federation sim) |
+| federation_mock | campaign_response | 100 | Postgres-shape campaign responses |
+| silver | sf_{leads,contacts,accounts}_tagged | 100/60/30 | Lakeflow Connect silver layer |
+| silver | federation_{lead_scoring,campaign_response}_tagged | 200/100 | Federation silver — VIEWS over federation_mock |
+| silver | pii_findings | 36 | PII classification results across all 10 silver objects |
+| silver | compliance_gaps | 135 | Compliance gap analysis |
+| gold | marketing_eligible_principals | ~286 | Consented marketing audience |
+| compliance | personal_data_register | 36 | Living PII register (view) |
+| compliance | consent_events_log | 1,000 | Immutable consent log |
+
+## DSR Test Principal
+
+`customer_04217` (Oeshi Desai) — the test data subject for DSR demos:
+
+- **Customer record**: 1 row in `customers_tagged`
+- **User account**: 1 row in `users_tagged` (linked by email)
+- **Transactions**: 20 rows in `transactions_tagged`
+- **Consent**: 4 events — marketing withdrawn, analytics active, third_party declined
+- **Not in**: employees (0), patients (0)
+
+```sql
+-- Quick check
+SELECT dpdp_poc.compliance.has_active_consent('customer_04217', 'marketing_email');
+-- false (withdrawn)
+
+SELECT dpdp_poc.compliance.has_active_consent('customer_04217', 'analytics');
+-- true (active)
+```
+
+## Shareable Documents
+
+All in `docs/` — open in browser, Cmd+P to save as PDF:
+
+| Document | Purpose |
+|---|---|
+| `architecture.html` | Architecture diagram for SA review (incl. persona governance layer) |
+| `presentation.html` | 9-slide deck for stakeholder presentation |
+| `accelerator.html` | **Solution-accelerator-style overview** — single-page pitch deck with the value pillars, KPIs, and getting-started flow |
+| `how_to_test.html` | Step-by-step testing guide with SQL queries (Tests 1–16 + Genie companions) |
+| `test_results.html` | Screenshots of every test case as executed against the live workspace |
+| `persona_deploy.md` | **Teammate deploy guide** — one-command Phase 2 walkthrough |
+| `persona_governance.md` | **SA-review governance writeup** — enforcement matrix, what-if scenarios, migration path to account groups |
+
+## Synthetic Data
+
+All data is generated deterministically with `seed=42` using `generate_synthetic_data.py`. No real customer data is used. To regenerate:
+
+```bash
+pip install faker==33.3.1
+python generate_synthetic_data.py --output-dir /tmp/dpdp_landing --seed 42
+```
+
+The generator produces identical output on every run (verified via content hash).
+
+## What Was Replaced from the Original Accelerator
+
+The original `dpdp_accelerator-dev` used 28 Python connectors (~400K lines) with runtime `pip install`, driver-side `.collect()`, and `gc.collect()`. Based on Databricks SA feedback, all of this was replaced with:
+
+- **Lakehouse Federation** instead of JDBC/Snowflake/BigQuery Python connectors
+- **Lakeflow Connect** instead of Salesforce/Workday/ServiceNow Python connectors
+- **Auto Loader** instead of S3/ADLS/GCS Python connectors
+- **DLT** instead of standalone notebooks
+- **Unity Catalog tags** instead of findings-only Delta tables
+- **DAB** instead of shell scripts for deployment
+
+## Contributing
+
+1. All changes go through `git` — no direct workspace edits
+2. Test your changes using the guide in `docs/how_to_test.html`
+3. If adding new tables, update `schemas/` DDL files first
+4. If adding new notebooks, upload to workspace: `databricks workspace import /Workspace/Users/.../dpdp_poc/<name> --file notebooks/<name>.py --language PYTHON --format SOURCE`
+5. Keep `docs/architecture.html` updated if the architecture changes
+
+## License
+
+Copyright 2026 Jellyfish Technologies.
+
+Licensed under the **Apache License, Version 2.0** — see [`LICENSE`](LICENSE)
+for the full text. You are free to use, modify, and redistribute this work
+(including for commercial purposes) under the terms of that license. Per
+Apache 2.0, redistribution must include both `LICENSE` and `NOTICE`.
+
+[`NOTICE`](NOTICE) enumerates the third-party software this project depends
+on (pydantic, PyYAML, requests, Faker, ReportLab, python-docx, Markdown,
+Streamlit, Databricks SDK, pandas, Jinja2, Apache Spark, Delta Lake,
+MLflow), each under its own license.
+
+"Databricks", "Unity Catalog", "Delta Lake", "Lakeflow", "Genie", and
+"MLflow" are trademarks of Databricks, Inc. — used here descriptively, no
+endorsement implied.

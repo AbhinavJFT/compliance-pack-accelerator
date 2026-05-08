@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPDP Compliance Platform — Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #fafafa;
+    color: #1a1a2e;
+    padding: 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; letter-spacing: -0.5px; }
+  .header .subtitle { font-size: 14px; color: #666; margin-top: 8px; }
+  .header .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 5px 18px; border-radius: 12px; letter-spacing: 0.5px;
+    background: #2e7d32; color: white; margin-top: 14px;
+  }
+
+  .layer { margin-bottom: 16px; }
+  .layer-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #999; margin-bottom: 8px; padding-left: 4px;
+  }
+
+  .arrow-down { text-align: center; padding: 6px 0; color: #bbb; font-size: 18px; }
+
+  .box {
+    border-radius: 10px; padding: 16px 20px; flex: 1; min-height: 72px;
+    display: flex; flex-direction: column; justify-content: center;
+    position: relative; transition: transform 0.2s;
+  }
+  .box:hover { transform: translateY(-2px); }
+  .box .title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .box .desc { font-size: 11px; color: rgba(0,0,0,0.55); line-height: 1.4; }
+  .box .tag {
+    position: absolute; top: 8px; right: 10px; font-size: 9px;
+    font-weight: 600; padding: 2px 8px; border-radius: 8px; letter-spacing: 0.3px;
+  }
+
+  .neutral { background: #f8f9fa; border: 1.5px solid #dee2e6; }
+  .module { background: #e8f5e9; border: 1.5px solid #81c784; }
+  .module .title { color: #2e7d32; }
+  .module .tag { background: #2e7d32; color: white; }
+  .consumer { background: #fff8e1; border: 1.5px solid #ffd54f; }
+  .consumer .title { color: #f57f17; }
+  .agent { background: #ede7f6; border: 1.5px solid #b39ddb; }
+  .agent .title { color: #4527a0; }
+  .agent .tag { background: #5e35b1; color: white; }
+  .governance { background: #e3f2fd; border: 2px solid #1565c0; }
+  .governance .title { color: #1565c0; }
+  .persona { background: #fff3e0; border: 2px solid #ef6c00; position: relative; }
+  .persona .title { color: #bf360c; }
+  .persona .tag { background: #ef6c00; color: white; }
+  .persona .sub {
+    font-size: 10px; color: #555; margin-top: 4px; line-height: 1.35;
+  }
+  .persona .sub b { color: #bf360c; }
+  .data { background: #e8f5e9; border: 1.5px solid #a5d6a7; }
+  .processing { background: #f3e5f5; border: 1.5px solid #ce93d8; }
+  .processing .title { color: #6a1b9a; }
+  .ingestion { background: #e0f2f1; border: 1.5px solid #80cbc4; }
+  .ingestion .title { color: #00695c; }
+  .source { background: #efebe9; border: 1.5px solid #bcaaa4; }
+  .lakebase { background: #e8eaf6; border: 1.5px solid #7986cb; }
+  .lakebase .title { color: #283593; }
+  .lakebase .desc { color: rgba(0,0,0,0.5); }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+
+  .full { flex: 1; min-width: 100%; }
+
+  .section-break {
+    border-top: 1px dashed #ddd; margin: 28px 0 16px; position: relative;
+  }
+  .section-break span {
+    position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+    background: #fafafa; padding: 0 16px; font-size: 10px; font-weight: 600;
+    color: #aaa; letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* Platform capabilities table */
+  .capabilities { margin-top: 48px; border-top: 2px solid #e0e0e0; padding-top: 32px; }
+  .capabilities h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; padding: 10px 16px; background: #f5f5f5;
+    font-weight: 600; border-bottom: 2px solid #ddd; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px; color: #666;
+  }
+  td { padding: 10px 16px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .highlight { background: #f1f8e9; }
+
+  .footer {
+    margin-top: 48px; text-align: center; font-size: 11px; color: #aaa;
+    padding-top: 24px; border-top: 1px solid #eee;
+  }
+
+  @media print {
+    body { padding: 20px; background: white; }
+    .box:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>DPDP Audit Gap Finder & Consent Manager</h1>
+  <div class="subtitle">Databricks-native compliance platform for India's Digital Personal Data Protection Act 2023</div>
+</div>
+
+<!-- Stakeholders -->
+<div class="layer">
+  <div class="layer-label">Stakeholders Served</div>
+  <div class="grid-4" style="gap: 10px;">
+    <div class="box neutral" style="min-height:60px; text-align:center;">
+      <div class="title">Chief Compliance Officer</div>
+      <div class="desc">PII register · Compliance score · DPIA · Gap remediation</div>
+    </div>
+    <div class="box neutral" style="min-height:60px; text-align:center;">
+      <div class="title">General Counsel</div>
+      <div class="desc">Auto DPIA drafting · Consent evidence · Regulatory audit readiness</div>
+    </div>
+    <div class="box neutral" style="min-height:60px; text-align:center;">
+      <div class="title">Chief Marketing Officer</div>
+      <div class="desc">Consent coverage · Marketing eligible audience · Withdrawal propagation</div>
+    </div>
+    <div class="box neutral" style="min-height:60px; text-align:center;">
+      <div class="title">Chief Financial Officer</div>
+      <div class="desc">Risk score · Penalty exposure · Compliance ROI · Gap prioritization</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- Persona Governance Layer -->
+<div class="layer">
+  <div class="layer-label">Persona Views — Dashboard + Scoped Genie, UC-enforced per persona</div>
+  <div class="grid-4">
+    <div class="box persona">
+      <span class="tag">UC-ENFORCED</span>
+      <div class="title">CCO Persona</div>
+      <div class="desc">DPDP — CCO View (6 pages) + CCO Genie space</div>
+      <div class="sub">
+        <b>Scope:</b> personal_data_register · pii_findings · compliance_gaps · discovered_tables · consent_coverage_summary
+      </div>
+    </div>
+    <div class="box persona">
+      <span class="tag">UC-ENFORCED</span>
+      <div class="title">GC Persona</div>
+      <div class="desc">DPDP — GC View (5 pages) + GC Genie space</div>
+      <div class="sub">
+        <b>Scope:</b> compliance_gaps (critical/high) · consent_events_log · notice_versions · dsr_requests
+      </div>
+    </div>
+    <div class="box persona">
+      <span class="tag">UC-ENFORCED</span>
+      <div class="title">CMO Persona</div>
+      <div class="desc">DPDP — CMO View (3 pages, incl. Consent &amp; Audience) + CMO Genie space</div>
+      <div class="sub">
+        <b>Scope:</b> marketing_eligible_principals · consent_events_log
+      </div>
+    </div>
+    <div class="box persona">
+      <span class="tag">UC-ENFORCED</span>
+      <div class="title">CFO Persona</div>
+      <div class="desc">DPDP — CFO View (4 pages, incl. Penalty Exposure) + CFO Genie space</div>
+      <div class="sub">
+        <b>Scope:</b> compliance_gaps · discovered_tables (penalty-weighted)
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top: 10px; font-size: 11px; color: #666;">
+    Each persona user has CAN_READ only on their dashboard, CAN_RUN only on their Genie space,
+    and UC SELECT only on their domain tables. Cross-persona access is blocked at the query layer,
+    not the UI layer.
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- Consumer Interfaces -->
+<div class="layer">
+  <div class="layer-label">Shared Interfaces (Deployer / Admin)</div>
+  <div class="grid-3">
+    <div class="box consumer">
+      <div class="title">Master AI/BI Dashboard + Genie</div>
+      <div class="desc">10-page dashboard with full data estate visibility · Risk/compliance scores · PII inventory · Compliance gaps · Remediation priorities · NL queries via Genie</div>
+    </div>
+    <div class="box consumer">
+      <div class="title">Consent API</div>
+      <div class="desc">Consented-only audience views · Real-time eligibility checks · has_active_consent() UDF · Marketing eligible principals</div>
+    </div>
+    <div class="box consumer">
+      <div class="title">Compliance Q&A (Unscoped)</div>
+      <div class="desc">Admin-only full-estate queries · "What critical PII do we hold?" · Context-aware routing across all tables</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- DPDP Modules -->
+<div class="layer">
+  <div class="layer-label">DPDP Compliance Modules</div>
+  <div class="grid-3">
+    <div class="box module">
+      <div class="title">PII Discovery & Data Inventory</div>
+      <div class="desc">
+        16-pattern regex + column-hint library<br>
+        9-category DPDP taxonomy · Sensitivity tiering<br>
+        36 PII findings across 10 silver objects · UC tags applied<br>
+        Living personal data register · 8 tables + 2 federation views
+      </div>
+    </div>
+    <div class="box module">
+      <div class="title">Consent Intelligence Engine</div>
+      <div class="desc">
+        1,000 events · 292 principals · 6 purposes · 4 channels<br>
+        Immutable Delta log with CDF · Withdrawal propagation<br>
+        Notice version tracking · Marketing eligible view<br>
+        Consent coverage summary with grant rates
+      </div>
+    </div>
+    <div class="box module">
+      <div class="title">Compliance Audit & Gap Analysis</div>
+      <div class="desc">
+        9 DPDP compliance rules (encryption, consent, retention, access, DSR, breach)<br>
+        135 gaps detected · 72 critical · 52 high · 11 medium<br>
+        Penalty-weighted risk scoring · Remediation tracker
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- Agent Orchestration -->
+<div class="layer">
+  <div class="layer-label">Agent Bricks — AI-Powered Compliance</div>
+  <div class="grid-3">
+    <div class="box agent">
+      <span class="tag">AGENT</span>
+      <div class="title">DPIA Auto-Generator</div>
+      <div class="desc">Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft in 30 seconds<br><em>Replaces 3-month manual exercise</em></div>
+    </div>
+    <div class="box agent">
+      <span class="tag">AGENT</span>
+      <div class="title">Compliance Q&A</div>
+      <div class="desc">Natural language queries against the compliance data estate · Context-aware routing to PII, consent, and gap tables · Foundation model: databricks-gpt-oss-120b</div>
+    </div>
+    <div class="box agent">
+      <span class="tag">AI FUNCTIONS</span>
+      <div class="title">PII Classifier</div>
+      <div class="desc">ai_classify for unstructured fields (diagnosis, prescriptions, notes) · ai_extract for structured PII from free text · Handles what regex cannot</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- Governance Spine -->
+<div class="layer">
+  <div class="layer-label">Governance Spine</div>
+  <div style="display: flex;">
+    <div class="box governance full">
+      <div class="title">Unity Catalog — Four Enforcement Layers</div>
+      <div class="desc">
+        <b>Discovery:</b> 14 PII column tags · auto lineage (Bronze → Silver → Gold → Register) · sensitivity tiers · foreign catalogs for Lakehouse Federation<br>
+        <b style="color:#bf360c;">Per-persona grants:</b> each persona user has USE_CATALOG + USE_SCHEMA + SELECT only on scoped tables; out-of-scope queries fail PERMISSION_DENIED regardless of UI path<br>
+        <b style="color:#bf360c;">Column masks (DPDP §5(2)):</b> 17 PII columns on silver (<code>email</code>, <code>phone</code>, <code>aadhaar</code>, <code>pan</code>, medical free-text, ...) wrapped in <code>CASE WHEN is_member('admins') THEN val ELSE mask(val) END</code>; persona queries return redacted values<br>
+        <b style="color:#bf360c;">Audit trail (DPDP §18):</b> <code>system.access.audit</code> captures every query with user + timestamp; CCO Genie space surfaces it via sample questions
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- Data Tier -->
+<div class="layer">
+  <div class="layer-label">Lakehouse — Delta Medallion</div>
+  <div class="grid-4">
+    <div class="box data">
+      <div class="title">Bronze <span style="font-size:9px; background:#37474f; color:white; padding:1px 6px; border-radius:6px; margin-left:4px;">PIPELINE-ONLY</span></div>
+      <div class="desc">5 Auto Loader tables (21.5K rows) + 3 Lakeflow Connect tables + 2 federation_mock tables<br>All STRING · CDF enabled<br><em>Zero human grants — DLT pipeline + seed scripts</em></div>
+    </div>
+    <div class="box data">
+      <div class="title">Silver <span style="font-size:9px; background:#bf360c; color:white; padding:1px 6px; border-radius:6px; margin-left:4px;">MASKED</span></div>
+      <div class="desc">8 typed tables + 2 federation views + 3 metadata<br>33 PII columns UC-masked<br>pii_findings · compliance_gaps</div>
+    </div>
+    <div class="box data">
+      <div class="title">Gold</div>
+      <div class="desc">marketing_eligible_principals<br>consent_coverage_summary<br>persona_overview_metrics</div>
+    </div>
+    <div class="box lakebase">
+      <div class="title">Lakebase (Production)</div>
+      <div class="desc">Consent OLTP tier<br>Sub-second read-after-write<br><em>Delta in POC · Lakebase at scale</em></div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▼</div>
+
+<!-- Processing -->
+<div class="layer">
+  <div class="layer-label">Processing & Deployment</div>
+  <div class="grid-3">
+    <div class="box processing">
+      <div class="title">Lakeflow Declarative Pipelines (DLT)</div>
+      <div class="desc">Bronze → Silver medallion · PII classification · <strong>16 DQ expectations across 5 silver tables</strong> (5 <code>expect_or_drop</code> for primary keys, 11 <code>expect</code> warn for PII format/enum rules) · metrics auto-emitted to DLT event log · <em>only writer to Bronze and Silver</em></div>
+    </div>
+    <div class="box processing">
+      <div class="title">Databricks Workflow Jobs</div>
+      <div class="desc"><code>run_medallion</code> (DLT trigger) · <code>phase1_bootstrap</code> (compliance rules + gaps + 1K consent events + views/UDFs · idempotent · seed=42)</div>
+    </div>
+    <div class="box processing">
+      <div class="title">Databricks Asset Bundle + GitHub Actions</div>
+      <div class="desc">Full IaC via <code>databricks bundle deploy</code> · CI validates on every push/PR: bundle validate + py-syntax + HTML tag-balance + persona-boundary test</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-break"><span>Databricks-Native Ingestion Layer</span></div>
+
+<!-- Ingestion -->
+<div class="layer">
+  <div class="layer-label">Data Source Ingestion</div>
+  <div class="grid-3">
+    <div class="box ingestion">
+      <div class="title">Lakehouse Federation</div>
+      <div class="desc">
+        <strong>Databases:</strong> Postgres · MySQL · SQL Server · Snowflake · BigQuery<br>
+        <code style="font-size:10px; color:#00695c;">CREATE FOREIGN CATALOG USING CONNECTION</code><br>
+        Query in-place · No data movement · UC-governed
+      </div>
+    </div>
+    <div class="box ingestion">
+      <div class="title">Lakeflow Connect</div>
+      <div class="desc">
+        <strong>SaaS:</strong> Salesforce · Workday · ServiceNow · SharePoint · MongoDB<br>
+        Managed ingestion · Schema evolution · CDC built-in
+      </div>
+    </div>
+    <div class="box ingestion">
+      <div class="title">Auto Loader + Volumes</div>
+      <div class="desc">
+        <strong>Files:</strong> S3 · ADLS · GCS · CSV/JSON/Parquet<br>
+        <code style="font-size:10px; color:#00695c;">cloudFiles</code> format · Incremental · Exactly-once
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">▲</div>
+
+<!-- Sources -->
+<div class="layer">
+  <div class="layer-label">Client Source Systems</div>
+  <div class="grid-5" style="gap: 8px;">
+    <div class="box source" style="min-height:56px; text-align:center;"><div class="title">CRM</div><div class="desc">Salesforce · HubSpot</div></div>
+    <div class="box source" style="min-height:56px; text-align:center;"><div class="title">HRMS</div><div class="desc">Workday · SAP</div></div>
+    <div class="box source" style="min-height:56px; text-align:center;"><div class="title">Databases</div><div class="desc">Postgres · MySQL · Oracle</div></div>
+    <div class="box source" style="min-height:56px; text-align:center;"><div class="title">Cloud Storage</div><div class="desc">S3 · ADLS · GCS</div></div>
+    <div class="box source" style="min-height:56px; text-align:center;"><div class="title">SaaS Apps</div><div class="desc">ServiceNow · Zendesk</div></div>
+  </div>
+</div>
+
+<!-- Platform capabilities -->
+<div class="capabilities">
+  <h2>Databricks Platform Features Used</h2>
+  <table>
+    <thead>
+      <tr><th>Feature</th><th>How It's Used</th><th>What It Delivers</th></tr>
+    </thead>
+    <tbody>
+      <tr class="highlight">
+        <td><strong>Unity Catalog</strong></td>
+        <td>PII column tags · Auto lineage · Foreign catalogs · Sensitivity tiers · <strong>Per-persona grants</strong> + <strong>column masks (17 cols, DPDP §5(2))</strong> + <strong>bronze-is-pipeline-only fence</strong> + <strong>row filters (§16 residency + CMO persona purpose-scope)</strong> enforcing CCO/GC/CMO/CFO boundaries at query time</td>
+        <td>One governance boundary across the estate — an SA or regulator gets an answerable question in a single query instead of navigating a patchwork of app-level checks. Enforcement is at query time, so no UI path can leak what UC has blocked.</td>
+      </tr>
+      <tr>
+        <td><strong>Regulation packs</strong> (Phase 0 framework)</td>
+        <td>All DPDP-specific values (9 rules, 3 notice bodies, per-purpose retention, allowed-country residency list, 5 region PII patterns, DSR SLAs) live in <code>regulations/dpdp_2023/</code>. <code>governance_core/</code> hosts the regulation-agnostic code. One env var (<code>REGULATION_PACK</code>) selects the active pack; zero code changes needed to add UK GDPR / CCPA / PIPEDA / LGPD / APPI.</td>
+        <td>Same lakehouse + same personas + same dashboards, different regulation. Makes the accelerator a Unity-Catalog implementation framework, not a single-jurisdiction compliance product. See <a href="modular_framework.html">modular_framework.html</a> for the 4-layer architecture and effort-to-add-a-regulation matrix.</td>
+      </tr>
+      <tr>
+        <td><strong>system.access.audit</strong></td>
+        <td>Every SQL query + dashboard view + Genie question captured with user + timestamp (DPDP §18 evidence). CCO Genie space surfaces it via sample questions</td>
+        <td>DPDP §18 audit evidence available on demand. <em>"Who accessed patient X's record last week?"</em> answered live in seconds — the difference between surviving a regulator inquiry and scrambling to reconstruct logs from app traces.</td>
+      </tr>
+      <tr>
+        <td><strong>Lakeview Dashboards + Genie (persona-sliced)</strong></td>
+        <td>4 persona-specific dashboards sliced from the master (idempotent PATCH on redeploy) + 4 Genie spaces scoped to that persona's data_sources. Dashboards published with <code>embed_credentials=false</code> so queries run as the viewer and UC enforces</td>
+        <td>Every executive (CCO/GC/CMO/CFO) gets a personal view tailored to their questions — not one firehose dashboard. Natural-language agents collapse <em>"file a ticket, wait two days, get a spreadsheet"</em> into a five-second Genie answer.</td>
+      </tr>
+      <tr>
+        <td><strong>Lakeflow Declarative Pipelines</strong></td>
+        <td>Bronze → Silver medallion with 16 DQ expectations · PII classification pipeline · metrics to event log</td>
+        <td>Data quality becomes an always-on control, not a periodic review. The 16 expectations auto-emit pass/fail metrics to the event log, so a DPO can prove "our controls ran every night and caught these rows" without custom observability code.</td>
+      </tr>
+      <tr class="highlight">
+        <td><strong>Agent Bricks + AI Functions</strong></td>
+        <td>DPIA auto-generation · Compliance Q&A · ai_classify/ai_extract for unstructured PII</td>
+        <td>DPIA production drops from ~3 months of legal + IT + compliance coordination to ~30 seconds of agent output + ~1-2 hours of human review. For an enterprise running 20+ DPIAs a year, that's ₹1.5–3 crore of external-consulting spend that goes away.</td>
+      </tr>
+      <tr>
+        <td><strong>Lakehouse Federation</strong></td>
+        <td>Foreign catalogs for Postgres, Snowflake, BigQuery — query in place, no ETL</td>
+        <td>Data residency stays compliant without engineering work — the source system never has to move its data. For cross-border concerns under DPDP §16, this is often the answer: query where the data already lives.</td>
+      </tr>
+      <tr class="highlight">
+        <td><strong>Lakeflow Connect</strong></td>
+        <td>Managed ingestion for Salesforce, Workday, ServiceNow, SharePoint</td>
+        <td>Onboarding a new SaaS source goes from a 2-sprint engineering project to a configuration step. Schema drift, OAuth renewals, pagination and rate-limit handling are platform responsibilities — ingestion stops being a product your team maintains.</td>
+      </tr>
+      <tr>
+        <td><strong>Auto Loader</strong></td>
+        <td>Incremental file ingestion from S3/ADLS/GCS with schema evolution</td>
+        <td>Exactly-once file ingestion without your team tracking what's been processed. Schema evolution is automatic — partner uploads a new column, your pipeline keeps running instead of paging an engineer at 2am.</td>
+      </tr>
+      <tr class="highlight">
+        <td><strong>AI/BI Dashboard + Genie</strong></td>
+        <td>10-page compliance dashboard + NL query support · 4 persona-scoped Genie spaces</td>
+        <td>Compliance insight accessible to business users without SQL literacy. A CMO asks <em>"can I email this customer?"</em> in English/Hindi and gets a yes/no answer — no analyst ticket, no wait, no raw-PII exposure.</td>
+      </tr>
+      <tr>
+        <td><strong>Delta Lake (CDF)</strong></td>
+        <td>Immutable consent log · Withdrawal propagation · Time travel for audit</td>
+        <td>Real-time consent withdrawal propagation — DPDP §8(7) "without undue delay" is satisfied by the platform, not by a nightly batch job. Downstream marketing / ML systems auto-invalidate the moment a principal withdraws; no polling, no stale cache.</td>
+      </tr>
+      <tr>
+        <td><strong>Delta Sharing</strong></td>
+        <td>Read-only audit share (<code>dpdp_audit_view_share</code>) — 4 objects: personal_data_register, compliance_gaps, notice_versions, consent_coverage_summary</td>
+        <td>External auditors query compliance evidence from their own workspace — no local accounts to provision, no VPN, no orphan credentials to clean up after the audit. Revoke in one command when the engagement ends.</td>
+      </tr>
+      <tr class="highlight">
+        <td><strong>Databricks Asset Bundle</strong></td>
+        <td>Full platform as IaC — one command deploy, one command destroy</td>
+        <td>Reproducibility becomes free. A teammate stands up the entire compliance stack on a fresh workspace in minutes instead of days; every environment looks identical; drift between dev and prod stops existing as a category.</td>
+      </tr>
+      <tr>
+        <td><strong>Persona Orchestrator (scripts/setup_all_personas.py)</strong></td>
+        <td>One command stands up the full persona layer: slice → Genie → attach banners → SCIM users → UC grants → warehouse/dashboard/Genie ACLs. Auto-detects workspace/warehouse/deployer. Idempotent end-to-end</td>
+        <td>Governance is deployed the same way code is — scriptable, reviewable, reproducible. Onboarding a new persona (e.g. a Chief Risk Officer) becomes a code change with a PR, not a week of click-ops that quietly drifts between environments.</td>
+      </tr>
+      <tr class="highlight">
+        <td><strong>GitHub Actions + persona_boundary_test</strong></td>
+        <td>On every push/PR: <code>bundle validate</code> + Python AST parse + HTML tag-balance + live 4/4 persona-boundary check against the workspace</td>
+        <td>Governance is continuously proven, not annually audited. If a future change breaks a persona boundary, CI fails the PR before it merges — regulator-grade enforcement with a commit-level feedback loop.</td>
+      </tr>
+      <tr>
+        <td><strong>Lakebase (Production)</strong></td>
+        <td>Consent OLTP tier with sub-second writes and read-after-write consistency</td>
+        <td>Consent capture latency goes from "acceptable" to "imperceptible" — a principal withdrawing on your mobile app sees the new state reflected across downstream systems in under a second. One Databricks surface handles both the OLTP write and the lakehouse analytics.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer" style="text-align:left; font-size: 12px; line-height: 1.5; color: #555; padding: 16px 20px; background: #fafafa; border-top: 1px solid #e0e0e0;">
+  <p><strong>Note on numbers.</strong> Counts shown in the module cards and metric tiles
+  (33 PII findings, 14 auto-classified, 135 gaps, 72 critical, 52 high, 1,000 consent
+  events, 292 principals, 286 marketing eligible, 9 rules) are <strong>illustrative</strong>
+  — they come from the synthetic POC dataset on the <code>dpdp_poc</code> workspace and are
+  reproducible via the SQL in <code>docs/how_to_test.html</code>. In a real deployment the
+  absolute counts will differ with the customer's data estate and PII density; the
+  transferable signal is the shape of the ratios (critical-to-total gap mix, auto-classify
+  rate, consent-grant rate), not the specific numbers. The ₹1.5–3 cr DPIA-consulting
+  savings in the platform-features table is an industry-range estimate drawn from
+  Big-4 readiness benchmarks; actual per-enterprise savings vary with scale, SDF status,
+  and current tooling.</p>
+  <p style="margin-top: 10px; color: #777;">DPDP Audit Gap Finder &amp; Consent Manager ·
+  Databricks-Native Architecture · April 2026</p>
+</div>
+
+</body>
+</html>

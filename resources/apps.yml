@@ -1,0 +1,63 @@
+# Databricks Apps declared in this bundle.
+#
+# - dpia_review_app: live. The human-review surface for the DPIA
+#   Auto-Generator (Phase 4 Theme 3). Source under apps/dpia_review/.
+#
+# - dsr_portal:     parked. Original DSR intake portal, depends on
+#   Lakebase + the removed `process_dsr_request` job. On the free tier,
+#   DSR work is performed by scripts/dsr_{discovery,erasure}.py. Block
+#   left commented out so a future Lakebase-entitled deploy can restore
+#   it without re-deriving the shape.
+
+resources:
+  apps:
+
+    # -----------------------------------------------------------------
+    # dpia_review_app
+    # -----------------------------------------------------------------
+    # Streamlit app that lets CCO + GC + CFO view DPIA runs from
+    # compliance.dpia_runs, render them as PDF, and (CCO + GC only)
+    # flip status='draft' → 'approved' with verified Databricks user
+    # identity captured server-side. Replaces the Phase 2 CLI's
+    # self-asserted-reviewer trust model with a real UI.
+    #
+    # Permissions wiring (see docs/persona_deploy.md for the full
+    # post-deploy steps):
+    #   1. The bundle creates the App with its own runtime SP.
+    #   2. Workspace admin grants:
+    #        - CAN_USE on the app to CCO + GC + CFO persona users
+    #        - CAN_USE on the SQL warehouse to the app's SP
+    #        - SELECT + UPDATE on dpdp_poc.compliance.dpia_runs to the app's SP
+    #        - SELECT on /Volumes/dpdp_poc/compliance/dpia_artifacts to the app's SP
+    #   These steps are documented but not auto-applied — the SP id is
+    #   only known after the first deploy.
+    #
+    # No persona has direct UPDATE on dpia_runs — the only path to
+    # flipping status is through this app's enforce-the-rules code.
+    dpia_review_app:
+      name: dpdp-dpia-review
+      description: "DPIA review + approval UI for CCO + GC + CFO. Renders structured DPIA sections, captures verified reviewer identity, exports to PDF."
+      source_code_path: ../apps/dpia_review
+
+    # -----------------------------------------------------------------
+    # dsr_portal — PARKED (free-trial: Lakebase not entitled)
+    # -----------------------------------------------------------------
+    # See header note above. Restore by uncommenting once Lakebase +
+    # the `process_dsr_request` job are back in resources/.
+    #
+    # dsr_portal:
+    #   name: dpdp-dsr-portal
+    #   description: "DSR intake portal. Receives rights requests, verifies identity, triggers the process_dsr_request workflow."
+    #   source_code_path: ../apps/dsr_portal
+    #
+    #   resources:
+    #     - name: lakebase_consent
+    #       database:
+    #         database_name: ${var.lakebase_database_name}
+    #         instance_name: ${var.lakebase_instance_name}
+    #         permission: CAN_CONNECT_AND_CREATE
+    #
+    #     - name: dsr_job
+    #       job:
+    #         id: ${resources.jobs.process_dsr_request.id}
+    #         permission: CAN_MANAGE_RUN

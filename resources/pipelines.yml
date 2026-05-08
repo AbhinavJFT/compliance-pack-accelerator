@@ -1,0 +1,48 @@
+# Lakeflow Declarative Pipeline (DLT) for the medallion.
+#
+# Replaces the manual Auto Loader + Spark SQL approach from §3.4 with a
+# Databricks-native declarative pipeline. Benefits:
+#   - Automatic Unity Catalog lineage for every table
+#   - Built-in data quality monitoring dashboard (free with DLT)
+#   - Idempotent rerun, automatic retry, streaming + batch unified
+#   - Pipeline graph visualization for stakeholders on Day 14
+#
+# Pipeline code lives in pipelines/medallion.py.
+
+resources:
+  pipelines:
+    medallion_pipeline:
+      name: dpdp_poc_medallion
+      catalog: ${var.catalog_name}
+      target: silver  # default target schema for tables created in the pipeline
+      development: true  # trial workspace — avoids full refresh on every run
+
+      libraries:
+        - notebook:
+            path: ../pipelines/medallion.py
+        - notebook:
+            path: ../pipelines/classification_dlt.py
+
+      configuration:
+        catalog: ${var.catalog_name}
+        landing_volume_path: ${var.landing_volume_path}
+        pipelines.enableTrackHistory: "true"  # enables time-travel-based verification in INT-03
+
+      # Serverless DLT — required on newer Databricks workspaces that default
+      # to serverless compute. The previous classic single-node `clusters:`
+      # block is preserved in git history for workspaces that still support it.
+      serverless: true
+
+      continuous: false  # batch semantics (triggered); matches trial budget
+      channel: CURRENT
+
+      notifications:
+        - email_recipients:
+            - ${var.notification_email}
+          alerts:
+            - on-update-failure
+            - on-update-fatal-failure
+            - on-flow-failure
+
+      # Pipeline-level expectations rolled up from per-table expectations
+      # define the Day 14 demo's "data quality pass rate" metric.
