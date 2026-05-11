@@ -1,6 +1,14 @@
--- Silver layer DDL for DPDP POC
+-- Silver layer DDL for the Compliance Pack Accelerator
 -- Bronze columns cast to correct types; companion pii_findings table holds PII metadata
 -- Column names match generator output / Bronze layer exactly
+--
+-- Customer-level tables (employees_tagged, customers_tagged, users_tagged,
+-- patients_tagged) carry a `jurisdiction` column that drives per-data-subject
+-- rule routing — see ADR-0001 (docs/adr/0001-multi-jurisdiction-data-subject-routing.md).
+-- The DLT silver materialiser (pipelines/medallion.py) derives the value from
+-- whatever country signal is available in the source row, falling back to
+-- 'IN' for the M1-era synthetic data which is uniformly Indian. M2 introduces
+-- a 70/25/5 IN/GB/unmapped split in the synthetic generators.
 
 -- ============================================================================
 -- employees_tagged
@@ -19,6 +27,7 @@ CREATE TABLE IF NOT EXISTS dpdp_poc.silver.employees_tagged (
     city                    STRING,
     state                   STRING,
     country                 STRING,
+    jurisdiction            STRING,        -- ADR-0001 routing key, derived from country
     postal_code             STRING,
     salary                  DECIMAL(10,2),
     bank_account            STRING,
@@ -60,6 +69,7 @@ CREATE TABLE IF NOT EXISTS dpdp_poc.silver.customers_tagged (
     last_activity_date      DATE,
     account_holder_name     STRING,
     ip_address              STRING,
+    jurisdiction            STRING,        -- ADR-0001 routing key (M1: hardcoded 'IN')
     _source_file            STRING      NOT NULL,
     _ingested_at            TIMESTAMP   NOT NULL,
     _source_hash            STRING      NOT NULL
@@ -94,6 +104,7 @@ CREATE TABLE IF NOT EXISTS dpdp_poc.silver.patients_tagged (
     next_appointment        DATE,
     ward                    STRING,
     notes                   STRING,
+    jurisdiction            STRING,        -- ADR-0001 routing key (M1: hardcoded 'IN')
     _source_file            STRING      NOT NULL,
     _ingested_at            TIMESTAMP   NOT NULL,
     _source_hash            STRING      NOT NULL
@@ -152,6 +163,7 @@ CREATE TABLE IF NOT EXISTS dpdp_poc.silver.users_tagged (
     marketing_opt_in        BOOLEAN,
     terms_accepted_version  STRING,
     referral_source         STRING,
+    jurisdiction            STRING,        -- ADR-0001 routing key (M1: hardcoded 'IN')
     _source_file            STRING      NOT NULL,
     _ingested_at            TIMESTAMP   NOT NULL,
     _source_hash            STRING      NOT NULL

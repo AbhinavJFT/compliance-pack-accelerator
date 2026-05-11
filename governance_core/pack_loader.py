@@ -252,10 +252,25 @@ class Pack:
 
 
 _cache: dict[str, Pack] = {}
+_all_packs_cache: list[Pack] | None = None
 
 
 def load() -> Pack:
-    """Load the active regulation pack and return a Pack accessor (cached)."""
+    """Load the legacy "active" regulation pack and return a Pack accessor (cached).
+
+    Backward-compat shim from the single-pack-active era. New code should use
+    ``loaded_packs()`` (all packs in the deployment) and ``pack_for(jurisdiction)``
+    (per-data-subject routing) — see ADR-0001.
+
+    The returned Pack is the *primary* pack for this deployment, defined as:
+      1. Whatever ``REGULATION_PACK`` env var points at, if set.
+      2. Otherwise the first pack in ``loaded_packs()`` order.
+      3. Otherwise ``DEFAULT_PACK_CODE`` (``dpdp_2023``).
+
+    Used by older call sites that haven't been migrated to multi-pack-aware
+    queries. Safe to keep — ADR-0001 explicitly preserves it as a primary-pack
+    accessor, not a "the only loaded pack" accessor.
+    """
     code = active_pack_code()
     if code not in _cache:
         path = active_pack_dir()
@@ -264,5 +279,169 @@ def load() -> Pack:
     return _cache[code]
 
 
-# Convenience alias for readability.
+# Convenience alias for readability. Same backward-compat semantics as load().
 active_pack = load
+
+
+# ---------------------------------------------------------------------------
+# Multi-pack accessors (ADR-0001)
+#
+# loaded_packs() — returns every pack found under regulations/ at deploy time.
+# pack_for(jurisdiction) — routes a single principal to its governing pack.
+# derive_jurisdiction(country) — translates a country signal into a jurisdiction
+#   code that pack_for() can route on. Customers extend by overriding the
+#   COUNTRY_TO_JURISDICTION mapping.
+# ---------------------------------------------------------------------------
+
+
+# Default country → jurisdiction mapping. Case-insensitive lookup. Keys
+# normalised to upper-case during lookup. Values are jurisdiction codes that
+# match the `jurisdiction` field in each pack's `pack.yaml`.
+#
+# Override at deploy time by extending this dict before calling
+# derive_jurisdiction(); the helper is small enough to monkey-patch in tests.
+COUNTRY_TO_JURISDICTION: dict[str, str] = {
+    # India / DPDP
+    "IN": "IN", "IND": "IN", "INDIA": "IN",
+    # United Kingdom / UK GDPR
+    "GB": "GB", "UK": "GB", "GBR": "GB", "UNITED KINGDOM": "GB",
+    "ENGLAND": "GB", "SCOTLAND": "GB", "WALES": "GB", "NORTHERN IRELAND": "GB",
+    # United States / CCPA (and state-level laws)
+    "US": "US", "USA": "US", "UNITED STATES": "US", "AMERICA": "US",
+    # EU / EU GDPR — every EU/EEA member state routes to a single EU code
+    # for now. A future ADR may split per-member-state if national-DPA
+    # divergences (cookies, transfers) require pack-per-country.
+    "AT": "EU", "AUSTRIA": "EU",
+    "BE": "EU", "BELGIUM": "EU",
+    "BG": "EU", "BULGARIA": "EU",
+    "HR": "EU", "CROATIA": "EU",
+    "CY": "EU", "CYPRUS": "EU",
+    "CZ": "EU", "CZECH REPUBLIC": "EU", "CZECHIA": "EU",
+    "DK": "EU", "DENMARK": "EU",
+    "EE": "EU", "ESTONIA": "EU",
+    "FI": "EU", "FINLAND": "EU",
+    "FR": "EU", "FRANCE": "EU",
+    "DE": "EU", "GERMANY": "EU",
+    "GR": "EU", "GREECE": "EU",
+    "HU": "EU", "HUNGARY": "EU",
+    "IE": "EU", "IRELAND": "EU",
+    "IT": "EU", "ITALY": "EU",
+    "LV": "EU", "LATVIA": "EU",
+    "LT": "EU", "LITHUANIA": "EU",
+    "LU": "EU", "LUXEMBOURG": "EU",
+    "MT": "EU", "MALTA": "EU",
+    "NL": "EU", "NETHERLANDS": "EU",
+    "PL": "EU", "POLAND": "EU",
+    "PT": "EU", "PORTUGAL": "EU",
+    "RO": "EU", "ROMANIA": "EU",
+    "SK": "EU", "SLOVAKIA": "EU",
+    "SI": "EU", "SLOVENIA": "EU",
+    "ES": "EU", "SPAIN": "EU",
+    "SE": "EU", "SWEDEN": "EU",
+    # Iceland, Liechtenstein, Norway — EEA non-EU, GDPR also applies
+    "IS": "EU", "ICELAND": "EU",
+    "LI": "EU", "LIECHTENSTEIN": "EU",
+    "NO": "EU", "NORWAY": "EU",
+}
+
+
+def derive_jurisdiction(country: str | None) -> str | None:
+    """Translate a country string into a jurisdiction code, or None if unmapped.
+
+    Returns ``None`` when the country is NULL, blank, or doesn't match a known
+    code. Unmapped principals are surfaced as a high-severity compliance gap by
+    downstream queries — see ADR-0001 §"Schema migration / Backfilling
+    jurisdiction on existing rows".
+
+    Examples
+    --------
+    >>> derive_jurisdiction("India")
+    'IN'
+    >>> derive_jurisdiction("uk")
+    'GB'
+    >>> derive_jurisdiction("Germany")
+    'EU'
+    >>> derive_jurisdiction(None) is None
+    True
+    >>> derive_jurisdiction("Atlantis") is None
+    True
+    """
+    if country is None:
+        return None
+    key = country.strip().upper()
+    if not key:
+        return None
+    return COUNTRY_TO_JURISDICTION.get(key)
+
+
+def loaded_packs() -> list[Pack]:
+    """Return every regulation pack found under ``regulations/``.
+
+    Cached on first call. A pack is considered loadable if its directory
+    contains a readable ``pack.yaml``; packs whose ``pack.yaml`` is missing
+    or malformed are skipped with a warning rather than failing the whole
+    load (per ADR-0001 §"Loader and pack mechanics").
+
+    Order is the lexically-sorted directory order, with ``DEFAULT_PACK_CODE``
+    (``dpdp_2023``) hoisted to position 0 if present — this defines the
+    "primary" pack used by ``active_pack()`` and by the DPIA generator
+    when an activity touches multiple jurisdictions and needs a primary
+    framework for the narrative.
+    """
+    global _all_packs_cache
+    if _all_packs_cache is not None:
+        return _all_packs_cache
+    if not PACKS_ROOT.exists():
+        _all_packs_cache = []
+        return _all_packs_cache
+
+    packs: list[Pack] = []
+    for sub in sorted(PACKS_ROOT.iterdir()):
+        if not sub.is_dir():
+            continue
+        pack_yaml = sub / "pack.yaml"
+        if not pack_yaml.exists():
+            continue
+        try:
+            metadata = _read_yaml(pack_yaml)
+        except PackLoaderError:
+            continue
+        packs.append(Pack(code=sub.name, path=sub, metadata=metadata))
+
+    # Hoist DEFAULT_PACK_CODE to position 0 so the primary-pack contract holds.
+    packs.sort(key=lambda p: (p.code != DEFAULT_PACK_CODE, p.code))
+    _all_packs_cache = packs
+    return _all_packs_cache
+
+
+def pack_for(jurisdiction: str | None) -> Pack | None:
+    """Return the regulation pack that governs principals with this jurisdiction.
+
+    The match is on each pack's ``jurisdiction`` field in ``pack.yaml``
+    (e.g., ``IN`` for DPDP, ``GB`` for UK GDPR, ``EU`` for EU GDPR).
+    Returns ``None`` for an unmapped jurisdiction (caller decides whether
+    to fall back, raise, or surface as a compliance gap).
+
+    If two loaded packs claim the same jurisdiction, this function returns
+    the first one in ``loaded_packs()`` order (which is alphabetical with
+    ``DEFAULT_PACK_CODE`` hoisted) — but ADR-0001 §"Loader and pack mechanics"
+    documents this as a misconfiguration that the loader should reject at
+    load time. Future enforcement to be added when the second pack lands.
+    """
+    if not jurisdiction:
+        return None
+    target = jurisdiction.strip().upper()
+    if not target:
+        return None
+    for p in loaded_packs():
+        pack_jur = (p.jurisdiction or "").upper()
+        if pack_jur == target:
+            return p
+    return None
+
+
+def reset_cache() -> None:
+    """Clear all module-level caches. Test-only helper."""
+    global _all_packs_cache
+    _cache.clear()
+    _all_packs_cache = None

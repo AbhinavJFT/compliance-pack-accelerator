@@ -30,6 +30,54 @@ LANDING_ROOT = spark.conf.get("landing_volume_path", f"/Volumes/{CATALOG}/bronze
 CHECKPOINT_ROOT = f"/Volumes/{CATALOG}/bronze/checkpoints"
 
 # ---------------------------------------------------------------------------
+# Per-data-subject jurisdiction routing (ADR-0001)
+# ---------------------------------------------------------------------------
+# Each customer-level silver table carries a `jurisdiction` column that drives
+# rule routing in the compliance layer. Derived from any country signal
+# present in the source row. The SQL CASE below mirrors the canonical Python
+# mapping in governance_core.pack_loader.COUNTRY_TO_JURISDICTION — keep them
+# in sync; a future ADR may refactor to a single shared source.
+#
+# Inline SQL chosen over a Python UDF to avoid serializer overhead in the DLT
+# stream and to keep medallion.py runnable on a vanilla DLT cluster without
+# repo-import wiring.
+
+def jurisdiction_from(country_col: str):
+    """Return a Spark Column expression mapping a country string to a
+    jurisdiction code. NULL country → NULL jurisdiction (surfaced as a
+    high-severity gap downstream).
+    """
+    c = F.upper(F.trim(F.col(country_col)))
+    return (
+        F.when(c.isin("IN", "IND", "INDIA"), F.lit("IN"))
+         .when(c.isin("GB", "UK", "GBR", "UNITED KINGDOM",
+                      "ENGLAND", "SCOTLAND", "WALES", "NORTHERN IRELAND"),
+               F.lit("GB"))
+         .when(c.isin("US", "USA", "UNITED STATES", "AMERICA"), F.lit("US"))
+         .when(c.isin(
+             "AT", "AUSTRIA", "BE", "BELGIUM", "BG", "BULGARIA",
+             "HR", "CROATIA", "CY", "CYPRUS", "CZ", "CZECH REPUBLIC", "CZECHIA",
+             "DK", "DENMARK", "EE", "ESTONIA", "FI", "FINLAND",
+             "FR", "FRANCE", "DE", "GERMANY", "GR", "GREECE",
+             "HU", "HUNGARY", "IE", "IRELAND", "IT", "ITALY",
+             "LV", "LATVIA", "LT", "LITHUANIA", "LU", "LUXEMBOURG",
+             "MT", "MALTA", "NL", "NETHERLANDS", "PL", "POLAND",
+             "PT", "PORTUGAL", "RO", "ROMANIA", "SK", "SLOVAKIA",
+             "SI", "SLOVENIA", "ES", "SPAIN", "SE", "SWEDEN",
+             "IS", "ICELAND", "LI", "LIECHTENSTEIN", "NO", "NORWAY",
+         ), F.lit("EU"))
+         .otherwise(F.lit(None).cast(StringType()))
+    )
+
+
+# M1 fallback for tables where the source row carries no country signal.
+# customers_tagged, users_tagged, patients_tagged are populated by synthetic
+# generators that produce 100% Indian principals today; the literal 'IN'
+# below preserves backward compatibility with existing tests until M2
+# expands the generators to a 70/25/5 IN/GB/unmapped split.
+JURISDICTION_HARDCODED_IN = F.lit("IN")
+
+# ---------------------------------------------------------------------------
 # Helper: Auto Loader stream for a single source table
 # ---------------------------------------------------------------------------
 def _auto_loader_stream(table_name: str):
@@ -129,6 +177,7 @@ def employees_tagged():
             .withColumn("date_of_birth", F.to_date("date_of_birth"))
             .withColumn("hire_date",     F.to_date("hire_date"))
             .withColumn("salary",        F.col("salary").cast("decimal(10,2)"))
+            .withColumn("jurisdiction",  jurisdiction_from("country"))  # ADR-0001
             .drop("_rescued_data")
     )
 
@@ -148,6 +197,7 @@ def customers_tagged():
             .withColumn("loyalty_points",     F.col("loyalty_points").cast("int"))
             .withColumn("registration_date",  F.to_timestamp("registration_date"))
             .withColumn("last_activity_date", F.to_timestamp("last_activity_date"))
+            .withColumn("jurisdiction",       JURISDICTION_HARDCODED_IN)  # ADR-0001 (M1)
             .drop("_rescued_data")
     )
 
@@ -166,6 +216,7 @@ def patients_tagged():
             .withColumn("date_of_birth",    F.to_date("date_of_birth"))
             .withColumn("last_visit_date",  F.to_date("last_visit_date"))
             .withColumn("next_appointment", F.to_date("next_appointment"))
+            .withColumn("jurisdiction",     JURISDICTION_HARDCODED_IN)  # ADR-0001 (M1)
             .drop("_rescued_data")
     )
 
@@ -202,6 +253,7 @@ def users_tagged():
             .withColumn("mfa_enabled",   F.col("mfa_enabled").cast("boolean"))
             .withColumn("created_at",    F.to_timestamp("created_at"))
             .withColumn("last_login",    F.to_timestamp("last_login"))
+            .withColumn("jurisdiction",  JURISDICTION_HARDCODED_IN)  # ADR-0001 (M1)
             .drop("_rescued_data")
     )
 
