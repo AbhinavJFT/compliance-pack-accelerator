@@ -35,6 +35,7 @@ ADR-0001 milestones (all merged to `main`):
 - [x] **EU GDPR pack** — `regulations/eu_gdpr/` 9 files; 14 rules, 24-language registry, EU SCCs + Schrems II framing
 - [x] **CCPA pack** — `regulations/ccpa/` 10 files; 16 rules, opt-out + DNS-DSS + GPC + SPI limit-use semantics, 7 US PII patterns (SSN/ITIN/EIN/DL/passport/bank/ZIP+4)
 - [x] **CCO dashboard** — Unmapped Principals tile (Q3 follow-up) added at Executive Overview x=2,y=0
+- [x] **DPIA pipeline multi-pack wiring** — `pipelines/dpia_generator.py` + `notebooks/03_agent_bricks.py` no longer hardcode `regulation_pack="dpdp_2023"`. The cron auto-derives applicable packs from the jurisdictions present in `customers/users/employees/patients_tagged`, calls `dpia_template_merge.template_for_activity()`, and records the contributors in a new `dpia_runs.regulation_packs ARRAY<STRING>` column (scalar `regulation_pack` retained for Streamlit / Lakeview backward-compat). Pure `_resolve_dpia_packs()` helper + 8 new unit tests in `tests/test_dpia_multi_pack.py`. Closes the "merger exists but isn't wired into production" gap surfaced post-M3.
 
 ### Three-path ingestion demo (centerpiece, pre-ADR-0001)
 **Self-contained POC — no external services.** Three ingestion *patterns* demonstrated in code with synthetic data:

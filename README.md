@@ -24,7 +24,7 @@ is the binding architectural decision for the project.
 | **PII Discovery & Data Inventory** | Live | 36 findings across 10 silver objects (8 tables + 2 federation views) · UC tags · 21.5K base rows |
 | **Consent Intelligence Engine** | Live | 1,000 events · 292 principals · 6 purposes · 4 channels |
 | **Compliance Audit & Gap Analysis** | Live | **51 multi-pack rules** (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA) · per-row routing on the `jurisdiction` column |
-| **Agent Bricks (AI Agents)** | Live | DPIA generator (30s, multi-regulator citations, pack-version-stamped prompts) · Compliance Q&A · PII classifier |
+| **Agent Bricks (AI Agents)** | Live | DPIA generator (30s, multi-regulator citations, pack-version-stamped prompts, auto-derived applicable packs per ADR-0001) · Compliance Q&A · PII classifier |
 | **AI/BI Dashboard** | Live | 10-page professional dashboard with Genie NL queries + ADR-0001 Q3 unmapped-principals tile |
 | **Persona Governance Layer** | Live | 4 sliced dashboards + 4 scoped Genie spaces (CCO/GC/CMO/CFO) with UC-enforced boundaries |
 | **Three-path ingestion demo** | Live | Auto Loader (5 tables) + Lakeflow Connect sim (3 SF tables) + Federation sim (2 views over `federation_mock`) |

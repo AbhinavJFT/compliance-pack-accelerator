@@ -28,17 +28,20 @@ dbutils.widgets.text("model_endpoint", "databricks-gpt-oss-120b",
                      "Foundation model endpoint")
 dbutils.widgets.text("mlflow_experiment_path", "/Shared/dpdp_agent_bricks",
                      "MLflow experiment path")
-dbutils.widgets.text("regulation_pack", "dpdp_2023", "Active regulation pack")
+# Optional override: when set, forces single-pack mode against this pack code.
+# Default empty → ADR-0001 multi-pack: jurisdictions present in the data drive
+# pack selection via dpia_template_merge.template_for_activity().
+dbutils.widgets.text("regulation_pack", "", "Regulation pack override (blank = auto-derive)")
 
 CATALOG = dbutils.widgets.get("catalog")
 MODEL_ENDPOINT = dbutils.widgets.get("model_endpoint")
 MLFLOW_EXPERIMENT_PATH = dbutils.widgets.get("mlflow_experiment_path")
-REGULATION_PACK = dbutils.widgets.get("regulation_pack")
+REGULATION_PACK = dbutils.widgets.get("regulation_pack") or None
 
 print(f"Catalog:          {CATALOG}")
 print(f"Endpoint:         {MODEL_ENDPOINT}")
 print(f"Experiment:       {MLFLOW_EXPERIMENT_PATH}")
-print(f"Regulation pack:  {REGULATION_PACK}")
+print(f"Regulation pack:  {REGULATION_PACK or '(auto-derive from data)'}")
 
 # COMMAND ----------
 
@@ -208,9 +211,10 @@ def _traced_run():
 result = _traced_run()
 
 print(f"\n✓ DPIA generated")
-print(f"  run_id          = {result['run_id']}")
-print(f"  artifact_path   = {result['artifact_path']}")
-print(f"  latency_seconds = {result['latency_seconds']:.2f}")
+print(f"  run_id            = {result['run_id']}")
+print(f"  artifact_path     = {result['artifact_path']}")
+print(f"  latency_seconds   = {result['latency_seconds']:.2f}")
+print(f"  regulation_packs  = {result['regulation_packs']}")
 print(f"\nAudit row appended to {CATALOG}.compliance.dpia_runs (status='draft')")
 
 # COMMAND ----------
