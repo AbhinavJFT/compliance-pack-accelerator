@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Changelog & SA-Review Gap Analysis — Compliance Pack Accelerator (DPDP India 2023 seed pack)</title>
+<title>Changelog & SA-Review Gap Analysis — Compliance Pack Accelerator (4 regulation packs live: DPDP / UK GDPR / EU GDPR / CCPA)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
@@ -169,7 +169,7 @@
 
 <div class="header">
   <h1>Changelog &amp; SA-Review Gap Analysis</h1>
-  <div class="subtitle">DPDP India 2023 seed-pack history. Multi-pack architecture decision: <a href="adr/0001-multi-jurisdiction-data-subject-routing.md" style="color: #ffd54f;">ADR-0001</a>.</div>
+  <div class="subtitle">DPDP India 2023 seed-pack history + ADR-0001 multi-pack live state. 4 packs loaded today (DPDP / UK GDPR / EU GDPR / CCPA). Architecture decision: <a href="adr/0001-multi-jurisdiction-data-subject-routing.md" style="color: #ffd54f;">ADR-0001</a>.</div>
   <div class="stamp">FOR SA REVIEW</div>
 </div>
 
@@ -195,6 +195,41 @@
   regression probes × 8) plus <strong>T2.6 — Delta CDF withdrawal propagation trace</strong>
   verified live. Bronze boundary documented explicitly, silver DQ rationale surfaced,
   architecture diagram refreshed. See §1.4.</p>
+</div>
+
+<!-- ================================================================== -->
+<h2>§0 — Multi-jurisdiction cut-over + follow-ups (May 2026)</h2>
+
+<p style="font-size: 13px; color: #555; margin: 6px 0 16px 0;">ADR-0001 (per-data-subject jurisdiction routing) implementation — M1 Foundation through M4 Cut-over, plus the Q2 (pack versioning) and Q3 (loader jurisdiction validation) open-question follow-ups, plus two additional packs (EU GDPR, CCPA). All landed on `main` between 2026-05-08 and 2026-05-12. The DPDP-only POC architecture is preserved as the seed pack; the rest of the platform now routes per-row.</p>
+
+<div class="change-card landed">
+  <h3><span class="c-badge c-landed">LANDED 2026-05-11</span> ADR-0001 M1–M4 — Multi-pack runtime live</h3>
+  <p>The pack-loader gained <code>loaded_packs()</code> / <code>pack_for(jurisdiction)</code> / <code>derive_jurisdiction()</code> accessors; <code>silver.customers_tagged</code> (and the other three customer-level tables) gained a <code>jurisdiction</code> column populated by the country → jurisdiction mapping; <code>bronze.compliance_rules</code> MERGE became per-pack (every pack under <code>regulations/</code> contributes); <code>silver.compliance_gaps</code> rows are tagged with a <code>regulation_pack</code> column so per-pack severity rollups Just Work; Genie <code>text_instructions</code> auto-composes from loaded packs; the DPIA template merges per-activity for multi-jurisdiction processing activities; dashboard Executive Overview page gains a <code>jurisdiction</code> filter. Mixed 70/25/5 IN/GB/unmapped synthetic mix at seed=42 drives the new <code>test_multi_jurisdiction_smoke.py</code> regression suite. UC catalog renamed <code>dpdp_poc</code> → <code>compliance_pack</code> as part of the cut-over.</p>
+</div>
+
+<div class="change-card landed">
+  <h3><span class="c-badge c-landed">LANDED 2026-05-11</span> UK GDPR pack — `regulations/uk_gdpr/`</h3>
+  <p>9 YAML files + UK-specific <code>pii_patterns.py</code>. 12 rules (Art. 5 lawfulness + Art. 7 consent + Art. 5(1)(e) retention + Art. 32 security + Art. 12-22 rights + Art. 33-34 breach), 8 rights with 30/90-day SLAs, 5 UK PII patterns (NHS Number, NINO, UTR, UK passport, UK postcode), en-GB / cy-GB / gd-GB language registry, IDTA + UK Addendum transfer mechanisms, ICO authority.</p>
+</div>
+
+<div class="change-card landed">
+  <h3><span class="c-badge c-landed">LANDED 2026-05-12</span> EU GDPR pack — `regulations/eu_gdpr/`</h3>
+  <p>9 YAML files + EU-specific <code>pii_patterns.py</code>. 14 rules (two more than UK pack — Art. 8 minor protection + Art. 30 RoPA), 24 official EU languages, EU SCCs + Schrems II TIA framing, EDPB as supervising body, member-state statutory overrides (HGB §257, Code de commerce, Codice Civile, AMLD5, ePrivacy), 8 EU-specific PII patterns (IBAN, EU VAT, DE Personalausweis / Steuer-ID, FR NIR, IT Codice Fiscale, ES DNI, EU passport). €20M / €10M tiered penalty.</p>
+</div>
+
+<div class="change-card landed">
+  <h3><span class="c-badge c-landed">LANDED 2026-05-12</span> ADR-0001 Q2 — Pack versioning</h3>
+  <p>Every <code>pack.yaml</code> declares a semver <code>version</code> field. <code>Pack.version</code> threaded into <code>DPIATemplate.pack_version</code>; the DPIA system prompt is now prepended with <code>[regulation pack v&lt;sem&gt;]</code>; <code>dpia_prompt_version()</code> content hash folds the version in so MLflow traces fork on every pack bump. Merged-template multi-pack stamp <code>code@v+code@v+...</code>. 6 unit tests in <code>tests/test_pack_versioning.py</code>.</p>
+</div>
+
+<div class="change-card landed">
+  <h3><span class="c-badge c-landed">LANDED 2026-05-12</span> ADR-0001 Q3 — Loader jurisdiction validation</h3>
+  <p>Pure-function <code>validate_jurisdictions(observed, packs=None)</code> in the pack loader classifies each observed jurisdiction code into 4 buckets: <code>mapped</code> / <code>null</code> / <code>unmapped_known</code> (e.g., a country in COUNTRY_TO_JURISDICTION values but no pack loaded for it) / <code>unmapped_unknown</code> (garbage / typo / stale codes). <code>format_validation_report()</code> renders a stable scannable summary. <code>phase1_bootstrap.py</code> prints the report observationally after pack load; never fails the bootstrap. CCO dashboard surfaces the NULL count as a counter tile on Executive Overview (red ≥100, amber ≥1, green 0). 8 unit tests in <code>tests/test_jurisdiction_validation.py</code>.</p>
+</div>
+
+<div class="change-card landed">
+  <h3><span class="c-badge c-landed">LANDED 2026-05-12</span> CCPA pack — `regulations/ccpa/`</h3>
+  <p>10 YAML + Python files. 16 rules covering opt-out of sale/sharing (§1798.120) + DNS-DSS link (§1798.135) + GPC signal honour (CPPA Reg. §7025) + SPI limit-use (CPRA §1798.121) + non-discrimination (§1798.125) + service-provider contracts + breach notification (§1798.82). 7 US PII patterns (SSN, ITIN, EIN, DL, US passport, bank account, ZIP+4). 12-language California registry per Dymally-Alatorre Bilingual Services Act (en + es + zh-Hans/Hant + vi + ko + tl + ru + hy + fa + km + pa). $7,500 / $2,500 / $750-per-consumer tiered penalty. California Privacy Protection Agency + California AG as supervising bodies. 45-day DSR SLA. Pack semver v1.0.0.</p>
 </div>
 
 <!-- ================================================================== -->

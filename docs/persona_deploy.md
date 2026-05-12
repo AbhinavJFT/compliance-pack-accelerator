@@ -53,26 +53,29 @@ source ~/.zshrc
 > need to set it in your shell if you're invoking `databricks bundle deploy`
 > directly (debugging) outside the orchestrator.
 
-### `REGULATION_PACK` — selects which regulation is active
+### `REGULATION_PACK` — primary pack selector (now multi-pack live)
 
-As of 2026-04-24 (Phase 0 refactor) the POC is regulation-adaptive: compliance
-rules, notices, retention defaults, residency filter, and DSR defaults all come
-from the active pack under `regulations/<code>/`. Default is `dpdp_2023`
-(Digital Personal Data Protection Act, India).
+As of ADR-0001 M1–M4 (2026-05-11) the platform is **multi-pack at runtime** —
+every pack under `regulations/` loads simultaneously and routes per data
+subject via the `jurisdiction` column. There's no longer a single "active"
+pack; the four packs currently shipped (`dpdp_2023`, `uk_gdpr`, `eu_gdpr`,
+`ccpa`) all load on every deploy.
 
 ```bash
-export REGULATION_PACK=dpdp_2023   # default — current POC behavior
-# export REGULATION_PACK=uk_gdpr   # once a uk_gdpr pack is authored
-# export REGULATION_PACK=ccpa
+# Legacy compatibility — selects which pack is the "primary" for any
+# back-compat single-pack code path (e.g., `load()` / `active_pack()` in
+# governance_core/pack_loader.py). The actual multi-pack runtime ignores it.
+export REGULATION_PACK=dpdp_2023   # primary; per-row routing is unaffected
 ```
 
-`phase1_bootstrap`, `dsr_erasure.py`, and the `pii_patterns` composition layer
-all respect this env var. Set it once for the shell/session; all downstream
-scripts and bundle jobs inherit it. See `docs/modular_framework.html` for the
-framework and `regulations/README.md` for the pack-authoring contract.
+`phase1_bootstrap` calls `loaded_packs()` and MERGEs every pack's rules into
+`bronze.compliance_rules` tagged by source. `dsr_erasure.py`, the `pii_patterns`
+composition layer, and the DPIA template merge all consume the full pack set.
+See `docs/modular_framework.html` for the framework and
+`regulations/README.md` for the pack-authoring contract + semver bump rules.
 
-All `databricks bundle` commands in this guide assume this variable is
-set.
+All `databricks bundle` commands in this guide work with the multi-pack
+default; setting `REGULATION_PACK` is optional.
 
 ## Prerequisites
 

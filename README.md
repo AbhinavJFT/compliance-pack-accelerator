@@ -54,30 +54,30 @@ dpdp/
 ├── generate_salesforce_data.py       ← Lakeflow Connect sim generator (seed=43, 3 tables)
 ├── generate_federation_data.py       ← Federation sim generator (seed=44, 2 views)
 │
-├── governance_core/                  ← Layer 1/2 regulation-agnostic code (Phase 0)
-│   ├── pack_loader.py                ← reads REGULATION_PACK env var + yaml pack
+├── governance_core/                  ← Layer 1/2 regulation-agnostic code (ADR-0001 multi-pack)
+│   ├── pack_loader.py                ← multi-pack loader: loaded_packs() / pack_for(jurisdiction) / derive_jurisdiction() / validate_jurisdictions() / Pack.version
+│   ├── dpia_template_merge.py        ← merges DPIATemplates for multi-jurisdiction processing activities
+│   ├── agent_prompts.py              ← DPIA system prompt (pack-version-stamped) + Compliance Q&A templates
 │   ├── rights.py                     ← 9-entry RIGHT_CATALOGUE
 │   ├── consent_model.py              ← consent-event schema contract
 │   └── pii_patterns/universal.py     ← 11 universal PIIPatterns + constants
 │
-├── regulations/                      ← Layer 3 regulation packs (Phase 0)
-│   ├── README.md                     ← pack authoring contract
-│   └── dpdp_2023/                    ← DPDP India 2023 pack
-│       ├── pack.yaml                 ← metadata (authority, penalties, activations)
-│       ├── rules.yaml                ← 9 compliance rules
-│       ├── rights.yaml               ← 5 DPDP rights with SLAs
-│       ├── notices.yaml              ← 3 notice bodies + default purposes
-│       ├── retention_defaults.yaml   ← per-purpose retention days
-│       ├── residency.yaml            ← §16 allowed countries
-│       ├── breach_sla.yaml           ← §8(6) 72h + CERT-In 6h
-│       ├── languages.yaml            ← 10 Indian languages
-│       └── pii_patterns.py           ← 5 India-specific patterns
+├── regulations/                      ← Layer 3 regulation packs (4 packs live, all at v1.0.0)
+│   ├── README.md                     ← pack authoring contract + semver bump rules
+│   ├── dpdp_2023/                    ← DPDP India 2023 (9 rules, IN PII patterns, 10 Indian languages)
+│   ├── uk_gdpr/                      ← UK GDPR + DPA 2018 (12 rules, NHS Number / NINO / UTR patterns)
+│   ├── eu_gdpr/                      ← EU GDPR Regulation 2016/679 (14 rules, 24 EU languages, IBAN + EU national IDs)
+│   └── ccpa/                         ← California CCPA/CPRA (16 rules, opt-out + GPC + SPI limit-use, US PII patterns)
+│
+│   Each pack contains: pack.yaml (metadata + version), rules.yaml,
+│   rights.yaml, notices.yaml, retention_defaults.yaml, residency.yaml,
+│   breach_sla.yaml, languages.yaml, pii_patterns.py, dpia_template.yaml.
 │
 ├── schemas/                          ← DDL + pattern composition shim
 │   ├── bronze.sql                    ← 5 Auto Loader source tables + data_sources (SF + federation tables created by their seed scripts)
 │   ├── silver.sql                    ← 5 Auto Loader silver tables + pii_findings + discovered_tables (3 SF + 2 federation views layered on top)
 │   ├── register.sql                  ← personal_data_register view
-│   ├── compliance_rules.sql          ← 21 multi-pack rules (DPDP + UK GDPR) + compliance_gaps table
+│   ├── compliance_rules.sql          ← 51 multi-pack rules (DPDP + UK GDPR + EU GDPR + CCPA) + compliance_gaps table
 │   ├── consent_events_delta.sql      ← consent log + Gold views
 │   ├── notice_versions.sql           ← consent notice templates
 │   └── pii_patterns.py               ← composition shim (governance_core + active pack)
@@ -314,7 +314,7 @@ python3 scripts/setup_all_personas.py
 
 The `phase1_bootstrap` job runs `pipelines/phase1_bootstrap.py` and produces:
 
-- `bronze.compliance_rules` — 21 multi-pack rules (9 DPDP + 12 UK GDPR), tagged with regulation_pack
+- `bronze.compliance_rules` — 51 multi-pack rules (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA), tagged with regulation_pack
 - `bronze.data_sources` — ingestion-source registry seeded with 10 canonical rows (5 Auto Loader + 3 Salesforce + 2 federation); the classifier reads `silver_table_name` from here, so adding a new ingestion path is a single row in `scripts/seed_data_sources.py:DATA_SOURCES_SEED` (the seed step runs in `deploy_all.sh` between the federation seeder and the medallion refresh; phase1_bootstrap also has an idempotent copy of the MERGE for partial-deploy resilience)
 - `silver.compliance_gaps` — ~135 rules × findings
 - `compliance.consent_events_log` — 1,000 deterministic events (seed=42)
