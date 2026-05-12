@@ -58,6 +58,7 @@ IDS_FILE = REPO_ROOT / "dashboards" / "personas" / ".genie_space_ids.json"
 SETUP_DOC = REPO_ROOT / "docs" / "persona_genie_instructions.md"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(REPO_ROOT))
 from persona_config import get_workspace_url  # noqa: E402
 from setup_persona_genie_spaces import PERSONA_DEFS  # noqa: E402
 
