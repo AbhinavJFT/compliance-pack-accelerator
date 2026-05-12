@@ -35,7 +35,7 @@ locally and MERGEs into bronze on the next bundle deploy.
 | Consent Intelligence (Module 02) | COMPLETE | 1,000 events in Delta (no Lakebase — not available in trial) |
 | Compliance Audit (Module 05) | COMPLETE | 51 multi-pack rules across 4 packs (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA), 818 gaps tagged by source pack, per-row routing, pack semver in DPIA prompts |
 | Agent Bricks | COMPLETE | DPIA generator (pack-version-stamped prompts), Compliance Q&A, PII classifier |
-| DPIA Generator (productionised) | COMPLETE | Quarterly cron + structured pydantic output + GC/CCO approval flow + Databricks Review App + multi-regulator citation merge across loaded packs |
+| DPIA Generator (productionised) | COMPLETE | Quarterly cron + structured pydantic output + GC/CCO approval flow + Databricks Review App + multi-regulator citation merge across loaded packs · pipeline auto-derives applicable packs from `jurisdiction_breakdown` (no hardcoded pack) · `dpia_runs.regulation_packs ARRAY<STRING>` records contributors |
 | Dashboard | COMPLETE | 10-page Lakeview dashboard + jurisdiction filter on Executive Overview + unmapped-principals counter tile (ADR-0001 Q3) |
 | Data Source Onboarding | COMPLETE | Notebook with Federation/Lakeflow/Auto Loader patterns |
 | Synthetic Data | COMPLETE | Seed=42, deterministic, mixed-jurisdiction 70/25/5 IN/GB/unmapped (3,503 IN + 1,258 GB + 239 NULL customers live) |

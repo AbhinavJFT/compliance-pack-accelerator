@@ -25,6 +25,40 @@ from typing import Iterable
 from .pack_loader import DPIATemplate, Pack, loaded_packs, pack_for
 
 
+def packs_for_activity(
+    jurisdictions: Iterable[str | None],
+    packs: list[Pack] | None = None,
+) -> list[Pack]:
+    """Return the regulation packs that govern an activity's jurisdiction set.
+
+    Pure function — no side effects, deterministic ordering. The first pack
+    in the returned list is the "primary" (drives narrative voice / citation
+    style); the rest are secondaries that the merger weaves in as
+    cross-citations. Ordering follows ``loaded_packs()`` load order so the
+    primary stays stable across deploys.
+
+    Returns ``[]`` when the activity's jurisdiction set has no loaded pack
+    — caller decides whether to fall back, raise, or surface as a gap.
+    """
+    jurs = sorted({j.upper() for j in jurisdictions if j})
+    if not jurs:
+        return []
+
+    applicable_packs: list[Pack] = []
+    for j in jurs:
+        p = pack_for(j)
+        if p is not None and p not in applicable_packs:
+            applicable_packs.append(p)
+
+    if not applicable_packs:
+        return []
+
+    all_loaded = packs if packs is not None else loaded_packs()
+    load_order = {p.code: i for i, p in enumerate(all_loaded)}
+    applicable_packs.sort(key=lambda p: load_order.get(p.code, 9999))
+    return applicable_packs
+
+
 def template_for_activity(
     jurisdictions: Iterable[str | None],
     packs: list[Pack] | None = None,
@@ -40,29 +74,11 @@ def template_for_activity(
     Returns ``None`` when no loaded pack applies (i.e., the activity only
     touches unmapped principals or jurisdictions without packs).
     """
-    jurs = sorted({j.upper() for j in jurisdictions if j})
-    if not jurs:
-        return None
-
-    applicable_packs: list[Pack] = []
-    for j in jurs:
-        p = pack_for(j)
-        if p is not None and p not in applicable_packs:
-            applicable_packs.append(p)
-
+    applicable_packs = packs_for_activity(jurisdictions, packs=packs)
     if not applicable_packs:
         return None
-
-    # Single-pack case — return its template unchanged.
     if len(applicable_packs) == 1:
         return applicable_packs[0].dpia_template()
-
-    # Multi-pack case — pick primary pack from loaded_packs() order so the
-    # narrative voice stays consistent across deploys, then merge the
-    # secondary packs' citations into a per-section appendix.
-    all_loaded = packs if packs is not None else loaded_packs()
-    load_order = {p.code: i for i, p in enumerate(all_loaded)}
-    applicable_packs.sort(key=lambda p: load_order.get(p.code, 9999))
     primary, *secondaries = applicable_packs
     return _merge_templates(primary, secondaries)
 

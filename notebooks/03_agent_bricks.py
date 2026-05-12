@@ -211,7 +211,10 @@ def generate_dpia():
         catalog=CATALOG,
         invoke_llm=_invoke_llm,
         model_endpoint=MODEL_ENDPOINT,
-        regulation_pack="dpdp_2023",
+        # ADR-0001 multi-pack: omit regulation_pack/pack so the core
+        # auto-derives applicable packs from the jurisdictions present
+        # in customers/users/employees/patients. Pass regulation_pack=<code>
+        # to force single-pack mode for a comparison run.
         mlflow=mlflow,
         dbutils=dbutils,
     )

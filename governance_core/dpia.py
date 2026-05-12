@@ -183,6 +183,9 @@ def convert_decimals(obj: Any) -> Any:
     return obj
 
 
+_PRINCIPAL_TABLES = ("customers_tagged", "users_tagged", "employees_tagged", "patients_tagged")
+
+
 def gather_dpia_context(spark, catalog: str) -> dict[str, list]:
     """Run the SQL queries that feed the DPIA prompt.
 
@@ -194,7 +197,14 @@ def gather_dpia_context(spark, catalog: str) -> dict[str, list]:
     Phase 3 added ``compliance_rules`` so the model can cite rule_id +
     rule_text directly in its compliance_gap_analysis section instead of
     summarising gap counts only.
+
+    ADR-0001 multi-pack: also includes ``jurisdiction_breakdown`` so the
+    merger has a basis for per-jurisdiction reasoning. Union of the four
+    silver tables that carry a ``jurisdiction`` column.
     """
+    jurisdiction_union = " UNION ALL ".join(
+        f"SELECT jurisdiction FROM {catalog}.silver.{t}" for t in _PRINCIPAL_TABLES
+    )
     return {
         "pii_summary": spark.sql(f"""
             SELECT sensitivity_tier,
@@ -262,6 +272,16 @@ def gather_dpia_context(spark, catalog: str) -> dict[str, list]:
                 FROM {catalog}.compliance.personal_data_register
             ) p ON d.table_name = p.source_table
         """).toPandas().to_dict("records"),
+        # ADR-0001: per-jurisdiction principal counts feed the merger
+        # (template_for_activity selects packs from these codes) and give
+        # the LLM a basis for per-pack section reasoning. NULL jurisdiction
+        # rows surface in the "unmapped principals" tile, not here.
+        "jurisdiction_breakdown": spark.sql(f"""
+            SELECT jurisdiction, COUNT(*) AS principal_count
+            FROM ({jurisdiction_union})
+            GROUP BY jurisdiction
+            ORDER BY principal_count DESC
+        """).toPandas().to_dict("records"),
     }
 
 
@@ -280,6 +300,7 @@ CREATE TABLE IF NOT EXISTS {catalog}.compliance.dpia_runs (
     prompt_module       STRING    NOT NULL,
     prompt_version      STRING    NOT NULL,
     regulation_pack     STRING,
+    regulation_packs    ARRAY<STRING>,
     context_snapshot    STRING    NOT NULL,
     dpia_text           STRING    NOT NULL,
     dpia_sections       MAP<STRING, STRING>,
@@ -300,7 +321,8 @@ CREATE TABLE IF NOT EXISTS {catalog}.compliance.dpia_runs (
 _AUDIT_ROW_SCHEMA = (
     "run_id string, generated_at timestamp, generated_by string, "
     "catalog_name string, model_endpoint string, prompt_module string, "
-    "prompt_version string, regulation_pack string, context_snapshot string, "
+    "prompt_version string, regulation_pack string, regulation_packs array<string>, "
+    "context_snapshot string, "
     "dpia_text string, dpia_sections map<string,string>, parse_error string, "
     "artifact_path string, latency_seconds double, "
     "status string, reviewed_by string, reviewed_at timestamp, notes string"
@@ -308,21 +330,84 @@ _AUDIT_ROW_SCHEMA = (
 
 
 def _ensure_audit_table(spark, catalog: str) -> None:
-    """Idempotently create the audit table.
+    """Idempotently create / upgrade the audit table.
 
-    Note for upgrades: the Phase 3 DDL adds ``dpia_sections`` and
-    ``parse_error`` columns. ``CREATE TABLE IF NOT EXISTS`` is a no-op
-    on an existing table, so workspaces that already have a Phase 1/2
-    table need a one-time ``ALTER TABLE ... ADD COLUMNS`` — see
-    Phase 5's docs-sync notes when that lands. New workspaces get the
-    Phase 3 schema directly from this DDL.
+    ``CREATE TABLE IF NOT EXISTS`` is a no-op on already-deployed tables,
+    so existing workspaces also need an idempotent ``ALTER TABLE ADD COLUMNS``
+    for any column added after first deploy. The ADR-0001 multi-pack
+    rollout added ``regulation_packs ARRAY<STRING>``; check info_schema
+    before ALTER so this is safe on every Delta version (the bare
+    ``IF NOT EXISTS`` clause on ADD COLUMNS isn't universally supported).
     """
     spark.sql(_AUDIT_TABLE_DDL.format(catalog=catalog))
+    existing = {
+        row[0]
+        for row in spark.sql(
+            f"SELECT column_name FROM {catalog}.information_schema.columns "
+            f"WHERE table_schema='compliance' AND table_name='dpia_runs'"
+        ).collect()
+    }
+    if "regulation_packs" not in existing:
+        spark.sql(
+            f"ALTER TABLE {catalog}.compliance.dpia_runs "
+            f"ADD COLUMNS (regulation_packs ARRAY<STRING>)"
+        )
 
 
 # ---------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------
+
+
+def _resolve_dpia_packs(
+    *,
+    pack=None,
+    regulation_pack: str | None = None,
+    jurisdiction_breakdown: list[dict] | None = None,
+):
+    """Pick the DPIATemplate + contributing pack codes for one DPIA run.
+
+    Three precedence-ordered paths (ADR-0001 multi-pack):
+      (a) ``pack=`` explicit → single-pack, that pack's template (test stub).
+      (b) ``regulation_pack=<code>`` explicit → single-pack, looked up in
+          ``loaded_packs()`` (re-run override path).
+      (c) Default → ``jurisdiction_breakdown`` drives selection via
+          ``packs_for_activity`` + ``template_for_activity``. When fully
+          unmapped, falls back to the primary loaded pack so the DPIA
+          narrative still generates — the unmapped-principals tile is
+          the proper surface for that gap, not a silent crash.
+
+    Returns ``(template, [pack_code, ...])`` where pack codes are in
+    primary-first order (matches ``packs_for_activity`` ordering).
+
+    Pure function — no spark, no I/O, no MLflow — so unit-testable
+    without Databricks. Existence is what makes the multi-pack wiring
+    auditable in isolation.
+    """
+    from governance_core.dpia_template_merge import (
+        packs_for_activity,
+        template_for_activity,
+    )
+    from governance_core.pack_loader import loaded_packs
+
+    if pack is not None:
+        return pack.dpia_template(), [pack.code]
+    if regulation_pack is not None:
+        matching = [p for p in loaded_packs() if p.code == regulation_pack]
+        if not matching:
+            raise ValueError(
+                f"regulation_pack={regulation_pack!r} not found in loaded packs "
+                f"({[p.code for p in loaded_packs()]}). "
+                f"Check regulations/ has a matching directory."
+            )
+        return matching[0].dpia_template(), [matching[0].code]
+
+    jurisdictions = [row["jurisdiction"] for row in (jurisdiction_breakdown or [])]
+    applicable = packs_for_activity(jurisdictions)
+    if applicable:
+        return template_for_activity(jurisdictions), [p.code for p in applicable]
+    fallback = loaded_packs()[0]
+    return fallback.dpia_template(), [fallback.code]
 
 
 def _parse_dpia_output(raw: str) -> tuple[dict[str, str] | None, str | None]:
@@ -362,12 +447,19 @@ def run_dpia_generation(
 
     Steps:
       1. Gather metadata from UC (SQL queries → ``dpia_context``).
-      2. Build prompt + JSON schema from the active regulation pack's
-         DPIA template, then call the LLM.
-      3. Parse + validate the LLM response with ``DPIASections``;
+      2. Resolve the regulation pack(s) for the activity. Default path:
+         derive jurisdictions from the gathered context's
+         ``jurisdiction_breakdown`` and call
+         ``dpia_template_merge.template_for_activity()`` so multi-jurisdiction
+         deploys get a merged DPIA citing every applicable regulation
+         (ADR-0001). Single-pack escape hatches: caller passes ``pack=``
+         directly (tests) or ``regulation_pack=<code>`` (re-run override).
+      3. Build prompt + JSON schema from the (possibly merged) DPIA
+         template, then call the LLM.
+      4. Parse + validate the LLM response with ``DPIASections``;
          fall back gracefully if parsing fails.
-      4. Write JSON artifact to ``<artifact_volume>/dpia_<run_id>.json``.
-      5. Append one row to ``<catalog>.compliance.dpia_runs``.
+      5. Write JSON artifact to ``<artifact_volume>/dpia_<run_id>.json``.
+      6. Append one row to ``<catalog>.compliance.dpia_runs``.
 
     Args:
       spark: SparkSession.
@@ -378,12 +470,14 @@ def run_dpia_generation(
       model_endpoint: Endpoint name. Logged into the audit row.
       artifact_volume: Volume path for the JSON output. Defaults to
         ``/Volumes/<catalog>/compliance/dpia_artifacts``.
-      regulation_pack: Active regulation pack code (e.g. ``dpdp_2023``).
-        Logged into the audit row + drives template lookup if ``pack``
-        is not passed in directly.
+      regulation_pack: Override that forces single-pack mode. When set,
+        skips jurisdiction-derived multi-pack resolution and uses this
+        pack code's template. Useful for re-running a regulation-locked
+        DPIA without changing data. Logged into the audit row's scalar
+        ``regulation_pack`` column for backward compat.
       pack: Optional pre-loaded ``governance_core.pack_loader.Pack``. When
-        omitted, the active pack is loaded from the ``REGULATION_PACK``
-        env var (default ``dpdp_2023``). Tests can pass a stubbed pack.
+        passed, forces single-pack mode against that pack. Tests use this
+        to inject a stubbed pack.
       mlflow: Optional ``mlflow`` module. When provided, prompt module,
         prompt version, model endpoint, and latency are logged.
       dbutils: Optional ``dbutils``. Used for ``dbutils.fs.put`` so
@@ -393,33 +487,34 @@ def run_dpia_generation(
     Returns:
       dict with keys: run_id, artifact_path, dpia_text, dpia_sections
       (parsed dict or None), parse_error (str or None), latency_seconds,
-      context_snapshot.
+      context_snapshot, regulation_packs (list[str] — contributing pack
+      codes; single-element in single-pack mode).
     """
-    # Resolve the regulation pack template
-    if pack is None:
-        from governance_core.pack_loader import load as load_pack
-        pack = load_pack()
-    template = pack.dpia_template()
-    prompt_version = dpia_prompt_version(template)
-
-    # 1. Gather context
+    # 1. Gather context first — multi-pack resolution reads the
+    # jurisdiction_breakdown that gather_dpia_context produces.
     context = gather_dpia_context(spark, catalog)
     context = convert_decimals(context)
 
-    # 2. Build prompt + schema, call LLM
+    # 2. Resolve template + contributing packs (pure, spark-free).
+    template, contributing_packs = _resolve_dpia_packs(
+        pack=pack,
+        regulation_pack=regulation_pack,
+        jurisdiction_breakdown=context.get("jurisdiction_breakdown", []),
+    )
+    prompt_version = dpia_prompt_version(template)
+
+    # 3. Build prompt + schema, call LLM
     json_schema = _schema_with_pack_overrides(template.section_descriptions)
     system_prompt = render_dpia_system(template)
     user_prompt = render_dpia_user(context, template, json_schema)
 
     if mlflow is not None:
-        # Per-call metadata goes on the trace as tags (mutable across calls).
-        # log_param keys are immutable across calls and would clash with
-        # compliance_qa's params on the same active run.
         tags = {
             "model_endpoint": model_endpoint,
             "prompt_module": PROMPT_MODULE,
             "prompt_version": prompt_version,
             "catalog": catalog,
+            "regulation_packs": ",".join(contributing_packs),
         }
         if regulation_pack:
             tags["regulation_pack"] = regulation_pack
@@ -450,13 +545,18 @@ def run_dpia_generation(
         artifact_volume = f"/Volumes/{catalog}/compliance/dpia_artifacts"
     artifact_path = f"{artifact_volume}/dpia_{run_id}.json"
 
+    # Scalar regulation_pack: primary pack code (first contributor) when the
+    # caller didn't force one. Backward-compat for readers that index a single
+    # pack code (Streamlit Review App, Lakeview tile).
+    primary_pack = contributing_packs[0]
     artifact = {
         "run_id": run_id,
         "generated_at": generated_at.isoformat(),
         "model_endpoint": model_endpoint,
         "prompt_module": PROMPT_MODULE,
         "prompt_version": prompt_version,
-        "regulation_pack": regulation_pack,
+        "regulation_pack": regulation_pack or primary_pack,
+        "regulation_packs": contributing_packs,
         "catalog": catalog,
         "context_snapshot": context,
         "dpia_text": dpia_text,
@@ -472,7 +572,7 @@ def run_dpia_generation(
         Path(artifact_path).parent.mkdir(parents=True, exist_ok=True)
         Path(artifact_path).write_text(artifact_json)
 
-    # 5. Append audit row
+    # 6. Append audit row
     _ensure_audit_table(spark, catalog)
     generated_by = spark.sql("SELECT current_user()").first()[0]
     audit_row = spark.createDataFrame(
@@ -484,7 +584,8 @@ def run_dpia_generation(
             model_endpoint,
             PROMPT_MODULE,
             prompt_version,
-            regulation_pack,
+            regulation_pack or primary_pack,
+            contributing_packs,
             json.dumps(context),
             dpia_text,
             sections_dict,
@@ -508,4 +609,5 @@ def run_dpia_generation(
         "parse_error": parse_error,
         "latency_seconds": latency_seconds,
         "context_snapshot": context,
+        "regulation_packs": contributing_packs,
     }
