@@ -161,44 +161,32 @@ specific configuration; Layer 4 is the user-facing skin.</p>
 <h2>Directory map</h2>
 
 <p>Where each layer physically lives in the repo. The <code>regulations/</code>
-directory is the extension point: DPDP India sits there today; a UK pack sits as a
-sibling, same shape; both are loaded simultaneously, with per-row routing by
-<code>jurisdiction</code> column (see
+directory is the extension point: 4 packs sit there today (DPDP / UK GDPR / EU GDPR /
+CCPA, all live), each at semver v1.0.0; all are loaded simultaneously, with per-row
+routing by <code>jurisdiction</code> column (see
 <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a>).</p>
 
 <pre><span class="comment">repo root</span>
 │
 ├── governance_core/                   <span class="comment">← Layer 1/2 — regulation-agnostic code</span>
-│   ├── pack_loader.py                 <span class="comment">   loads every pack under regulations/</span>
-│   ├── resolver.py                    <span class="comment">   pack_for(jurisdiction); cross-cutting union</span>
+│   ├── pack_loader.py                 <span class="comment">   multi-pack loader: loaded_packs() / pack_for() / derive_jurisdiction() / validate_jurisdictions() / Pack.version</span>
+│   ├── dpia_template_merge.py         <span class="comment">   merges DPIATemplates per multi-jurisdiction activity</span>
+│   ├── agent_prompts.py               <span class="comment">   DPIA prompt (pack-version-stamped) + Compliance Q&amp;A</span>
 │   ├── rights.py                      <span class="comment">   9-entry RIGHT_CATALOGUE superset</span>
 │   ├── consent_model.py               <span class="comment">   consent-event schema contract</span>
 │   └── pii_patterns/
 │       └── universal.py               <span class="comment">   11 universal PIIPatterns</span>
 │
-├── regulations/                       <span class="comment">← Layer 3 — swap point</span>
+├── regulations/                       <span class="comment">← Layer 3 — 4 packs live (DPDP / UK / EU / CCPA, all v1.0.0)</span>
 │   │
-│   ├── dpdp_2023/                     <span class="comment">── active today (India)</span>
-│   │   ├── pack.yaml
-│   │   ├── rules.yaml
-│   │   ├── rights.yaml
-│   │   ├── notices.yaml
-│   │   ├── retention_defaults.yaml
-│   │   ├── residency.yaml
-│   │   ├── breach_sla.yaml
-│   │   ├── languages.yaml
-│   │   └── pii_patterns.py
-│   │
-│   └── uk_gdpr/                       <span class="comment">── future pack (lands here, same 9 files)</span>
-│       ├── pack.yaml                  <span class="comment">   jurisdiction=GB, ICO, £17.5M ceiling</span>
-│       ├── rules.yaml                 <span class="comment">   UK GDPR articles + DPA 2018 sections</span>
-│       ├── rights.yaml                <span class="comment">   7 rights activated</span>
-│       ├── notices.yaml               <span class="comment">   en-GB body</span>
-│       ├── retention_defaults.yaml
-│       ├── residency.yaml             <span class="comment">   UK + adequacy list</span>
-│       ├── breach_sla.yaml            <span class="comment">   72h to ICO</span>
-│       ├── languages.yaml
-│       └── pii_patterns.py            <span class="comment">   NHS, NINO, UK postcode, UTR</span>
+│   ├── dpdp_2023/                     <span class="comment">── India (DPDP 2023): 9 rules · 5 India PII patterns · 10 Indian languages</span>
+│   ├── uk_gdpr/                       <span class="comment">── UK (UK GDPR + DPA 2018): 12 rules · NHS/NINO/UTR · en-GB+cy-GB+gd-GB</span>
+│   ├── eu_gdpr/                       <span class="comment">── EU/EEA (Reg. (EU) 2016/679): 14 rules · IBAN/EU VAT/DE-FR-IT-ES IDs · 24 EU languages</span>
+│   └── ccpa/                          <span class="comment">── California (CCPA/CPRA): 16 rules · SSN/ITIN/EIN/DL/passport · 12 California-prevalent languages</span>
+│
+│   Each pack ships the same 10 files: pack.yaml (with `version:`) · rules.yaml ·
+│   rights.yaml · notices.yaml · retention_defaults.yaml · residency.yaml ·
+│   breach_sla.yaml · languages.yaml · pii_patterns.py · dpia_template.yaml.
 │
 ├── pipelines/                         <span class="comment">← Layer 1 — no edits needed for new regulations</span>
 │   ├── medallion.py                   <span class="comment">   Bronze → Silver DLT</span>
@@ -223,15 +211,20 @@ sibling, same shape; both are loaded simultaneously, with per-row routing by
 <p>Two observations that make the modularity visible:</p>
 <ul>
   <li><strong>Only <code>regulations/</code> grows</strong> when a new regulation is
-  added. The UK pack is 9 files next to the 9 DPDP files — no file under any other
-  directory changes.</li>
+  added. Each new pack is 9–10 files (1 Python module + 8 YAMLs + 1 dpia_template.yaml)
+  next to its siblings — no file under any other directory changes. The current
+  4-pack live state proved this: EU GDPR (Apr 2026) and CCPA (May 2026) shipped without
+  a single edit to <code>governance_core/</code>, <code>pipelines/</code>, or
+  <code>schemas/</code>.</li>
   <li><strong>All packs in <code>regulations/</code> are loaded simultaneously.</strong>
   Each customer-level row carries a <code>jurisdiction</code> column that routes rule
-  evaluation to the pack governing that principal. An Indian SaaS with UK clients runs
-  both <code>dpdp_2023</code> and <code>uk_gdpr</code> active in the same workspace,
-  applying DPDP rules to Indian principals (730-day retention) and UK GDPR rules to UK
-  principals (90-day retention) in the same database. See
-  <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a> for the
+  evaluation to the pack governing that principal. An Indian SaaS with UK + EU +
+  California clients runs <code>dpdp_2023</code> + <code>uk_gdpr</code> +
+  <code>eu_gdpr</code> + <code>ccpa</code> active in the same workspace, applying
+  DPDP rules to Indian principals (730-day retention), UK GDPR to UK principals
+  (90-day), EU GDPR to EU principals (90-day, with member-state statutory overrides),
+  and CCPA to California principals (90-day plus opt-out-of-sale) — same database.
+  See <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a> for the
   per-data-subject routing design and 24 enumerated edge cases. (Earlier drafts of this
   doc described a single-pack-active model selected by a <code>REGULATION_PACK</code>
   env var; that approach was rejected as Mode 2 in ADR-0001's "Alternatives considered"

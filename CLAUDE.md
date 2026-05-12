@@ -23,22 +23,23 @@ for why.
 
 ## Current State (as of May 2026)
 
-### What's Built and Live (DPDP-2023 seed pack deployment)
+### What's Built and Live (4-pack multi-jurisdiction deployment)
 
-Everything below is deployed and queryable on the Databricks workspace
-under the DPDP India 2023 pack as the worked example:
+Everything below is deployed and queryable on the Databricks workspace.
+DPDP / UK GDPR / EU GDPR are live in the workspace; CCPA is authored
+locally and MERGEs into bronze on the next bundle deploy.
 
 | Component | State | Key Detail |
 |---|---|---|
-| PII Discovery (Module 01) | COMPLETE | 36 findings across 10 silver objects · universal patterns + 5 IN-specific + 5 UK-specific PII patterns active |
+| PII Discovery (Module 01) | COMPLETE | 36 findings across 10 silver objects · universal patterns + 5 IN-specific + 5 UK-specific + 8 EU-specific + 7 US-specific PII patterns active |
 | Consent Intelligence (Module 02) | COMPLETE | 1,000 events in Delta (no Lakebase — not available in trial) |
-| Compliance Audit (Module 05) | COMPLETE | 21 multi-pack rules (9 DPDP + 12 UK GDPR), 462 gaps (164 dpdp_2023 + 298 uk_gdpr), per-row routing |
-| Agent Bricks | COMPLETE | DPIA generator, Compliance Q&A, PII classifier |
-| DPIA Generator (productionised) | COMPLETE | Quarterly cron + structured pydantic output + GC/CCO approval flow + Databricks Review App + multi-regulator citation merge |
-| Dashboard | COMPLETE | 10-page Lakeview dashboard + jurisdiction filter on Executive Overview |
+| Compliance Audit (Module 05) | COMPLETE | 51 multi-pack rules across 4 packs (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA), 818 gaps tagged by source pack, per-row routing, pack semver in DPIA prompts |
+| Agent Bricks | COMPLETE | DPIA generator (pack-version-stamped prompts), Compliance Q&A, PII classifier |
+| DPIA Generator (productionised) | COMPLETE | Quarterly cron + structured pydantic output + GC/CCO approval flow + Databricks Review App + multi-regulator citation merge across loaded packs |
+| Dashboard | COMPLETE | 10-page Lakeview dashboard + jurisdiction filter on Executive Overview + unmapped-principals counter tile (ADR-0001 Q3) |
 | Data Source Onboarding | COMPLETE | Notebook with Federation/Lakeflow/Auto Loader patterns |
-| Synthetic Data | COMPLETE | Seed=42, deterministic, mixed-jurisdiction 70/25/5 IN/GB/unmapped (3,503 IN + 1,258 GB customers live) |
-| Regulation-Pack Framework (ADR-0001) | COMPLETE | `governance_core/` + `regulations/dpdp_2023/` + `regulations/uk_gdpr/` — multi-pack loader, per-data-subject rule routing through `customers_tagged.jurisdiction`. All 4 milestones (M1-M4) merged. |
+| Synthetic Data | COMPLETE | Seed=42, deterministic, mixed-jurisdiction 70/25/5 IN/GB/unmapped (3,503 IN + 1,258 GB + 239 NULL customers live) |
+| Regulation-Pack Framework (ADR-0001) | COMPLETE | `governance_core/` + 4 packs in `regulations/`. Multi-pack loader, per-data-subject rule routing, pack semver (Q2), loader-side jurisdiction validation (Q3). M1–M4 + Q2/Q3/EU/CCPA all merged. |
 
 ### What's NOT Built (Phase 1 scope)
 

@@ -317,30 +317,28 @@
       </div>
     </div>
     <div class="box pack">
-      <span class="tag">PLANNED · M2</span>
+      <span class="tag">ACTIVE</span>
       <div class="title">UK GDPR</div>
       <div class="desc">
-        UK GDPR articles · UK-specific patterns (NI Number, NHS Number, postcode)<br>
+        12 rules · UK-specific patterns (NHS Number, NINO, UTR, UK passport, postcode)<br>
         ICO authority · £17.5M / 4% turnover ceilings<br>
-        en-GB + cy locales · 90-day default retention
+        en-GB + cy-GB + gd-GB locales · 90-day marketing retention
       </div>
     </div>
-    <div class="box pack future">
-      <span class="tag">FUTURE</span>
+    <div class="box pack">
+      <span class="tag">ACTIVE</span>
       <div class="title">EU GDPR</div>
       <div class="desc">
-        Articles 5-22, 25, 30, 32-36 · 24 EU official locales<br>
-        EDPB + national supervisors · €20M / 4% turnover<br>
-        Drop-in 9-yaml-file authoring per pack contract
+        14 rules incl. Art. 8 minor + Art. 30 RoPA · 8 EU patterns (IBAN, EU VAT, DE/FR/IT/ES national IDs, EU passport)<br>
+        EDPB + national SAs · €20M / 4% turnover · 24 EU official languages · EU SCCs + Schrems II
       </div>
     </div>
-    <div class="box pack future">
-      <span class="tag">FUTURE</span>
-      <div class="title">CCPA / PIPEDA / LGPD / APPI</div>
+    <div class="box pack">
+      <span class="tag">ACTIVE</span>
+      <div class="title">CCPA / CPRA</div>
       <div class="desc">
-        Each regulation = one directory under <code style="font-size:10px">regulations/&lt;code&gt;/</code><br>
-        No core code change to add a pack<br>
-        Customer's regulations/ directory is the deployment knob
+        16 rules · opt-out of sale/sharing + GPC honour + SPI limit-use + non-discrimination · 7 US patterns (SSN, ITIN, EIN, DL, passport, bank, ZIP+4)<br>
+        CPPA + California AG · $7,500/$2,500/$750 tiers · 12 California-prevalent languages
       </div>
     </div>
   </div>
@@ -363,9 +361,14 @@
       <span>EU GDPR rules · per-Member-State retention · Art. 15-22 + Art. 7 lawful-basis · 24-locale notices</span>
     </div>
     <div class="row">
+      <span><code>jurisdiction = 'US'</code></span>
+      <span class="arr">→</span>
+      <span>CCPA/CPRA rules · 45-day DSR SLA · opt-out of sale/sharing + GPC · 12 California-prevalent languages</span>
+    </div>
+    <div class="row">
       <span><code>jurisdiction IS NULL</code></span>
       <span class="arr">→</span>
-      <span>High-severity compliance gap · "Unmapped principals" tile on CCO dashboard</span>
+      <span>ADR-0001 Q3 unmapped bucket · "Unmapped principals" counter tile live on the CCO Executive Overview</span>
     </div>
     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #b2dfdb; font-size: 11px; color: #00695c;">
       Cross-cutting company-level rules (breach notification, DPIA filing, DPO requirement,
@@ -604,12 +607,16 @@
 
 <div class="footer" style="text-align:left; font-size: 12px; line-height: 1.5; color: #555; padding: 16px 20px; background: #fafafa; border-top: 1px solid #e0e0e0;">
   <p><strong>Note on numbers.</strong> Counts shown in the module cards and metric tiles
-  reflect the live multi-jurisdiction workspace as of the ADR-0001 M4 cut-over
-  (2026-05-11): 36 PII findings across 10 silver objects · 37 column masks ·
-  <strong>21 multi-pack compliance rules</strong> (9 DPDP + 12 UK GDPR) ·
-  <strong>462 compliance gaps</strong> tagged by source pack (164 dpdp_2023 +
-  298 uk_gdpr) · 1,000 consent events · 292 principals · mixed jurisdiction in
-  customers_tagged (3,503 IN + 1,258 GB). These are <strong>illustrative</strong> —
+  reflect the live multi-jurisdiction workspace as of the post-M4 follow-up sweep
+  (2026-05-12): 36 PII findings across 10 silver objects · 37 column masks ·
+  <strong>51 multi-pack compliance rules</strong> (9 DPDP + 12 UK GDPR + 14 EU GDPR
+  + 16 CCPA) across <strong>4 regulation packs</strong> (`dpdp_2023@1.0.0`,
+  `uk_gdpr@1.0.0`, `eu_gdpr@1.0.0`, `ccpa@1.0.0`; ADR-0001 Q2 pack semver in force) ·
+  <strong>818 compliance gaps</strong> tagged by source pack (164 dpdp_2023 +
+  298 uk_gdpr + 356 eu_gdpr; CCPA gaps materialise on next bundle deploy) ·
+  1,000 consent events · 292 principals · mixed jurisdiction in customers_tagged
+  (3,503 IN + 1,258 GB + 239 NULL — the ADR-0001 Q3 "unmapped principals"
+  bucket surfaced on the CCO dashboard). These are <strong>illustrative</strong> —
   they come from the synthetic POC dataset on a Databricks Free Edition workspace
   (seed=42) and are reproducible via the SQL in
   <a href="how_to_test.html">how_to_test.html</a>. Adding further packs grows the

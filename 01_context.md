@@ -1,6 +1,6 @@
 # §1 · Project context and success definition
 
-> ⚠️ **Pre-build planning document.** Describes the 14-day sprint framing. The DPDP substance is still accurate; the Module 01/02 scoping and the Lakewatch/DSR-portal promises were narrowed on the free-trial deploy path. **For deploying today, follow [`docs/persona_deploy.md`](docs/persona_deploy.md).**
+> ⚠️ **Pre-build planning document.** Describes the 14-day sprint framing for the original DPDP-only POC. The DPDP substance is still accurate, but the platform has since expanded into a multi-jurisdiction "Compliance Pack Accelerator" — 4 regulation packs (DPDP / UK GDPR / EU GDPR / CCPA) load simultaneously and route per-data-subject. **For the binding architecture today, see [`docs/adr/0001-multi-jurisdiction-data-subject-routing.md`](docs/adr/0001-multi-jurisdiction-data-subject-routing.md).** For deploying, follow [`docs/persona_deploy.md`](docs/persona_deploy.md). For current capability counts, see [`README.md`](README.md).
 
 ## 1.1 · The business problem
 

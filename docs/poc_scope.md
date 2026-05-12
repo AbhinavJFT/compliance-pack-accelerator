@@ -67,8 +67,8 @@ Status: **MINIMAL VIABLE STUB + automated chain test**
 
 Status: **PARTIAL**
 
-- `silver.compliance_gaps` — 9 DPDP rules drive 135 gaps with severity tiers
-- `compliance_rules.sql` is regulation-pack-driven (Phase 0 refactor) — adding a UK GDPR pack is a Phase-1 expansion, not a rewrite
+- `silver.compliance_gaps` — 51 multi-pack rules across 4 regulation packs (DPDP / UK GDPR / EU GDPR / CCPA) drive 818 gaps with severity tiers, each tagged by source pack
+- `compliance_rules.sql` is regulation-pack-driven (ADR-0001 M2 live) — every pack in `regulations/` MERGEs its rules at phase1_bootstrap time
 - Penalty-weighted exposure rendered via the CFO Genie agent (₹250cr/150cr/50cr/5cr ceilings)
 - **DPIA generator** — productionised in Phase 4: structured pydantic output, quarterly cron (`dpia_generator` job, UNPAUSED on deploy), `compliance.dpia_runs` table with status workflow (draft → approved), `compliance.dpia_artifacts` volume for the JSON+PDF artefacts, and a Databricks Review App (`dpdp-dpia-review`) where CCO/GC approve and CFO views read-only
 - **Not in scope**: real-time scoring engine
@@ -81,13 +81,18 @@ Status: **STUB ONLY**
 - Bundle job declared in `resources/jobs.yml` with default `mode=dry-run`
 - **Not in scope**: tokenization vault integration, scheduled production purges
 
-### Cross-cutting: regulation-pack framework (Phase 0, full)
+### Cross-cutting: regulation-pack framework (Phase 0 → ADR-0001 multi-pack, full)
 
-Status: **COMPLETE** — merged 2026-04-24 (commit 7fce83f)
+Status: **COMPLETE** — Phase 0 merged 2026-04-24 (`7fce83f`); ADR-0001 M1–M4 + Q2/Q3/EU/CCPA follow-ups merged through 2026-05-12.
 
-- `governance_core/` — regulation-agnostic core (pack loader, universal patterns, rights catalogue, consent model)
-- `regulations/dpdp_2023/` — 9 pack files (rules, rights, notices, retention, residency, breach SLA, languages, India PII patterns)
-- Adding a UK GDPR or CCPA pack is authoring 9 new yaml files — no core changes
+- `governance_core/` — regulation-agnostic core (multi-pack loader with `loaded_packs()` / `pack_for(jurisdiction)` / `derive_jurisdiction()` / `validate_jurisdictions()`, universal patterns, rights catalogue, consent model, DPIA template merge for multi-jurisdiction activities).
+- Four regulation packs ship today, all loaded simultaneously:
+  - `regulations/dpdp_2023/` — DPDP India 2023 (9 rules, India PII patterns, Hindi+Tamil+Marathi notice languages)
+  - `regulations/uk_gdpr/` — UK GDPR + DPA 2018 (12 rules, NHS Number / NINO / UTR / UK postcode patterns)
+  - `regulations/eu_gdpr/` — EU GDPR Regulation 2016/679 (14 rules, 24 official EU languages, IBAN / EU VAT / DE-FR-IT-ES national IDs)
+  - `regulations/ccpa/` — California CCPA/CPRA (16 rules, opt-out + DNS-DSS + GPC honour, US SSN/ITIN/EIN/DL patterns, 12 California-prevalent languages)
+- Pack semver (ADR-0001 Q2) — every `pack.yaml` declares a `version` field; threaded into DPIA prompt + MLflow trace hash so prompt-version bumps fork traces cleanly.
+- Adding a PIPEDA / LGPD / POPIA pack is authoring 9–10 new YAML files — no core changes.
 
 ### Cross-cutting: AI agents (full)
 
@@ -155,18 +160,23 @@ Tracked separately because these *are* worth doing pre-review:
 3. `python3 tests/test_dsr_e2e.py` — DSR chain (11 checks; not part of deploy_all)
 4. Open the dashboard, query each persona's Genie, run a DSR walkthrough on `customer_04217`
 
-Expected end state (post-M4 multi-jurisdiction cut-over, 2026-05-11):
+Expected end state (post-M4 + Q2/Q3/EU/CCPA follow-up sweep, 2026-05-12):
 - **36 PII findings** across 10 silver objects (universal patterns from
   governance_core/ matched on the silver tables).
-- **462 compliance gaps**, tagged by source pack: **164 DPDP** + **298 UK GDPR**.
-  Multi-pack rule routing is live (ADR-0001 M2).
-- **21 compliance rules** loaded: 9 DPDP + 12 UK GDPR.
+- **818 compliance gaps**, tagged by source pack: **164 DPDP** + **298 UK GDPR**
+  + **356 EU GDPR**. CCPA pack authored locally; gaps materialise on next
+  bundle deploy.
+- **51 compliance rules** loaded across **4 regulation packs**:
+  9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA, each pack at semver v1.0.0.
 - **37 column masks** across silver + federation_mock.
 - **Mixed-jurisdiction customer base** in `silver.customers_tagged`:
-  3,503 IN + 1,258 GB principals; same per-row routing across the other
-  customer-level tables (employees, users, patients).
+  3,503 IN + 1,258 GB principals + 239 NULL/unmapped (the ADR-0001 Q3
+  "unmapped principals" bucket surfaced on the CCO Executive Overview tile);
+  same per-row routing across the other customer-level tables.
 - **4 working Genie agents** (CCO/GC/CMO/CFO), with `text_instructions`
-  auto-composed from both loaded packs.
-- **Productionised DPIA generator** with quarterly cron + Review App +
-  Art. 35 / DPDP §10 multi-regulator citations.
-- All 11 regression suites green; M4 mixed-jurisdiction smoke 11/11.
+  auto-composed from all 4 loaded packs.
+- **Productionised DPIA generator** with quarterly cron + Review App + pack-
+  version-stamped prompts + multi-regulator citations (Art. 35 EU/UK GDPR,
+  DPDP §10, CPRA §1798.185(a)(15)).
+- All regression suites green: M1 pack_loader 12/12, M3 composers 11/11,
+  M4 mixed-jurisdiction smoke 11/11, Q2 versioning 6/6, Q3 validation 8/8.

@@ -1,7 +1,7 @@
 # ADR-0001 — Multi-jurisdiction data-subject routing
 
-**Status:** Accepted · **Implementation: Complete**
-**Date:** 2026-05-08 (decision); 2026-05-11 (M4 cut-over to live workspace)
+**Status:** Accepted · **Implementation: Complete + Q2/Q3/EU/CCPA follow-ups merged (2026-05-12)**
+**Date:** 2026-05-08 (decision); 2026-05-11 (M4 cut-over to live workspace); 2026-05-12 (post-M4 follow-up sweep)
 **Implementation:** Complete. Milestone log:
   - **M1 Foundation** (commit `58c4e7e`): multi-pack loader (`loaded_packs`,
     `pack_for(jurisdiction)`, `derive_jurisdiction`), `jurisdiction` column
@@ -21,13 +21,47 @@
     refreshed (`tests/_baseline.json`), new `test_multi_jurisdiction_smoke.py`
     asserts per-row routing on the live workspace.
 
-**Live-workspace evidence (M4 smoke, 2026-05-11):**
-- silver.customers_tagged: 3,503 IN principals + 1,258 GB principals.
-- bronze.compliance_rules: 9 DPDP + 12 UK GDPR = 21 multi-pack rules.
-- silver.compliance_gaps: 164 dpdp_2023 + 298 uk_gdpr = 462 total, tagged
-  with `regulation_pack` source.
+**Post-M4 follow-up milestones (merged to main, 2026-05-12):**
+  - **EU GDPR pack** (commit `8c5ae26`): `regulations/eu_gdpr/` — 14 rules
+    incl. Art. 8 minor protection + Art. 30 RoPA, 24-language registry,
+    EU SCCs + Schrems II framing, 8 EU-specific PII patterns
+    (IBAN, EU VAT, DE Personalausweis/Steuer-ID, FR NIR, IT Codice Fiscale,
+    ES DNI, EU passport).
+  - **ADR-0001 Q3 — Loader jurisdiction validation** (commit `baae9e6`):
+    `validate_jurisdictions()` + `format_validation_report()` pure-function
+    classifier in the pack loader; phase1_bootstrap prints the report
+    observationally; 8 unit tests.
+  - **CCPA pack** (commit `f01b027`): `regulations/ccpa/` — 16 rules incl.
+    opt-out of sale/sharing + GPC honour + SPI limit-use + non-discrimination,
+    7 US PII patterns (SSN, ITIN, EIN, DL, US passport, bank account,
+    ZIP+4), 12-language California registry (en + es + zh-Hans/Hant + vi
+    + ko + tl + ru + hy + fa + km + pa), $7,500/$2,500/$750 tiered penalty,
+    45-day DSR SLA, §1798.82 breach-notification framing.
+  - **ADR-0001 Q2 — Pack versioning** (commit `6aa8d95`): `version` field
+    on every `pack.yaml`; `Pack.version` property; `DPIATemplate.pack_version`
+    field; version stamp prepended to DPIA system prompt; folded into
+    `dpia_prompt_version()` content hash so MLflow traces fork on bumps;
+    merged-template multi-pack stamp `code@v+code@v+...`; 6 unit tests.
+  - **CCO unmapped-principals tile + housekeeping** (commit `6b30f16`):
+    Q3-data-bound counter widget added to the Executive Overview page;
+    `BACKLOG.md` rewritten for current multi-pack state; `README.md`
+    capability table refreshed to 4 packs / 51 rules.
+
+**Live-workspace evidence (post-follow-up sweep, 2026-05-12):**
+- silver.customers_tagged: 3,503 IN principals + 1,258 GB principals
+  + 239 NULL/unmapped (the ADR-0001 Q3 "unmapped principals" gap).
+- 4 regulation packs loaded simultaneously: `dpdp_2023@1.0.0`,
+  `uk_gdpr@1.0.0`, `eu_gdpr@1.0.0`, `ccpa@1.0.0`.
+- bronze.compliance_rules: 9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA =
+  51 multi-pack rules. (DPDP / UK / EU live in the workspace at M4 cut-over;
+  CCPA pack authored locally — awaiting next bundle deploy to MERGE into
+  bronze.compliance_rules.)
+- silver.compliance_gaps: 164 dpdp_2023 + 298 uk_gdpr + 356 eu_gdpr =
+  818 total at M4-post-EU; CCPA gaps materialise on next deploy.
 - `pack_for('IN').retention_default('marketing_email')` = 730 days;
-  `pack_for('GB').retention_default('marketing_email')` = 90 days — the
+  `pack_for('GB').retention_default('marketing_email')` = 90 days;
+  `pack_for('EU').retention_default('marketing_email')` = 90 days;
+  `pack_for('US').retention_default('marketing_email')` = 90 days — the
   exact per-jurisdiction divergence this ADR was designed to preserve.
 
 ## Context
@@ -383,12 +417,14 @@ is noted; where it's deferred to a later phase, the deferral is explicit.
 
 ## Open questions
 
-| # | Question | Owner | Revisit by |
-|---|----------|-------|-----------|
-| Q1 | Should principals carry an array of jurisdictions (for EU GDPR Art. 3(2) extraterritorial cases that genuinely apply two regulators to the same row)? Today the answer is "no, single jurisdiction wins"; revisit if a real customer scenario requires otherwise. | Architecture | When first non-residence-based jurisdiction case lands |
-| Q2 | Pack versioning — is a `version` field in `pack.yaml` enough, or do we need historical pack snapshots (so a DPIA generated under DPDP v1.0 can be re-rendered later under v1.0 even after the pack ships v1.1)? | Architecture | Phase 1 |
-| Q3 | Should the loader validate that all jurisdiction codes referenced in `customers_tagged.jurisdiction` correspond to a loaded pack, and surface mismatches as a compliance gap? | Architecture | Implementation phase of this ADR |
-| Q4 | Cross-border transfer enforcement — should the residency filter actually block reads of UK principals' data when the workspace is in a non-adequacy region, or just flag it? | Compliance + Platform | Phase 2 |
+| # | Question | Status / Owner | Revisit by |
+|---|----------|----------------|-----------|
+| Q1 | Should principals carry an array of jurisdictions (for EU GDPR Art. 3(2) extraterritorial cases that genuinely apply two regulators to the same row)? Today the answer is "no, single jurisdiction wins"; revisit if a real customer scenario requires otherwise. | **Open** — Architecture | When first non-residence-based jurisdiction case lands |
+| Q2 | Pack versioning — is a `version` field in `pack.yaml` enough, or do we need historical pack snapshots (so a DPIA generated under DPDP v1.0 can be re-rendered later under v1.0 even after the pack ships v1.1)? | **Resolved** (commit `6aa8d95`, 2026-05-12) — adopted semver `version` field per pack, threaded into `DPIATemplate.pack_version` + `dpia_prompt_version()` hash. Historical snapshotting deferred — current MLflow trace fork on version bump is sufficient for re-rendering by trace_id. | — |
+| Q3 | Should the loader validate that all jurisdiction codes referenced in `customers_tagged.jurisdiction` correspond to a loaded pack, and surface mismatches as a compliance gap? | **Resolved** (commit `baae9e6`, 2026-05-12) — `validate_jurisdictions()` returns 4-bucket classification (mapped / null / unmapped_known / unmapped_unknown); phase1_bootstrap emits the report observationally; CCO dashboard surfaces the NULL count as a counter tile. Promotion to a `compliance_gaps` row deferred — observational stdout proved sufficient for the POC reviewer. | — |
+| Q4 | Cross-border transfer enforcement — should the residency filter actually block reads of UK principals' data when the workspace is in a non-adequacy region, or just flag it? | **Open** — Compliance + Platform | Phase 2 |
+| Q5 | Per-deployment / per-company overlays — how does a customer add their own rules on top of the regulation pack (e.g. "this client mandates AES-256 even where the regulation only mandates 'appropriate encryption'") without forking the pack? | **Open** — Architecture; likely a `regulations/_overlays/<client_code>/` directory with merge-on-top semantics over the relevant pack. | When first customer surfaces a divergent internal-policy requirement |
+| Q6 | Pack-deprecation policy — what happens when a regulation is repealed or superseded (e.g., DPDP Rules 2025 supersede parts of the 2023 Act once notified)? | **Open** — Architecture; likely a `superseded_by` field on `pack.yaml` + transition-window dual-emit. | When DPDP Rules 2025 are notified or any superseding regulation lands |
 
 ## References
 
