@@ -186,6 +186,49 @@ print(f"✓ {CATALOG}.silver.pii_findings_ai ready")
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Ensure pii_findings_all UNION view
+# MAGIC
+# MAGIC The view exposes the 20 common columns of `pii_findings` (regex,
+# MAGIC DLT-managed) and `pii_findings_ai` (this notebook), plus 3 nullable
+# MAGIC ai-only extras. Downstream consumers (dashboard tiles, DPIA prompt
+# MAGIC builder, gap analysis) should read from this view instead of
+# MAGIC `pii_findings` directly to see both regex AND ai findings in one
+# MAGIC inventory.
+# MAGIC
+# MAGIC Created with CREATE OR REPLACE so every run keeps the view in sync
+# MAGIC if the column shape ever evolves. Cheap (no data scan).
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE OR REPLACE VIEW {CATALOG}.silver.pii_findings_all
+COMMENT 'UNION of pii_findings (regex/DLT) + pii_findings_ai (ai_classify). Read this for full PII inventory.'
+AS
+SELECT
+    finding_id, scan_job_id, catalog_name, schema_name, table_name, column_name,
+    column_data_type, pii_category, pii_type, sensitivity_tier,
+    confidence, classifier_source, match_rate, regulations,
+    sample_match_redacted, human_reviewed, review_status, review_notes,
+    discovered_at, reviewed_at,
+    CAST(NULL AS STRING)              AS model_endpoint,
+    CAST(NULL AS BIGINT)              AS sample_rows_scanned,
+    CAST(NULL AS MAP<STRING, BIGINT>) AS ai_label_distribution
+FROM {CATALOG}.silver.pii_findings
+UNION ALL
+SELECT
+    finding_id, scan_job_id, catalog_name, schema_name, table_name, column_name,
+    column_data_type, pii_category, pii_type, sensitivity_tier,
+    confidence, classifier_source, match_rate, regulations,
+    sample_match_redacted, human_reviewed, review_status, review_notes,
+    discovered_at, reviewed_at,
+    model_endpoint, sample_rows_scanned, ai_label_distribution
+FROM {CATALOG}.silver.pii_findings_ai
+""")
+print(f"✓ {CATALOG}.silver.pii_findings_all view ready")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Build scan plan: (table, column, pattern) tuples
 
 # COMMAND ----------
