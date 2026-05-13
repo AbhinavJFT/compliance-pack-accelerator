@@ -282,6 +282,11 @@ MEDICAL_RECORD_PATTERN = PIIPattern(
     regulations=["DPDP", "HIPAA"],
     description="Medical Record",
     priority=100,
+    # AI-classifiable: clinical free-text fields can't be regex'd, but
+    # ai_classify can sort each value into a medical category. Negative
+    # label MUST be last (the pii_ai_scan job uses ai_labels[-1] as the
+    # "not PII" sentinel when computing match_rate).
+    ai_labels=["diagnosis", "prescription", "allergy_note", "non_medical"],
 )
 
 INSURANCE_ID_PATTERN = PIIPattern(
