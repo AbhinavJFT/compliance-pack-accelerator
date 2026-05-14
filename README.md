@@ -21,7 +21,7 @@ is the binding architectural decision for the project.
 
 | Capability | Status | Key Numbers (multi-pack live state) |
 |---|---|---|
-| **PII Discovery & Data Inventory** | Live | 36 findings across 10 silver objects (8 tables + 2 federation views) · UC tags · 21.5K base rows |
+| **PII Discovery & Data Inventory** | Live | 36 findings across 10 silver objects (8 tables + 2 federation views) · UC tags · 21.5K base rows · daily AI-based free-text scan (`ai_classify`) bridged into the register via `silver.pii_findings_all` |
 | **Consent Intelligence Engine** | Live | 1,000 events · 292 principals · 6 purposes · 4 channels |
 | **Compliance Audit & Gap Analysis** | Live | **51 multi-pack rules** (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA) · per-row routing on the `jurisdiction` column |
 | **Agent Bricks (AI Agents)** | Live | DPIA generator (30s, multi-regulator citations, pack-version-stamped prompts, auto-derived applicable packs per ADR-0001) · Compliance Q&A · PII classifier |

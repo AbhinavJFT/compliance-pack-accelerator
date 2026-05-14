@@ -31,7 +31,7 @@ locally and MERGEs into bronze on the next bundle deploy.
 
 | Component | State | Key Detail |
 |---|---|---|
-| PII Discovery (Module 01) | COMPLETE | 36 findings across 10 silver objects · universal patterns + 5 IN-specific + 5 UK-specific + 8 EU-specific + 7 US-specific PII patterns active |
+| PII Discovery (Module 01) | COMPLETE | 36 findings across 10 silver objects · universal patterns + 5 IN-specific + 5 UK-specific + 8 EU-specific + 7 US-specific PII patterns active · AI free-text classifier (`pipelines/pii_ai_scan.py`, daily, per-row state in `compliance.pii_ai_scan_row_state`) bridged via `silver.pii_findings_all` |
 | Consent Intelligence (Module 02) | COMPLETE | 1,000 events in Delta (no Lakebase — not available in trial) |
 | Compliance Audit (Module 05) | COMPLETE | 51 multi-pack rules across 4 packs (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA), 818 gaps tagged by source pack, per-row routing, pack semver in DPIA prompts |
 | Agent Bricks | COMPLETE | DPIA generator (pack-version-stamped prompts), Compliance Q&A, PII classifier |

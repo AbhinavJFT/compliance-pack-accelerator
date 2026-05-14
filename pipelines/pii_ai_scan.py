@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # AI-based PII Scan (weekly, sampled, cost-bounded)
+# MAGIC # AI-based PII Scan (daily, per-row state, cost-bounded)
 # MAGIC
 # MAGIC Companion to the regex-based DLT classifier in
 # MAGIC `pipelines/classification_dlt.py`. Where regex finds *structured*
@@ -13,26 +13,28 @@
 # MAGIC
 # MAGIC LLM calls are billed per row. To keep the cost predictable:
 # MAGIC
-# MAGIC - **Schedule**: weekly (vs the medallion's per-refresh cadence).
-# MAGIC - **Sample cap**: `LIMIT sample_size` (default 1000) per
-# MAGIC   (table, column) pair, not full-table.
+# MAGIC - **Schedule**: daily at 03:00 IST.
+# MAGIC - **Per-pattern daily budget**: `daily_pattern_budget` rows
+# MAGIC   (default 1000) per AI pattern, split equally across the columns
+# MAGIC   the pattern matches. Daily cap = N_patterns × daily_pattern_budget.
+# MAGIC - **Per-row state**: `compliance.pii_ai_scan_row_state` records
+# MAGIC   every row already classified, so rescans only fire for new rows
+# MAGIC   or rows whose `_ingested_at` has advanced. Backfill drains;
+# MAGIC   steady-state cost is ~0 LLM calls.
 # MAGIC - **Pattern-driven**: only scans columns matched by a pattern that
-# MAGIC   has `ai_labels` populated (i.e., declared AI-classifiable in
-# MAGIC   `regulations/<pack>/pii_patterns.py`). If no AI patterns are
-# MAGIC   declared, the job exits cleanly with no LLM calls.
-# MAGIC
-# MAGIC At ~$0.005 per `ai_classify` call, a typical run scanning 5
-# MAGIC columns × 1000 rows costs ~$25/week, ~$100/month. Tune via the
-# MAGIC `sample_size` widget.
+# MAGIC   has `ai_labels` populated. If no AI patterns are declared,
+# MAGIC   the job exits cleanly with no LLM calls.
 # MAGIC
 # MAGIC ## Output
 # MAGIC
-# MAGIC Findings are written to `<catalog>.silver.pii_findings_ai` (NOT
-# MAGIC the DLT-managed `pii_findings` materialized view). Same schema —
-# MAGIC a UNION view over both tables is the recommended next step for
-# MAGIC dashboard / DPIA consumers; keeping the tables separate now means
-# MAGIC the DLT pipeline's incremental refresh semantics aren't disturbed
-# MAGIC by appends from this job.
+# MAGIC - Per-row classifications → `compliance.pii_ai_scan_row_state`
+# MAGIC   (one row per (table, column, pattern, source row); MERGEd each run).
+# MAGIC - Column-level findings → `silver.pii_findings_ai` (one row per
+# MAGIC   (table, column, pii_type); MERGEd each run to reflect cumulative
+# MAGIC   state). Findings drop below the confidence threshold are DELETEd.
+# MAGIC - `silver.pii_findings_all` UNION view bridges regex + AI findings
+# MAGIC   into `personal_data_register` so DPIA + dashboard + gaps pick
+# MAGIC   them up automatically.
 
 # COMMAND ----------
 
