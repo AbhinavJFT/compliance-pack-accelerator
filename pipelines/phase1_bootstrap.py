@@ -907,16 +907,78 @@ print(f"✓ {total} consent events loaded")
 
 # COMMAND ----------
 
+# Ensure pii_findings_ai table + pii_findings_all UNION view exist before
+# personal_data_register references them. The pii_ai_scan job creates both
+# too (idempotent — harmless duplicate), but on a fresh deploy phase1_bootstrap
+# runs BEFORE the first Sunday's ai scan, and personal_data_register would
+# fail without pii_findings_all here. Keeping the same DDL in both places means
+# a deployer who skips phase1_bootstrap and runs only pii_ai_scan still gets
+# a working view; and a deployer who runs only phase1_bootstrap (no ai scan
+# yet) gets a working register view backed by an empty AI findings table.
+spark.sql(f"""
+CREATE TABLE IF NOT EXISTS {CATALOG}.silver.pii_findings_ai (
+    finding_id              STRING      NOT NULL,
+    scan_job_id             STRING      NOT NULL,
+    catalog_name            STRING      NOT NULL,
+    schema_name             STRING      NOT NULL,
+    table_name              STRING      NOT NULL,
+    column_name             STRING      NOT NULL,
+    column_data_type        STRING      NOT NULL,
+    pii_category            STRING      NOT NULL,
+    pii_type                STRING      NOT NULL,
+    sensitivity_tier        STRING      NOT NULL,
+    confidence              DOUBLE      NOT NULL,
+    classifier_source       STRING      NOT NULL,
+    match_rate              DOUBLE,
+    regulations             ARRAY<STRING>   NOT NULL,
+    sample_match_redacted   STRING,
+    human_reviewed          BOOLEAN     NOT NULL,
+    review_status           STRING,
+    review_notes            STRING,
+    discovered_at           TIMESTAMP   NOT NULL,
+    reviewed_at             TIMESTAMP,
+    model_endpoint          STRING,
+    sample_rows_scanned     BIGINT,
+    ai_label_distribution   MAP<STRING, BIGINT>
+) USING DELTA
+COMMENT 'AI-based PII findings (ai_classify). Companion to pii_findings (regex). UNION the two via pii_findings_all.'
+""")
+spark.sql(f"""
+CREATE OR REPLACE VIEW {CATALOG}.silver.pii_findings_all
+COMMENT 'UNION of pii_findings (regex/DLT) + pii_findings_ai (ai_classify). Read this for full PII inventory.'
+AS
+SELECT
+    finding_id, scan_job_id, catalog_name, schema_name, table_name, column_name,
+    column_data_type, pii_category, pii_type, sensitivity_tier,
+    confidence, classifier_source, match_rate, regulations,
+    sample_match_redacted, human_reviewed, review_status, review_notes,
+    discovered_at, reviewed_at,
+    CAST(NULL AS STRING)              AS model_endpoint,
+    CAST(NULL AS BIGINT)              AS sample_rows_scanned,
+    CAST(NULL AS MAP<STRING, BIGINT>) AS ai_label_distribution
+FROM {CATALOG}.silver.pii_findings
+UNION ALL
+SELECT
+    finding_id, scan_job_id, catalog_name, schema_name, table_name, column_name,
+    column_data_type, pii_category, pii_type, sensitivity_tier,
+    confidence, classifier_source, match_rate, regulations,
+    sample_match_redacted, human_reviewed, review_status, review_notes,
+    discovered_at, reviewed_at,
+    model_endpoint, sample_rows_scanned, ai_label_distribution
+FROM {CATALOG}.silver.pii_findings_ai
+""")
+print(f"✓ {CATALOG}.silver.pii_findings_ai + pii_findings_all ready")
+
 # personal_data_register view
 # NOTE: discovered_tables' schema was simplified in medallion.py — the columns
 # `scan_job_id` and `pii_column_count` were removed. We now compute the
-# per-table PII column count inline from pii_findings and join on natural key
-# (catalog/schema/table_name) only.
+# per-table PII column count inline from pii_findings_all (regex + ai
+# combined) and join on natural key (catalog/schema/table_name) only.
 _register_select = f"""
 WITH pii_column_counts AS (
   SELECT catalog_name, schema_name, table_name,
          COUNT(DISTINCT column_name) AS pii_column_count
-  FROM {CATALOG}.silver.pii_findings
+  FROM {CATALOG}.silver.pii_findings_all
   GROUP BY catalog_name, schema_name, table_name
 )
 SELECT
@@ -941,7 +1003,7 @@ SELECT
     f.review_notes,
     f.discovered_at     AS last_scanned_at,
     f.reviewed_at       AS last_reviewed_at
-FROM {CATALOG}.silver.pii_findings f
+FROM {CATALOG}.silver.pii_findings_all f
 LEFT JOIN {CATALOG}.silver.discovered_tables dt
   ON dt.catalog_name = f.catalog_name
  AND dt.schema_name  = f.schema_name

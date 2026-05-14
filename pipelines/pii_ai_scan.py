@@ -43,7 +43,7 @@
 
 dbutils.widgets.text("catalog", "compliance_pack", "Unity Catalog name")
 dbutils.widgets.text("model_endpoint", "databricks-gpt-oss-120b",
-                     "Foundation model endpoint for ai_classify")
+                     "Endpoint to record in audit row (ai_classify uses Databricks' default model, not this one)")
 dbutils.widgets.text("sample_size", "1000",
                      "Rows sampled per (table, column) — caps cost")
 dbutils.widgets.dropdown("mode", "apply", ["dry-run", "apply"],
@@ -186,6 +186,49 @@ print(f"✓ {CATALOG}.silver.pii_findings_ai ready")
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Ensure pii_findings_all UNION view
+# MAGIC
+# MAGIC The view exposes the 20 common columns of `pii_findings` (regex,
+# MAGIC DLT-managed) and `pii_findings_ai` (this notebook), plus 3 nullable
+# MAGIC ai-only extras. Downstream consumers (dashboard tiles, DPIA prompt
+# MAGIC builder, gap analysis) should read from this view instead of
+# MAGIC `pii_findings` directly to see both regex AND ai findings in one
+# MAGIC inventory.
+# MAGIC
+# MAGIC Created with CREATE OR REPLACE so every run keeps the view in sync
+# MAGIC if the column shape ever evolves. Cheap (no data scan).
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE OR REPLACE VIEW {CATALOG}.silver.pii_findings_all
+COMMENT 'UNION of pii_findings (regex/DLT) + pii_findings_ai (ai_classify). Read this for full PII inventory.'
+AS
+SELECT
+    finding_id, scan_job_id, catalog_name, schema_name, table_name, column_name,
+    column_data_type, pii_category, pii_type, sensitivity_tier,
+    confidence, classifier_source, match_rate, regulations,
+    sample_match_redacted, human_reviewed, review_status, review_notes,
+    discovered_at, reviewed_at,
+    CAST(NULL AS STRING)              AS model_endpoint,
+    CAST(NULL AS BIGINT)              AS sample_rows_scanned,
+    CAST(NULL AS MAP<STRING, BIGINT>) AS ai_label_distribution
+FROM {CATALOG}.silver.pii_findings
+UNION ALL
+SELECT
+    finding_id, scan_job_id, catalog_name, schema_name, table_name, column_name,
+    column_data_type, pii_category, pii_type, sensitivity_tier,
+    confidence, classifier_source, match_rate, regulations,
+    sample_match_redacted, human_reviewed, review_status, review_notes,
+    discovered_at, reviewed_at,
+    model_endpoint, sample_rows_scanned, ai_label_distribution
+FROM {CATALOG}.silver.pii_findings_ai
+""")
+print(f"✓ {CATALOG}.silver.pii_findings_all view ready")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Build scan plan: (table, column, pattern) tuples
 
 # COMMAND ----------
@@ -245,6 +288,13 @@ for table, col_name, col_dtype, pattern in scan_plan:
     # negative label last (e.g., 'non_medical', 'not_pii').
     negative_label = pattern.ai_labels[-1]
 
+    # NOTE: ai_classify uses Databricks' managed default model (currently a
+    # Llama variant) and does NOT accept an `endpoint` parameter — the SQL
+    # API rejects it with AI_FUNCTION_COMPILATION_ERROR. We still record
+    # MODEL_ENDPOINT in the audit row (and the widget) so downstream
+    # consumers can see which model would be used IF this notebook is
+    # later refactored to ai_query (which DOES take an endpoint and lets
+    # us pin to databricks-gpt-oss-120b for parity with DPIA + multilang).
     sql = f"""
         WITH sampled AS (
             SELECT {col_name} AS val
@@ -254,7 +304,7 @@ for table, col_name, col_dtype, pattern in scan_plan:
         ),
         classified AS (
             SELECT val,
-                   ai_classify(val, ARRAY({labels_sql}), endpoint => '{MODEL_ENDPOINT}') AS lbl
+                   ai_classify(val, ARRAY({labels_sql})) AS lbl
             FROM sampled
         )
         SELECT
@@ -343,7 +393,12 @@ print(f"\nFindings emitted: {len(findings)}")
 # COMMAND ----------
 
 if findings:
-    findings_df = spark.createDataFrame(findings)
+    # Pull the schema from the (possibly empty) target table so Spark
+    # doesn't try to infer types from dicts where review_status /
+    # review_notes / reviewed_at are all None — that triggers
+    # CANNOT_DETERMINE_TYPE on Spark Connect.
+    table_schema = spark.table(f"{CATALOG}.silver.pii_findings_ai").schema
+    findings_df = spark.createDataFrame(findings, schema=table_schema)
     findings_df.write.mode("append").saveAsTable(f"{CATALOG}.silver.pii_findings_ai")
     print(f"✓ Appended {len(findings)} findings to {CATALOG}.silver.pii_findings_ai (scan_job_id={SCAN_JOB_ID})")
 else:
