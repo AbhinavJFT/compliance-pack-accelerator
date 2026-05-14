@@ -42,7 +42,7 @@
         "    COUNT(*) AS column_count,\n",
         "    COUNT(DISTINCT table_name) AS table_count,\n",
         "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY pii_category, sensitivity_tier\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY pii_category, sensitivity_tier\n",
         "  ORDER BY column_count DESC\n"
       ]
     },
@@ -108,7 +108,7 @@
         "    pii_category,\n",
         "    COUNT(*) AS occurrences,\n",
         "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY pii_type, pii_category\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY pii_type, pii_category\n",
         "  ORDER BY occurrences DESC\n",
         "  LIMIT 15\n"
       ]
@@ -129,7 +129,7 @@
         "    classifier_source,\n",
         "    regulations,\n",
         "    discovered_at\n",
-        "  FROM compliance_pack.silver.pii_findings_allORDER BY\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  ORDER BY\n",
         "    CASE sensitivity_tier WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,\n",
         "    table_name,\n",
         "    column_name"
@@ -198,7 +198,7 @@
         "SELECT\n",
         "    sensitivity_tier,\n",
         "    COUNT(*) AS count\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY sensitivity_tier\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY sensitivity_tier\n",
         "  ORDER BY\n",
         "    CASE sensitivity_tier\n",
         "      WHEN 'critical' THEN 1\n",
@@ -226,7 +226,7 @@
         "    END) AS risk_score,\n",
         "    ROUND(AVG(confidence), 2) AS avg_confidence,\n",
         "    ARRAY_JOIN(ARRAY_DISTINCT(COLLECT_LIST(pii_type)), ', ') AS pii_types\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY catalog_name, schema_name, table_name\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY catalog_name, schema_name, table_name\n",
         "  ORDER BY risk_score DESC"
       ]
     },
@@ -282,7 +282,7 @@
         "    COUNT(*) AS pii_columns,\n",
         "    SUM(CASE WHEN sensitivity_tier IN ('critical', 'high') THEN 1 ELSE 0 END) AS high_risk_columns,\n",
         "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY schema_name\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY schema_name\n",
         "  ORDER BY pii_columns DESC"
       ]
     },
@@ -300,7 +300,7 @@
         "      WHEN sensitivity_tier = 'high' THEN 2\n",
         "      ELSE 1\n",
         "    END) AS risk_score\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY catalog_name, schema_name, table_name\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY catalog_name, schema_name, table_name\n",
         "  HAVING SUM(CASE WHEN sensitivity_tier IN ('critical', 'high') THEN 1 ELSE 0 END) > 0\n",
         "  ORDER BY risk_score DESC\n",
         "  LIMIT 20\n"
@@ -327,7 +327,7 @@
         "    END AS bucket_order,\n",
         "    COUNT(*) AS finding_count,\n",
         "    COUNT(DISTINCT pii_type) AS pii_types\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY 1, 2\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY 1, 2\n",
         "  ORDER BY bucket_order"
       ]
     },
@@ -341,7 +341,7 @@
         "    ROUND(AVG(confidence), 2) AS avg_confidence,\n",
         "    COUNT(DISTINCT pii_type) AS pii_types_detected,\n",
         "    COUNT(DISTINCT table_name) AS tables_scanned\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY classifier_source\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY classifier_source\n",
         "  ORDER BY finding_count DESC"
       ]
     },
@@ -376,7 +376,7 @@
         "    ROUND(AVG(confidence), 2) AS avg_confidence,\n",
         "    ROUND(MIN(confidence), 2) AS min_confidence,\n",
         "    ROUND(MAX(confidence), 2) AS max_confidence\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY pii_type, pii_category\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY pii_type, pii_category\n",
         "  ORDER BY avg_confidence ASC"
       ]
     },
@@ -428,7 +428,7 @@
         "    COUNT(DISTINCT pii_type) AS pii_types,\n",
         "    SUM(CASE WHEN sensitivity_tier IN ('critical', 'high') THEN 1 ELSE 0 END) AS high_risk_count,\n",
         "    ROUND(AVG(confidence), 2) AS avg_confidence\n",
-        "  FROM compliance_pack.silver.pii_findings_allGROUP BY column_data_type\n",
+        "  FROM compliance_pack.silver.pii_findings_all\n  GROUP BY column_data_type\n",
         "  ORDER BY pii_count DESC"
       ]
     },

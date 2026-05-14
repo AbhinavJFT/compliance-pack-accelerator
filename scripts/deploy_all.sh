@@ -353,8 +353,12 @@ run_step smoke        do_smoke
 run_step personas     do_personas
 run_step app_deploy   do_app_deploy
 run_step app_perms    do_app_perms
-run_step dpia_first_run do_dpia_first_run
+# pii_ai_first_run BEFORE dpia_first_run: the seed DPIA reads
+# personal_data_register (UNION view); running the AI scan first means
+# the Day-1 DPIA already cites AI-discovered findings instead of having
+# to wait for the next quarterly cron.
 run_step pii_ai_first_run do_pii_ai_first_run
+run_step dpia_first_run do_dpia_first_run
 
 echo ""
 echo "══════════════════════════════════════════════════════════════════════"
