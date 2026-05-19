@@ -946,13 +946,17 @@ databricks api post /api/2.0/sql/statements --json <span class="string">"{
   <code>USE_SCHEMA</code> grants outside the pipeline's identity.</p>
   <pre><span class="keyword">SHOW GRANTS ON SCHEMA</span> compliance_pack.bronze;
 
-<span class="comment">-- Expected: zero rows for any dpdp-*@ persona email.
+<span class="comment">-- Expected: zero rows for any +compliance-*@ persona email.
 -- Only the catalog owner (deployer / admin group / service principal)
 -- should have access. If any persona email appears, that's a grant leak.</span></pre>
   <p>Negative control — persona tries to query bronze:</p>
   <pre><span class="comment">-- As a persona user via SQL editor (see T8.5 for login flow):</span>
 <span class="keyword">SHOW TABLES IN</span> compliance_pack.bronze;
-<span class="comment">-- Expected: empty list (no USE_SCHEMA → no visibility)</span>
+<span class="comment">-- Expected: empty list OR `PERMISSION_DENIED: User does not have BROWSE
+-- on Catalog 'compliance_pack'`. Both prove no schema visibility — newer
+-- UC requires BROWSE on the catalog even to enumerate schemas, which the
+-- persona doesn't have. The intent (persona cannot list bronze tables)
+-- is met either way.</span>
 
 <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> compliance_pack.bronze.sf_leads <span class="keyword">LIMIT</span> <span class="number">1</span>;
 <span class="comment">-- Expected: PERMISSION_DENIED at the UC layer</span></pre>
