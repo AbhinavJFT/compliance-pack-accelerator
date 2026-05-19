@@ -1135,40 +1135,52 @@ question with user + timestamp. This test surfaces that evidence directly.</p>
 
 <div class="test-card">
   <h3><span class="test-id tid-orange">T10.1</span> Who queried personal_data_register in the last 7 days?</h3>
+  <p><strong>Audit source choice:</strong> use the <code>unityCatalog</code> service log (action <code>getTable</code>) instead of the <code>databrickssql</code> statement log. <code>databrickssql</code> events deliver with multi-hour-to-day lag on the free-trial workspace, so queries you ran today often haven't landed yet and the SELECT below returns zero rows. <code>unityCatalog</code> events land near-real-time and capture every table access (read or write), which is what DPDP §18 actually requires evidence of.</p>
   <pre><span class="keyword">SELECT</span>
     event_time,
     user_identity.email <span class="keyword">AS</span> user_email,
     action_name,
-    request_params.statement <span class="keyword">AS</span> sql_statement
+    request_params.full_name_arg <span class="keyword">AS</span> table_name,
+    request_params.workspace_id  <span class="keyword">AS</span> workspace_id
 <span class="keyword">FROM</span> system.access.audit
 <span class="keyword">WHERE</span> event_date &gt;= current_date() - <span class="keyword">INTERVAL</span> <span class="number">7</span> <span class="keyword">DAYS</span>
-  <span class="keyword">AND</span> service_name = <span class="string">'databrickssql'</span>
-  <span class="keyword">AND</span> (request_params.statement <span class="keyword">LIKE</span> <span class="string">'%personal_data_register%'</span>
-       <span class="keyword">OR</span> request_params.statement <span class="keyword">LIKE</span> <span class="string">'%pii_findings%'</span>)
+  <span class="keyword">AND</span> service_name = <span class="string">'unityCatalog'</span>
+  <span class="keyword">AND</span> action_name <span class="keyword">IN</span> (<span class="string">'getTable'</span>, <span class="string">'updateTables'</span>, <span class="string">'deleteTable'</span>)
+  <span class="keyword">AND</span> (request_params.full_name_arg <span class="keyword">LIKE</span> <span class="string">'%personal_data_register%'</span>
+       <span class="keyword">OR</span> request_params.full_name_arg <span class="keyword">LIKE</span> <span class="string">'%pii_findings%'</span>)
 <span class="keyword">ORDER BY</span> event_time <span class="keyword">DESC</span>
 <span class="keyword">LIMIT</span> <span class="number">50</span>;
 
-<span class="comment">-- Expected: at least a few rows (the deployer's recent SHOW GRANTS + SELECT queries),
--- each timestamped and attributed to a specific user email. This is your audit evidence.</span></pre>
+<span class="comment">-- Expected: a few rows (the deployer's + any persona's recent table accesses),
+-- each timestamped and attributed to a specific user email. This is your audit evidence.
+
+-- Original databrickssql-based version (kept for reference — only works once
+-- audit delivery has caught up, typically hours-to-day on free trial):
+--
+--   AND service_name = 'databrickssql'
+--   AND (request_params.statement LIKE '%personal_data_register%'
+--        OR request_params.statement LIKE '%pii_findings%')</span></pre>
   <div class="success"><strong>Pass criteria:</strong> Rows come back attributing PII-table queries to specific user emails with timestamps. This is the evidence that satisfies DPDP §18 audit obligations.</div>
 </div>
 
 <div class="test-card">
   <h3><span class="test-id tid-orange">T10.2</span> Per-persona access summary for the last 7 days</h3>
+  <p>Same <code>unityCatalog</code>-based source as T10.1 — counts table accesses (not raw SQL statements) so results are available near-real-time instead of waiting for <code>databrickssql</code> delivery.</p>
   <pre><span class="keyword">SELECT</span>
     user_identity.email <span class="keyword">AS</span> user_email,
-    <span class="keyword">COUNT</span>(*) <span class="keyword">AS</span> query_count,
+    <span class="keyword">COUNT</span>(*) <span class="keyword">AS</span> access_count,
     <span class="keyword">COUNT</span>(<span class="keyword">DISTINCT</span> <span class="keyword">DATE</span>(event_time)) <span class="keyword">AS</span> active_days,
-    <span class="keyword">MAX</span>(event_time) <span class="keyword">AS</span> last_query_at
+    <span class="keyword">MAX</span>(event_time) <span class="keyword">AS</span> last_access_at
 <span class="keyword">FROM</span> system.access.audit
 <span class="keyword">WHERE</span> event_date &gt;= current_date() - <span class="keyword">INTERVAL</span> <span class="number">7</span> <span class="keyword">DAYS</span>
-  <span class="keyword">AND</span> service_name = <span class="string">'databrickssql'</span>
+  <span class="keyword">AND</span> service_name = <span class="string">'unityCatalog'</span>
+  <span class="keyword">AND</span> action_name = <span class="string">'getTable'</span>
   <span class="keyword">AND</span> user_identity.email <span class="keyword">LIKE</span> <span class="string">'%+compliance-%@%'</span>
 <span class="keyword">GROUP BY</span> user_identity.email
-<span class="keyword">ORDER BY</span> query_count <span class="keyword">DESC</span>;
+<span class="keyword">ORDER BY</span> access_count <span class="keyword">DESC</span>;
 
-<span class="comment">-- Expected: one row per persona demo user that has actually logged in
--- and queried anything. Empty if no persona has logged in yet.</span></pre>
+<span class="comment">-- Expected: one row per persona demo user that has accessed any UC table.
+-- Empty if no persona has logged in + opened a dashboard / run a query yet.</span></pre>
   <div class="info"><strong>Why this matters for SA:</strong> Instead of saying "we have an audit trail," you run this query during the demo and point at the rows. It's the difference between &quot;we support audit&quot; and &quot;here is the audit log, live.&quot;</div>
 </div>
 
