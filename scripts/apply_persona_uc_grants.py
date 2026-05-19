@@ -64,6 +64,17 @@ PERSONA_TABLES: dict[str, list[str]] = {
         "compliance_pack.silver.federation_campaign_response_tagged",
         "compliance_pack.federation_mock.lead_scoring",
         "compliance_pack.federation_mock.campaign_response",
+        # Auto Loader silver tables — needed for column-mask verification
+        # (T8.6.2). Persona sees raw row but PII columns return masked
+        # values via UC SET MASK is_member('admins') rules in
+        # schemas/pii_column_masks.sql. Same SELECT is added to GC/CMO/CFO
+        # below so T8.6.2 can be exercised as any persona — UC enforces the
+        # mask at query time regardless of which persona runs the query.
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
     "gc": [
         "compliance_pack.silver.compliance_gaps",
@@ -74,14 +85,32 @@ PERSONA_TABLES: dict[str, list[str]] = {
         # approve. Kept in sync with the Genie data_sources allowlist in
         # scripts/setup_persona_genie_spaces.py PERSONA_DEFS['gc']['tables'].
         "compliance_pack.compliance.dpia_runs",
+        # Auto Loader silver tables — needed for column-mask verification (T8.6.2).
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
     "cmo": [
         "compliance_pack.gold.marketing_eligible_principals",
         "compliance_pack.compliance.consent_events_log",
+        # Auto Loader silver tables — needed for column-mask verification (T8.6.2).
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
     "cfo": [
         "compliance_pack.silver.compliance_gaps",
         "compliance_pack.silver.discovered_tables",
+        # Auto Loader silver tables — needed for column-mask verification (T8.6.2).
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
 }
 
