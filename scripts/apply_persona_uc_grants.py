@@ -132,6 +132,21 @@ SHARED_OVERVIEW_TABLES: list[str] = [
     "compliance_pack.gold.persona_sensitivity_histogram",
 ]
 
+# Per-persona UC functions the agent needs EXECUTE on. Genie's
+# "certified answer" loader resolves the function reference at space-load
+# time; without EXECUTE the space fails to fetch its tables with
+# `PERMISSION_DENIED: No access to certified answer '<function>'`.
+#
+# Currently only has_active_consent(principal_id, purpose). CMO uses it as
+# the canonical "can I email this person?" predicate; GC uses it in DSR
+# evidence queries. CCO + CFO don't reference it.
+PERSONA_FUNCTIONS: dict[str, list[str]] = {
+    "cco": [],
+    "gc":  ["compliance_pack.compliance.has_active_consent"],
+    "cmo": ["compliance_pack.compliance.has_active_consent"],
+    "cfo": [],
+}
+
 EMAILS_FILE = REPO_ROOT / "dashboards" / "personas" / ".persona_emails.json"
 
 
@@ -194,6 +209,13 @@ def main() -> int:
         # Tables
         for table in all_tables:
             grant(f"GRANT SELECT ON TABLE {table} TO {grantee}")
+
+        # Functions (EXECUTE on persona-specific UC functions). Schema-level
+        # USE_SCHEMA grant was already issued above when we visited the
+        # function's parent schema as part of the table loop, so the
+        # function-level EXECUTE is the only extra step here.
+        for fn in PERSONA_FUNCTIONS.get(persona, []):
+            grant(f"GRANT EXECUTE ON FUNCTION {fn} TO {grantee}")
 
     print("\nDone. To verify (as admin):")
     print(f"  SHOW GRANTS TO `{persona_emails['cco']}`;")
