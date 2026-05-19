@@ -116,6 +116,7 @@ class Pack:
     _languages: list | None = field(default=None, repr=False)
     _breach_sla: dict | None = field(default=None, repr=False)
     _dpia_template: "DPIATemplate | None" = field(default=None, repr=False)
+    _persona_guidance: dict | None = field(default=None, repr=False)
 
     @property
     def name(self) -> str:
@@ -184,6 +185,26 @@ class Pack:
         if self._breach_sla is None:
             self._breach_sla = _read_yaml(self.path / "breach_sla.yaml") or {}
         return self._breach_sla
+
+    def persona_guidance(self) -> dict:
+        """Return per-persona Genie guidance contributed by this pack.
+
+        Schema is defined in regulations/dpdp_2023/persona_guidance.yaml.
+        Top-level keys:
+          - short_name       : str  (e.g. "DPDP")
+          - glossary_entry   : str  (multi-line)
+          - cco / gc / cmo / cfo : dict with persona-specific fields
+                                   (scope_note, rule_section_mapping,
+                                    penalty_model, example_questions)
+
+        Returns {} when the pack hasn't authored a persona_guidance.yaml —
+        in that case the composer falls back to pack name + glossary only.
+        Consumed by governance_core/genie_instructions.py:compose_for_persona().
+        """
+        if self._persona_guidance is None:
+            path = self.path / "persona_guidance.yaml"
+            self._persona_guidance = _read_yaml(path) if path.exists() else {}
+        return self._persona_guidance
 
     def pii_patterns(self) -> list:
         """Return the pack's region-specific PII patterns.
