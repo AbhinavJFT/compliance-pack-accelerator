@@ -137,15 +137,30 @@ SHARED_OVERVIEW_TABLES: list[str] = [
 # time; without EXECUTE the space fails to fetch its tables with
 # `PERMISSION_DENIED: No access to certified answer '<function>'`.
 #
-# Currently only has_active_consent(principal_id, purpose). CMO uses it as
-# the canonical "can I email this person?" predicate; GC uses it in DSR
-# evidence queries. CCO + CFO don't reference it.
+# has_active_consent(principal_id, purpose): CMO uses it as the canonical
+# "can I email this person?" predicate; GC uses it in DSR evidence queries.
+# CCO + CFO don't reference it.
 PERSONA_FUNCTIONS: dict[str, list[str]] = {
     "cco": [],
     "gc":  ["compliance_pack.compliance.has_active_consent"],
     "cmo": ["compliance_pack.compliance.has_active_consent"],
     "cfo": [],
 }
+
+# Shared UC functions every persona needs EXECUTE on. The mask functions
+# from schemas/pii_column_masks.sql are designed to be safe for non-admins
+# to call directly — they check `is_member('admins')` internally and return
+# the redacted value otherwise. T12.4 (Mask-UDF forgery probe) exercises
+# this by SELECT-ing mask_email('literal') as a persona and asserting the
+# result is masked, not raw. Without EXECUTE the test errors out before
+# the mask logic can run.
+SHARED_FUNCTIONS: list[str] = [
+    "compliance_pack.compliance.mask_email",
+    "compliance_pack.compliance.mask_phone",
+    "compliance_pack.compliance.mask_id_last4",
+    "compliance_pack.compliance.mask_full",
+    "compliance_pack.compliance.mask_dob",
+]
 
 EMAILS_FILE = REPO_ROOT / "dashboards" / "personas" / ".persona_emails.json"
 
@@ -210,11 +225,13 @@ def main() -> int:
         for table in all_tables:
             grant(f"GRANT SELECT ON TABLE {table} TO {grantee}")
 
-        # Functions (EXECUTE on persona-specific UC functions). Schema-level
-        # USE_SCHEMA grant was already issued above when we visited the
-        # function's parent schema as part of the table loop, so the
-        # function-level EXECUTE is the only extra step here.
-        for fn in PERSONA_FUNCTIONS.get(persona, []):
+        # Functions (EXECUTE on UC functions). Two sources merged: a
+        # persona-specific allowlist + a shared list every persona needs.
+        # Schema-level USE_SCHEMA grant was already issued above when we
+        # visited the function's parent schema as part of the table loop,
+        # so function-level EXECUTE is the only extra step here.
+        all_functions = sorted(set(PERSONA_FUNCTIONS.get(persona, [])) | set(SHARED_FUNCTIONS))
+        for fn in all_functions:
             grant(f"GRANT EXECUTE ON FUNCTION {fn} TO {grantee}")
 
     print("\nDone. To verify (as admin):")
