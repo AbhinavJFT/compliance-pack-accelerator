@@ -38,6 +38,7 @@ Every pack directory must contain these files:
 | `breach_sla.yaml` | `notification.to_authority` + `notification.to_data_subjects` deadlines, content checklists, exemptions, plus `parallel_obligations[]` for non-privacy regulators (NIS 2, DORA, HIPAA, SEC, etc.) |
 | `pii_patterns.py` | Region-specific `PIIPattern` instances exposed via `IN_SPECIFIC_PATTERNS` (variable name kept for historical / loader-contract reasons; not jurisdictional). Optional — universal patterns live in `governance_core/pii_patterns/universal.py` |
 | `dpia_template.yaml` | DPIA Auto-Generator prompt template — `legal_framework_name`, `section_citation_style`, `system_prompt`, optional `section_descriptions` overrides. The 8 DPIA section keys themselves are regulation-agnostic and live in `governance_core/dpia.py::DPIASections`; this file is the regulation-specific framing the model sees |
+| `persona_guidance.yaml` | Per-pack contributions to the CCO / GC / CMO / CFO Genie agent prompts — top-level `short_name` + `glossary_entry`, plus per-persona blocks (`cco` / `gc` / `cmo` / `cfo`) with `scope_note`, `rule_section_mapping`, `penalty_model`, `example_questions`. Composed at deploy time by `governance_core/genie_instructions.py::compose_for_persona()`; the loader exposes it via `Pack.persona_guidance()`. Optional — packs without this file contribute only their `short_name` to the persona glossary |
 
 ### `version` field (ADR-0001 Q2)
 
