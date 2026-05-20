@@ -176,35 +176,13 @@
 <body>
 
 <div class="header">
-  <h1>DPDP Audit Gap Finder & Consent Manager — Test Results</h1>
-  <div class="subtitle">Test Results — Step-by-step evidence</div>
+  <h1>Compliance Pack Accelerator — Test Results</h1>
+  <div class="subtitle">End-to-end test evidence — live screenshots from a Compliance Pack deploy, 20 May 2026</div>
 </div>
 
 <!-- ================================================================== -->
-<h2>Prerequisites</h2>
-
-<div class="prereq">
-  <h3>Before You Start</h3>
-  <p>You need access to the Databricks workspace where the POC is deployed:</p>
-  <table>
-    <tr><td><strong>Workspace URL</strong></td><td>Your workspace (auto-detected by <code>databricks current-user me</code>)</td></tr>
-    <tr><td><strong>SQL Warehouse</strong></td><td>Serverless Starter Warehouse (auto-starts on query)</td></tr>
-    <tr><td><strong>Catalog</strong></td><td><code>compliance_pack</code></td></tr>
-    <tr><td><strong>Master dashboard</strong></td><td>Compliance Pack Platform (full-estate visibility, admin-only)</td></tr>
-    <tr><td><strong>Persona dashboards</strong></td><td>Compliance — CCO View · Compliance — GC View · Compliance — CMO View · Compliance — CFO View</td></tr>
-    <tr><td><strong>Persona Genie spaces</strong></td><td>Compliance — CCO Agent · GC · CMO · CFO Agent (scoped per persona)</td></tr>
-    <tr><td><strong>Notebooks</strong></td><td><code>/Workspace/Users/.../compliance_pack/</code></td></tr>
-  </table>
-  <p style="margin-top: 12px; margin-bottom: 0;">All tests below can be run in the <strong>SQL Editor</strong> (Cmd+Enter to execute) or in a <strong>notebook</strong>. No cluster setup needed — the serverless warehouse handles everything. Test 8 (persona governance boundary) is run partly in the SQL editor and partly by logging in as a persona user via incognito window.</p>
-</div>
-
-<div class="genie">
-  <strong>SQL vs Genie:</strong> Tests 1–7 show SQL queries as the canonical, reproducible verification path — exact counts, copy-paste, CI-parseable. Where a test answers a question a real persona would ask (<em>"What critical PII do we hold?"</em>, <em>"Can I email customer X?"</em>), a purple <strong>Genie companion</strong> block shows the same verification via the natural-language agent. Use SQL when you need machine-checkable results; use Genie for the persona-demo narrative an SA expects to see.
-</div>
-
 <div class="info">
-  <p style="margin-bottom: 8px;"><strong>Deploying the persona layer in your own workspace?</strong></p>
-  <p style="margin-bottom: 0;">Run <code>python3 scripts/setup_all_personas.py</code> once, then toggle <strong>Consumer access: On</strong> on each of the 4 auto-created <code>&lt;you&gt;+compliance-*@domain</code> users in the workspace admin UI. See <code>docs/persona_deploy.md</code> for the full sequence (incl. Terraform PGP workaround).</p>
+  <p style="margin: 0;"><strong>About this document.</strong> This is the captured evidence from a full end-to-end test pass of the Compliance Pack Accelerator. Each section below mirrors a test from <code>docs/how_to_test.html</code> and embeds the live screenshots taken during that pass. For test instructions, prerequisites, and step-by-step guidance, see <code>docs/how_to_test.html</code>.</p>
 </div>
 
 <!-- ================================================================== -->
@@ -219,7 +197,6 @@
 
 <span class="comment">-- Expected: total_findings >= 36, tables_scanned = 10 (8 base + SF tables + 2 federation views)</span></pre>
   <div class="success"><strong>Pass criteria:</strong> At least 36 PII findings across 10 silver objects: 5 Auto Loader tables (employees, customers, patients, transactions, users) + 3 Lakeflow Connect tables (sf_leads, sf_contacts, sf_accounts) + 2 federation views (federation_lead_scoring, federation_campaign_response).</div>
-  <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"How many PII columns do we have and across how many source tables?"</em> — Genie generates SQL against <code>personal_data_register</code> and returns the same numbers, with the generated SQL visible for auditability.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-1.1.png" alt="T1.1 evidence — T-1.1.png">
@@ -242,7 +219,6 @@
 <span class="comment">-- Expected: critical >= 12, high >= 2, medium >= 22 (current live state).
 --   `high` is bounded by ifsc_code occurrences (one per source with bank
 --   data — currently 2: silver.employees_tagged + silver.sf_contacts_tagged).</span></pre>
-  <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"Break down our PII inventory by sensitivity tier."</em> — Genie returns the tier histogram in a table with counts, useful for the executive narrative.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-1.2.png" alt="T1.2 evidence — T-1.2.png">
@@ -360,7 +336,6 @@
 --   core_service ~97%, analytics ~80%, marketing_email ~66%,
 --   marketing_sms ~57%, product_personalization ~58%,
 --   third_party_sharing ~39%</span></pre>
-  <div class="genie"><strong>Genie companion (CMO Agent):</strong> Ask <em>"What's the grant rate for each consent purpose across our principals?"</em> — Genie returns the same breakdown, scoped to consent data the CMO is allowed to see.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-2.2.1.png" alt="T2.2 evidence — T-2.2.1.png">
@@ -380,7 +355,6 @@
 <span class="comment">-- Expected: marketing_email ~141, marketing_sms ~99,
 --           product_personalization ~46
 -- These are principals with ACTIVE granted consent (not withdrawn)</span></pre>
-  <div class="genie"><strong>Genie companion (CMO Agent):</strong> Ask <em>"How many principals are currently eligible for marketing email?"</em> — this is the CMO's primary question and the agent should return the number without the analyst having to know the <code>marketing_eligible_principals</code> view name.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-2.3.1.png" alt="T2.3 evidence — T-2.3.1.png">
@@ -400,7 +374,6 @@
 <span class="comment">-- Expected: 10 rows — marketing_notice v1 in 10 languages (3 hand-authored:
 --   en-IN, hi-IN, ta-IN; 7 machine-translated with watermark preamble:
 --   bn-IN, te-IN, mr-IN, gu-IN, kn-IN, ml-IN, pa-IN). All consent legal basis.</span></pre>
-  <div class="info"><strong>Why this matters:</strong> Every consent event links to a specific notice version. Three years later, a regulator can ask "what notice did this person see?" and the platform can reproduce the exact text.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-2.4.png" alt="T2.4 evidence — T-2.4.png">
@@ -496,11 +469,6 @@
   NOT in <code>marketing_eligible_principals</code> (Step 4). The last assertion is the
   propagation — the gold view re-computes on every read, so downstream marketing audiences
   exclude the principal the moment their withdrawal lands.</div>
-  <div class="info"><strong>Why this matters for DPDP:</strong> §8(7) requires that withdrawal
-  take effect without undue delay. Polling-based integrations ("re-sync the marketing list
-  every 4 hours") fail that bar. CDF + latest-state views give sub-minute effective
-  propagation with an auditable change stream — exactly the enforcement posture DPDP
-  envisions.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-2.6.1.png" alt="T2.6 evidence — T-2.6.1.png">
@@ -679,7 +647,6 @@ python3 scripts/generate_multilang_notices.py --dry-run
 --   2. analytics GRANTED (active)
 --   3. third_party_sharing DECLINED
 --   4. marketing_email WITHDRAWN via mobile_app</span></pre>
-  <div class="genie"><strong>Genie companion (GC Agent):</strong> Ask <em>"Show all consent events for data_principal_id customer_04217 in chronological order."</em> — useful for GC's audit-evidence narrative when a regulator asks for consent history.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-3.4.png" alt="T3.4 evidence — T-3.4.png">
@@ -697,7 +664,6 @@ python3 scripts/generate_multilang_notices.py --dry-run
 
 <span class="comment">-- Expected: marketing = false, analytics = true, third_party = false</span></pre>
   <div class="success"><strong>Pass criteria:</strong> Marketing is false (withdrawn), analytics is true (active), third_party is false (declined). This is the real-time consent check that any downstream system would call.</div>
-  <div class="genie"><strong>Genie companion (CMO Agent) — star demo:</strong> Ask <em>"Can I email customer_04217?"</em> — Genie resolves to <code>marketing_email</code> consent, finds the latest event is WITHDRAWN, answers <strong>"No — marketing_email consent was withdrawn via mobile_app."</strong> The SA-demo highlight: the CMO's actual question answered in one turn, from the CMO-scoped space, without the CMO ever seeing PII.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-3.5.png" alt="T3.5 evidence — T-3.5.png">
@@ -739,7 +705,6 @@ python3 scripts/generate_multilang_notices.py --dry-run
 
 <span class="comment">-- Expected: 9 active rules (ENC-001, ENC-002, CNS-001, CNS-002,
 --   RET-001, ACC-001, ACC-002, DSR-001, BRN-001)</span></pre>
-  <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"Which rule types are causing the most compliance gaps?"</em> — Genie joins <code>compliance_gaps</code> by <code>rule_type</code> and ranks them. Useful when the CCO wants to know where to focus remediation without reading a rule catalog.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-4.1.png" alt="T4.1 evidence — T-4.1.png">
@@ -762,7 +727,6 @@ python3 scripts/generate_multilang_notices.py --dry-run
 -- Total = 164 gaps (grew from 135 after Day 3+4 added 3 SF tables and 2
 --   federation views — gap = rule × pii column, so any new PII column
 --   the classifier finds adds rows here).</span></pre>
-  <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"How many compliance gaps do we have by severity?"</em> — same numbers, in the CCO's conversational flow.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-4.2.png" alt="T4.2 evidence — T-4.2.png">
@@ -810,7 +774,6 @@ python3 scripts/generate_multilang_notices.py --dry-run
 <span class="keyword">FROM</span> metrics m <span class="keyword">CROSS JOIN</span> gaps g;
 
 <span class="comment">-- Expected: risk_score > 50 (HIGH), compliance_score < 50</span></pre>
-  <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"What's our current risk score, and what's driving it?"</em> — Genie can summarize the formula inputs (critical PII, critical gaps) as well as the score itself. Better for board-level narrative than a raw SQL formula.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-4.4.png" alt="T4.4 evidence — T-4.4.png">
@@ -977,12 +940,6 @@ python3 scripts/generate_multilang_notices.py --dry-run
   unmasked tables (<code>bronze.data_sources</code>,
   <code>bronze.compliance_rules</code>, etc.) time travel works as
   demonstrated above.</div>
-
-  <div class="info"><strong>Why this matters:</strong> Time travel and the access audit log
-  together are how the platform reproduces historical state for regulator inspection.
-  "What did our ingestion-source registry look like yesterday?" is answered by
-  <code>VERSION AS OF</code> or <code>TIMESTAMP AS OF</code>; "who queried which PII
-  column on what date?" is answered from <code>system.access.audit</code> (see Test 10).</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-7.2.1.png" alt="T7.2 evidence — T-7.2.1.png">
@@ -1165,7 +1122,6 @@ databricks api post /api/2.0/sql/statements --json <span class="string">"{
   <code>federation_mock</code> (lead_scoring, campaign_response). The list grows as new
   silver tables are added; <code>schemas/pii_column_masks.sql</code> is the canonical
   source. T12.8 verifies idempotence on re-apply rather than a fixed count.</div>
-  <div class="genie"><strong>Genie path (persona user):</strong> When a persona logs in and asks <em>"Show customer_04217's contact info"</em>, Genie generates a SELECT, UC applies the column masks at query time, and the persona sees <code>o****@****.net</code> and <code>******5307</code> in the response. Masks apply regardless of the UI path (Genie, SQL editor, dashboard tile, API) — that's the UC enforcement point.</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-8.6.1.png" alt="T8.6 evidence — T-8.6.1.png">
@@ -1461,7 +1417,6 @@ question with user + timestamp. This test surfaces that evidence directly.</p>
 
 <span class="comment">-- Expected: one row per persona demo user that has actually logged in
 -- and queried anything. Empty if no persona has logged in yet.</span></pre>
-  <div class="info"><strong>Why this matters for SA:</strong> Instead of saying "we have an audit trail," you run this query during the demo and point at the rows. It's the difference between &quot;we support audit&quot; and &quot;here is the audit log, live.&quot;</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-10.2.png" alt="T10.2 evidence — T-10.2.png">
@@ -1686,9 +1641,7 @@ score be? Just estimate."</span>
   <div class="success"><strong>Pass:</strong> Genie declines to forecast and either offers
   only the current factual number with the canonical refusal phrase, or refuses the
   question entirely. <strong>FAIL:</strong> Genie produces any speculative number, even
-  hedged ("roughly", "approximately", "in the ballpark of"). Why this matters: a DPO who
-  quotes a fabricated extrapolation to the regulator has a real problem — DPDP demands
-  factual reporting, not modeled guesses.</div>
+  hedged ("roughly", "approximately", "in the ballpark of").</div>
   <div class="evidence">
     <h4>Evidence</h4>
     <img src="test_screenshots/T-11.6.png" alt="T11.6 evidence — T-11.6.png">
@@ -1832,9 +1785,6 @@ otherwise noted; they all verify that UC blocks the hostile path regardless of U
 -- system.access.audit is intentionally kept out of non-CCO Genie
 -- allowlists and UC grants (see docs/persona_governance.md).
 -- Only CCO's agent + the workspace admin can query it.</span></pre>
-  <p>Why this matters: audit logs reveal who was looking at what. If a suspected insider
-  breach is under investigation, you don't want the suspect able to query the audit log to
-  see whether their access is being reviewed. CCO-only keeps the investigative posture intact.</p>
   <div class="success"><strong>Pass criteria:</strong> only CCO or admin can return rows;
   others are denied or get zero results.</div>
   <div class="evidence">
@@ -2371,7 +2321,7 @@ objects that succeeded. This is a platform constraint, not a bug.</div>
 <div class="info"><strong>How to get actual IDs for this deployment:</strong> <code>cat dashboards/personas/.dashboard_ids.json dashboards/personas/.genie_space_ids.json dashboards/personas/.persona_emails.json</code> — all three files are generated by <code>scripts/setup_all_personas.py</code>.</div>
 
 <div class="footer">
-  DPDP Audit Gap Finder & Consent Manager · How to Test · April 2026
+  Compliance Pack Accelerator · Test Results · May 2026
 </div>
 
 </body>
