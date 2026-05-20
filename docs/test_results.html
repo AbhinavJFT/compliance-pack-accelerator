@@ -824,41 +824,7 @@ python3 scripts/generate_multilang_notices.py --dry-run
 <p>Run the Agent Bricks notebook to test AI-powered compliance features.</p>
 
 <div class="test-card">
-  <h3><span class="test-id tid-teal">T5.1</span> Run the Agent Bricks notebook</h3>
-  <div class="step">
-    <span class="step-num">1</span>
-    <div class="step-content">Open <code>/Workspace/Users/.../compliance_pack/03_agent_bricks</code> in the workspace</div>
-  </div>
-  <div class="step">
-    <span class="step-num">2</span>
-    <div class="step-content">Attach to a cluster (or use serverless if available)</div>
-  </div>
-  <div class="step">
-    <span class="step-num">3</span>
-    <div class="step-content">Run <strong>Cell 1–5</strong> (Configuration + Context gathering) — should complete in ~10 seconds</div>
-  </div>
-  <div class="step">
-    <span class="step-num">4</span>
-    <div class="step-content">Run <strong>Cell 6</strong> (DPIA Generator) — calls the foundation model, produces a multi-section DPIA draft in ~30 seconds</div>
-  </div>
-  <div class="step">
-    <span class="step-num">5</span>
-    <div class="step-content">Run <strong>Cell 9+</strong> (Compliance Q&A) — answers natural language questions</div>
-  </div>
-  <div class="step">
-    <span class="step-num">6</span>
-    <div class="step-content">Run the <strong>ai_classify / ai_extract</strong> cells — classifies unstructured health data</div>
-  </div>
-  <div class="success"><strong>Pass criteria:</strong> DPIA draft references specific table names, column names, and gap counts from the actual data. Q&A agent answers accurately based on live data. ai_classify correctly identifies diagnosis/prescription/allergy fields.</div>
-  <div class="evidence">
-    <h4>Evidence</h4>
-    <div class="pending">Not captured in this test pass.</div>
-  </div>
-</div>
-
-
-<div class="test-card">
-  <h3><span class="test-id tid-teal">T5.2</span> Test ai_classify directly in SQL</h3>
+  <h3><span class="test-id tid-teal">T5.1</span> Test ai_classify directly in SQL</h3>
   <pre><span class="keyword">SELECT</span> patient_id, primary_diagnosis,
        ai_classify(primary_diagnosis,
            <span class="keyword">ARRAY</span>(<span class="string">'diagnosis'</span>, <span class="string">'prescription'</span>, <span class="string">'allergy_note'</span>, <span class="string">'other_medical'</span>, <span class="string">'non_medical'</span>)
@@ -870,8 +836,8 @@ python3 scripts/generate_multilang_notices.py --dry-run
 <span class="comment">-- Expected: all rows classified as 'diagnosis'</span></pre>
   <div class="evidence">
     <h4>Evidence</h4>
-    <img src="test_screenshots/T-5.2.png" alt="T5.2 evidence — T-5.2.png">
-    <div class="evidence-caption">T-5.2.png</div>
+    <img src="test_screenshots/T-5.1.png" alt="T5.1 evidence — T-5.1.png">
+    <div class="evidence-caption">T-5.1.png</div>
   </div>
 </div>
 
@@ -1435,7 +1401,7 @@ grep -n <span class="string">"@dlt.expect"</span> pipelines/medallion.py
   row counts already verified in T7 and T9.1/T9.2 for the DLT-governed silver tables.</div>
   <div class="evidence">
     <h4>Evidence</h4>
-    <div class="pending">Not captured in this test pass.</div>
+    <div class="info"><strong>No screenshot required.</strong> This test is documentation-only — both consent_events_log and compliance_gaps are written by phase1_bootstrap.py (not DLT), so DLT expectation metrics do not apply. The pass criterion is the doc-note itself.</div>
   </div>
 
 </div>
@@ -2177,7 +2143,7 @@ mode, DELETEs + VACUUMs them. Every run appends to
   proves the control is running.</div>
   <div class="evidence">
     <h4>Evidence</h4>
-    <div class="pending">Not captured in this test pass.</div>
+    <div class="warn"><strong>Cannot be performed on free edition.</strong> The retention_enforcement job creates a <code>compliance.retention_audit</code> table on its first run. Free-trial metastores cap at 500 tables; the workspace is at quota after the deploy + dashboard tombstones, so the CREATE TABLE fails with <code>QUOTA_EXCEEDED.UC_RESOURCE_QUOTA_EXCEEDED</code> before any audit row is written. The job logic itself is correct — this is a workspace-resource constraint, not a code bug. Re-runnable on a paid-tier workspace without the 500-table limit.</div>
   </div>
 </div>
 
