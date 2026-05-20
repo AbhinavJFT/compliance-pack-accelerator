@@ -64,6 +64,17 @@ PERSONA_TABLES: dict[str, list[str]] = {
         "compliance_pack.silver.federation_campaign_response_tagged",
         "compliance_pack.federation_mock.lead_scoring",
         "compliance_pack.federation_mock.campaign_response",
+        # Auto Loader silver tables — needed for column-mask verification
+        # (T8.6.2). Persona sees raw row but PII columns return masked
+        # values via UC SET MASK is_member('admins') rules in
+        # schemas/pii_column_masks.sql. Same SELECT is added to GC/CMO/CFO
+        # below so T8.6.2 can be exercised as any persona — UC enforces the
+        # mask at query time regardless of which persona runs the query.
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
     "gc": [
         "compliance_pack.silver.compliance_gaps",
@@ -74,14 +85,32 @@ PERSONA_TABLES: dict[str, list[str]] = {
         # approve. Kept in sync with the Genie data_sources allowlist in
         # scripts/setup_persona_genie_spaces.py PERSONA_DEFS['gc']['tables'].
         "compliance_pack.compliance.dpia_runs",
+        # Auto Loader silver tables — needed for column-mask verification (T8.6.2).
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
     "cmo": [
         "compliance_pack.gold.marketing_eligible_principals",
         "compliance_pack.compliance.consent_events_log",
+        # Auto Loader silver tables — needed for column-mask verification (T8.6.2).
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
     "cfo": [
         "compliance_pack.silver.compliance_gaps",
         "compliance_pack.silver.discovered_tables",
+        # Auto Loader silver tables — needed for column-mask verification (T8.6.2).
+        "compliance_pack.silver.customers_tagged",
+        "compliance_pack.silver.employees_tagged",
+        "compliance_pack.silver.users_tagged",
+        "compliance_pack.silver.patients_tagged",
+        "compliance_pack.silver.transactions_tagged",
     ],
 }
 
@@ -101,6 +130,36 @@ PERSONA_TABLES: dict[str, list[str]] = {
 SHARED_OVERVIEW_TABLES: list[str] = [
     "compliance_pack.gold.persona_overview_metrics",
     "compliance_pack.gold.persona_sensitivity_histogram",
+]
+
+# Per-persona UC functions the agent needs EXECUTE on. Genie's
+# "certified answer" loader resolves the function reference at space-load
+# time; without EXECUTE the space fails to fetch its tables with
+# `PERMISSION_DENIED: No access to certified answer '<function>'`.
+#
+# has_active_consent(principal_id, purpose): CMO uses it as the canonical
+# "can I email this person?" predicate; GC uses it in DSR evidence queries.
+# CCO + CFO don't reference it.
+PERSONA_FUNCTIONS: dict[str, list[str]] = {
+    "cco": [],
+    "gc":  ["compliance_pack.compliance.has_active_consent"],
+    "cmo": ["compliance_pack.compliance.has_active_consent"],
+    "cfo": [],
+}
+
+# Shared UC functions every persona needs EXECUTE on. The mask functions
+# from schemas/pii_column_masks.sql are designed to be safe for non-admins
+# to call directly — they check `is_member('admins')` internally and return
+# the redacted value otherwise. T12.4 (Mask-UDF forgery probe) exercises
+# this by SELECT-ing mask_email('literal') as a persona and asserting the
+# result is masked, not raw. Without EXECUTE the test errors out before
+# the mask logic can run.
+SHARED_FUNCTIONS: list[str] = [
+    "compliance_pack.compliance.mask_email",
+    "compliance_pack.compliance.mask_phone",
+    "compliance_pack.compliance.mask_id_last4",
+    "compliance_pack.compliance.mask_full",
+    "compliance_pack.compliance.mask_dob",
 ]
 
 EMAILS_FILE = REPO_ROOT / "dashboards" / "personas" / ".persona_emails.json"
@@ -165,6 +224,15 @@ def main() -> int:
         # Tables
         for table in all_tables:
             grant(f"GRANT SELECT ON TABLE {table} TO {grantee}")
+
+        # Functions (EXECUTE on UC functions). Two sources merged: a
+        # persona-specific allowlist + a shared list every persona needs.
+        # Schema-level USE_SCHEMA grant was already issued above when we
+        # visited the function's parent schema as part of the table loop,
+        # so function-level EXECUTE is the only extra step here.
+        all_functions = sorted(set(PERSONA_FUNCTIONS.get(persona, [])) | set(SHARED_FUNCTIONS))
+        for fn in all_functions:
+            grant(f"GRANT EXECUTE ON FUNCTION {fn} TO {grantee}")
 
     print("\nDone. To verify (as admin):")
     print(f"  SHOW GRANTS TO `{persona_emails['cco']}`;")
