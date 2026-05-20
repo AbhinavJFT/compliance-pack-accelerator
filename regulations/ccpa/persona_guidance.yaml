@@ -1,0 +1,49 @@
+# Per-persona Genie guidance contributed by the CCPA pack.
+# See regulations/dpdp_2023/persona_guidance.yaml for the canonical schema.
+
+short_name: CCPA
+glossary_entry: |
+  CCPA = California Consumer Privacy Act (Cal. Civ. Code §1798.100 et seq.)
+  CPRA = California Privacy Rights Act of 2020 (CCPA's 2023 amendment).
+  CPPA = California Privacy Protection Agency (enforcer since CPRA).
+
+cco:
+  scope_note: |
+    CCPA governs California residents (jurisdiction='US-CA').
+  example_questions:
+    - "Which CCPA sections are we violating?"
+
+gc:
+  scope_note: |
+    CCPA / CPRA sections (§1798.100 access, §1798.105 deletion, §1798.115
+    sale opt-out, §1798.135 right to limit, §1798.150 statutory damages).
+    Note: CCPA is opt-OUT for "sale" of personal information (unlike GDPR's
+    opt-in for processing).
+  rule_section_mapping:
+    BRN-001: "§1798.150 — breach notification + statutory damages for security failures"
+    CNS-001: "§1798.135 — right to limit use of sensitive personal information"
+    CNS-002: "§1798.120 — right to opt out of sale/sharing"
+    ACC-001: "§1798.100 — right to know / access"
+    ACC-002: "§1798.81.5 — reasonable security procedures (per Cal. Civ. Code)"
+    ENC-001: "§1798.81.5 — reasonable security (encryption considered reasonable)"
+    RET-001: "§1798.100(a)(3) — disclosure of retention period at collection"
+    DSR-001: "§1798.105 — right to deletion; §1798.130 — verifiable consumer requests"
+  example_questions:
+    - "Which CCPA sections have the highest exposure?"
+
+cmo:
+  scope_note: |
+    California residents (jurisdiction='US-CA'): CCPA is opt-OUT for sale/sharing.
+    Honor "Do Not Sell or Share" + GPC (Global Privacy Control) signals.
+
+cfo:
+  penalty_model: |
+    CCPA penalty structure (USD per violation, enforced by CPPA + AG):
+      - intentional violation     : up to $7,500 per violation
+      - non-intentional violation : up to $2,500 per violation
+      - statutory damages (§1798.150) : $100 - $750 per consumer per incident
+    No fixed enterprise ceiling — exposure compounds by number of affected
+    California residents. Report both per-violation and total-resident-count
+    exposure.
+  example_questions:
+    - "What's our CCPA exposure given the California-resident gap count?"
