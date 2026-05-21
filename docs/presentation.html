@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DPDP India 2023 — Presentation Deck (a Compliance Pack Accelerator pack)</title>
+<title>UK GDPR — Presentation Deck (a Compliance Pack Accelerator pack)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -103,13 +103,14 @@
 <!-- ══════════════════════════════════════════════════ SLIDE 1 -->
 <div class="slide dark">
   <div style="margin-top: 80px;">
-    <h1 style="font-size: 44px; line-height: 1.2;">Compliance Pack Accelerator<br><span style="font-size: 28px; color: #888;">DPDP India 2023 — pack-specific deck</span></h1>
+    <h1 style="font-size: 44px; line-height: 1.2;">Compliance Pack Accelerator<br><span style="font-size: 28px; color: #888;">UK GDPR — pack-specific deck</span></h1>
     <div class="accent-line"></div>
     <div class="subtitle" style="font-size: 18px; max-width: 720px;">
       A Databricks-native multi-jurisdiction compliance platform with
-      pluggable regulation packs. This deck walks through the <strong>DPDP
-      India 2023</strong> pack as the seed example. UK GDPR, EU GDPR, CCPA,
-      and others ship as parallel packs under the same architecture.
+      pluggable regulation packs. This deck walks through the <strong>UK
+      GDPR + DPA 2018</strong> pack. EU GDPR, DPDP India, and CCPA ship as
+      parallel packs under the same architecture and apply simultaneously
+      via per-data-subject routing.
     </div>
   </div>
   <div class="footer-note" style="color: #555;">
@@ -119,34 +120,34 @@
 
 <!-- ══════════════════════════════════════════════════ SLIDE 2 -->
 <div class="slide">
-  <h2>The DPDP Problem</h2>
-  <div class="subtitle">The Digital Personal Data Protection Act 2023 exposes every Indian enterprise to material regulatory risk.</div>
+  <h2>The UK GDPR Problem</h2>
+  <div class="subtitle">UK GDPR and the Data Protection Act 2018 expose every UK enterprise to material regulatory risk, with the ICO actively enforcing.</div>
 
   <div class="grid g3" style="margin-top: 28px;">
     <div class="card red" style="text-align: center; padding: 28px;">
-      <div class="num">₹250 Cr</div>
-      <h3 style="font-size: 13px; color: #666; font-weight: 600;">per contravention</h3>
-      <p style="margin-top: 12px;">Penalty for non-compliance with consent, rights, or security obligations</p>
+      <div class="num">£17.5m / 4%</div>
+      <h3 style="font-size: 13px; color: #666; font-weight: 600;">higher tier (Art. 83(5))</h3>
+      <p style="margin-top: 12px;">Whichever is higher: £17.5m fixed cap or 4% of global annual turnover. Triggered by basic-principles, rights, or transfer breaches</p>
     </div>
     <div class="card orange" style="text-align: center; padding: 28px;">
       <div class="num">72 Hours</div>
-      <h3 style="font-size: 13px; color: #666; font-weight: 600;">breach notification</h3>
-      <p style="margin-top: 12px;">Clock starts whether or not the organization knows who is affected</p>
+      <h3 style="font-size: 13px; color: #666; font-weight: 600;">breach notification (Art. 33)</h3>
+      <p style="margin-top: 12px;">From awareness of the breach to ICO notification. Independent penalty if missed, regardless of breach outcome</p>
     </div>
     <div class="card blue" style="text-align: center; padding: 28px;">
-      <div class="num">Annual DPIA</div>
-      <h3 style="font-size: 13px; color: #666; font-weight: 600;">for Significant Data Fiduciaries</h3>
-      <p style="margin-top: 12px;">Must reflect current processing activities, not a 6-month-old snapshot</p>
+      <div class="num">Art. 30 Record</div>
+      <h3 style="font-size: 13px; color: #666; font-weight: 600;">records of processing</h3>
+      <p style="margin-top: 12px;">Must be current, comprehensive, and producible on ICO request. Stale spreadsheets fail this bar</p>
     </div>
   </div>
 
   <div style="margin-top: 32px;">
     <h3 style="font-size: 16px; margin-bottom: 12px;">The operational reality today:</h3>
     <ul>
-      <li>Personal data sits across <strong>40+ source systems</strong> — no single register exists</li>
-      <li>Consent is captured as a <strong>Terms & Conditions acceptance</strong> that predates the Act's specificity requirement</li>
-      <li>Data subject rights are handled <strong>manually through legal inboxes</strong> with multi-week SLAs</li>
-      <li>No organization can <strong>reproduce historical processing decisions</strong> under regulator inspection</li>
+      <li>Personal data sits across <strong>40+ source systems</strong> — no single Art. 30 register exists</li>
+      <li>Consent is captured as a <strong>terms-of-service tick-box</strong> that fails UK GDPR Art. 7's specificity, granularity, and withdrawability requirements</li>
+      <li>Data subject rights are handled <strong>manually through legal inboxes</strong> with multi-week SLAs against a one-month statutory deadline</li>
+      <li>No organisation can <strong>reproduce historical processing decisions</strong> under ICO inspection — time-travel evidence simply does not exist</li>
     </ul>
   </div>
 </div>
@@ -162,11 +163,11 @@
     </div>
     <div class="card orange">
       <h3>Consent Is a Checkbox</h3>
-      <p>Legacy T&C acceptance predates DPDP's specificity requirement. No per-purpose granularity. No withdrawal mechanism. No evidence trail.</p>
+      <p>Legacy T&C acceptance fails UK GDPR Art. 7 specificity. No per-purpose granularity. No withdrawal mechanism. No evidence trail.</p>
     </div>
     <div class="card blue">
       <h3>No Audit Trail</h3>
-      <p>Cannot reproduce historical decisions under regulator inspection. No evidence of when consent was given or revoked. No time-travel capability.</p>
+      <p>Cannot reproduce historical decisions under ICO inspection. No evidence of when consent was given or revoked. No time-travel capability.</p>
     </div>
     <div class="card purple">
       <h3>Manual Everything</h3>
@@ -183,26 +184,26 @@
   <div class="grid g3" style="margin-top: 24px;">
     <div class="card green" style="padding: 24px;">
       <h3>PII Discovery &<br>Data Inventory</h3>
-      <p style="margin-top: 8px;">Automatically scan every data source for personal data using regex patterns + AI classification. Living register with UC column tags and lineage.</p>
+      <p style="margin-top: 8px;">Automatically scan every data source for personal data using regex patterns + AI classification. UK-specific patterns for NHS number, NI number, postcode, sort code, IBAN. Living Art. 30 register with UC column tags and lineage.</p>
       <div class="impact-box">
-        <strong>33 findings · 14 auto-classified</strong><br>
-        <span style="font-size: 11px; color: #666;">5 tables · 21,500 rows · 9 DPDP categories</span>
+        <strong>36 findings · 5 UK-specific patterns</strong><br>
+        <span style="font-size: 11px; color: #666;">10 silver objects · universal + UK overlay · UC-tagged</span>
       </div>
     </div>
     <div class="card blue" style="padding: 24px;">
       <h3>Consent Intelligence<br>Engine</h3>
-      <p style="margin-top: 8px;">Capture every consent event with purpose-level granularity. Immutable Delta log. Real-time withdrawal propagation to downstream systems.</p>
+      <p style="margin-top: 8px;">Capture every consent event with purpose-level granularity (UK GDPR Art. 7). Immutable Delta log. Real-time withdrawal propagation to downstream systems via CDF.</p>
       <div class="impact-box" style="background: #e3f2fd; border-color: #90caf9;">
         <strong style="color: #1565c0;">1,000 events · 292 principals</strong><br>
-        <span style="font-size: 11px; color: #666;">6 purposes · 4 channels · withdrawal verified</span>
+        <span style="font-size: 11px; color: #666;">6 purposes · 4 channels · withdrawal &lt; 1 min</span>
       </div>
     </div>
     <div class="card purple" style="padding: 24px;">
       <h3>Compliance Audit &<br>Gap Analysis</h3>
-      <p style="margin-top: 8px;">51 multi-pack compliance rules (DPDP / UK GDPR / EU GDPR / CCPA) mapped against discovered PII, routed per data subject. Penalty-weighted risk scoring. Remediation tracker with specific actions per gap.</p>
+      <p style="margin-top: 8px;">12 UK GDPR rules + 39 rules across EU GDPR / DPDP / CCPA, routed per data subject. UK principals are scored against UK GDPR; EU principals against EU GDPR; same database, same query. Penalty-weighted risk scoring. Remediation tracker with specific actions per gap.</p>
       <div class="impact-box" style="background: #f3e5f5; border-color: #ce93d8;">
         <strong style="color: #4a148c;">818 gaps · tagged by pack · per-row routing</strong><br>
-        <span style="font-size: 11px; color: #666;">51 rules across 4 packs (9 + 12 + 14 + 16); each at semver v1.0.0</span>
+        <span style="font-size: 11px; color: #666;">51 rules across 4 packs (12 UK + 14 EU + 9 IN + 16 US); each at semver v1.0.0</span>
       </div>
     </div>
   </div>
@@ -211,9 +212,9 @@
     + Agent Bricks: DPIA auto-generation in 30 seconds &nbsp;|&nbsp; Compliance Q&A in natural language &nbsp;|&nbsp; AI classification for unstructured data
   </div>
   <p style="margin-top: 16px; font-size: 11px; color: #888; text-align: center;">
-    Module counts (36 PII findings · 1,000 events · 292 principals · 818 gaps · 51 multi-pack rules)
-    are from the synthetic POC dataset — illustrative only; absolute numbers will differ
-    in a real deployment.
+    Module counts (36 PII findings · 1,000 events · 292 principals · 818 gaps · 51 multi-pack
+    rules · 1,258 UK-resident principals) are from the synthetic POC dataset — illustrative
+    only; absolute numbers will differ in a real deployment.
   </p>
 </div>
 
@@ -271,7 +272,7 @@
       <div style="flex: 1;">
         <span class="tag tag-purple">AGENT</span>
         <h3>DPIA Auto-Generator</h3>
-        <p>Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft with specific table names, column names, gap counts, and DPDP section references.</p>
+        <p>Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft with specific table names, column names, gap counts, and UK GDPR Article references. Multi-pack DPIAs cite UK GDPR + EU GDPR + DPDP + CCPA articles in parallel where the processing spans jurisdictions.</p>
       </div>
       <div class="impact-box" style="flex: 0 0 200px; margin: 0;">
         <strong>3 months → 30 seconds</strong>
@@ -282,7 +283,7 @@
       <div style="flex: 1;">
         <span class="tag tag-blue">AGENT</span>
         <h3>Compliance Q&A</h3>
-        <p>Natural language interface to the compliance data estate. "What critical PII do we hold?" "Does customer X have marketing consent?" Context-aware routing to PII, consent, and gap tables.</p>
+        <p>Natural language interface to the compliance data estate. "What critical PII do we hold across UK and EU principals?" "Does this customer have marketing consent under UK GDPR Art. 7?" Context-aware routing to PII, consent, and gap tables, persona-scoped per role.</p>
       </div>
       <div class="impact-box" style="flex: 0 0 200px; margin: 0; background: #e3f2fd; border-color: #90caf9;">
         <strong style="color: #1565c0;">SQL expertise → plain English</strong>
@@ -293,7 +294,7 @@
       <div style="flex: 1;">
         <span class="tag tag-teal">AI FUNCTIONS</span>
         <h3>PII Classifier</h3>
-        <p>ai_classify for unstructured fields: diagnosis, prescriptions, clinical notes. ai_extract for structured PII from free text. Handles what regex patterns cannot.</p>
+        <p>ai_classify for unstructured fields: clinical notes, free-text incident reports, customer correspondence. ai_extract for structured PII embedded in narrative text. Handles UK GDPR special-category data (health, biometric, genetic) that regex patterns cannot.</p>
       </div>
       <div class="impact-box" style="flex: 0 0 200px; margin: 0; background: #e0f2f1; border-color: #80cbc4;">
         <strong style="color: #00695c;">Manual review → automated</strong>
@@ -311,24 +312,24 @@
 
   <div class="grid g5" style="margin-top: 28px;">
     <div class="dark-card">
-      <div class="num">21,500</div>
-      <div class="metric-label">Rows Ingested</div>
-      <div class="metric-sub">5 source tables in Bronze</div>
+      <div class="num">10</div>
+      <div class="metric-label">Silver Objects Scanned</div>
+      <div class="metric-sub">Auto Loader · Lakeflow · Federation</div>
     </div>
     <div class="dark-card">
-      <div class="num">33</div>
+      <div class="num">36</div>
       <div class="metric-label">PII Findings</div>
-      <div class="metric-sub">9 DPDP categories</div>
+      <div class="metric-sub">5 UK-specific patterns</div>
     </div>
     <div class="dark-card">
-      <div class="num">14</div>
-      <div class="metric-label">Auto-Classified</div>
-      <div class="metric-sub">UC tags applied (≥85%)</div>
+      <div class="num">1,258</div>
+      <div class="metric-label">UK Principals</div>
+      <div class="metric-sub">Routed to UK GDPR pack</div>
     </div>
     <div class="dark-card">
-      <div class="num">135</div>
+      <div class="num">818</div>
       <div class="metric-label">Compliance Gaps</div>
-      <div class="metric-sub">72 critical · 52 high</div>
+      <div class="metric-sub">Tagged by source pack</div>
     </div>
     <div class="dark-card">
       <div class="num">1,000</div>
@@ -338,14 +339,14 @@
   </div>
   <div class="grid g5" style="margin-top: 16px;">
     <div class="dark-card">
-      <div class="num">286</div>
-      <div class="metric-label">Marketing Eligible</div>
+      <div class="num">141</div>
+      <div class="metric-label">Marketing Eligible (UK)</div>
       <div class="metric-sub">Real-time Gold view</div>
     </div>
     <div class="dark-card">
-      <div class="num">9</div>
-      <div class="metric-label">Compliance Rules</div>
-      <div class="metric-sub">Mapped to DPDP sections</div>
+      <div class="num">12</div>
+      <div class="metric-label">UK GDPR Rules</div>
+      <div class="metric-sub">Mapped to Articles + DPA 2018</div>
     </div>
     <div class="dark-card">
       <div class="num">10</div>
@@ -426,7 +427,7 @@
     <div class="card orange" style="padding: 20px;">
       <span class="tag" style="background: #e65100; color: #fff;">PHASE 3</span>
       <h3 style="margin-top: 4px;">Breach Detection</h3>
-      <p style="margin-top: 8px;">Lakewatch agentic SIEM (post Private Preview). 72-hour alerting workflow. Agent Bricks DPBI notification drafting.</p>
+      <p style="margin-top: 8px;">Lakewatch agentic SIEM (post Private Preview). 72-hour alerting workflow (UK GDPR Art. 33). Agent Bricks drafts the ICO notification with affected-principal counts and processing categories.</p>
     </div>
     <div class="card purple" style="padding: 20px;">
       <span class="tag tag-purple">PHASE 4</span>

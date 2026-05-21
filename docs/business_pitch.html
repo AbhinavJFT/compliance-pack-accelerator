@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DPDP India 2023 — Business Case (a Compliance Pack Accelerator pitch)</title>
+<title>UK GDPR — Business Case (a Compliance Pack Accelerator pitch)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -173,15 +173,16 @@
 <body>
 
 <div class="hero">
-  <h1>DPDP Compliance — Business Case</h1>
+  <h1>UK GDPR Compliance — Business Case</h1>
   <div class="sub">The business case — why it matters to your P&amp;L, not just your DPO</div>
-  <div class="context">Digital Personal Data Protection Act 2023 · Rules in force since January 2025</div>
+  <div class="context">UK GDPR + Data Protection Act 2018 · ICO enforcement active since 2018</div>
   <div style="margin-top: 14px; padding: 10px 16px; background: rgba(255,255,255,0.15); border-radius: 6px; font-size: 12.5px; line-height: 1.5;">
-    <strong>About this document:</strong> this is the DPDP India 2023 pack's
+    <strong>About this document:</strong> this is the UK GDPR pack's
     business pitch. The platform itself (the Compliance Pack Accelerator)
-    supports multiple regulation packs — UK GDPR, EU GDPR, CCPA, PIPEDA, …
-    each shipping its own per-pack pitch. The platform-level architecture
-    is in <a href="architecture.html" style="color:white; text-decoration:underline;">architecture.html</a>;
+    supports multiple regulation packs — UK GDPR, EU GDPR, DPDP India,
+    CCPA, with PIPEDA and APP on the roadmap. Each pack ships with its
+    own per-pack pitch. The platform-level architecture is in
+    <a href="architecture.html" style="color:white; text-decoration:underline;">architecture.html</a>;
     the per-data-subject routing model is in
     <a href="adr/0001-multi-jurisdiction-data-subject-routing.md" style="color:white; text-decoration:underline;">ADR-0001</a>.
   </div>
@@ -192,40 +193,44 @@
 <!-- ================================================================== -->
 <h2>Why this matters now</h2>
 
-<p>India's Digital Personal Data Protection Act became law in <strong>August 2023</strong>.
-The executive Rules were notified in <strong>January 2025</strong>, and the Data Protection
-Board of India began accepting complaints and issuing penalty orders from that point
-onward.<sup>[1]</sup> For any Indian enterprise that holds customer, employee, or patient
-personal data, the question is no longer <em>whether</em> to comply — it's whether the
-compliance posture holds up to a Data Protection Board inquiry.</p>
+<p>UK GDPR has been the UK's data-protection law since <strong>1 January 2021</strong>,
+sitting alongside the Data Protection Act 2018.<sup>[1]</sup> The Information
+Commissioner's Office (ICO) has been issuing monetary penalties under the regime
+continuously since enforcement began, and post-Brexit divergence has not softened the
+penalty ceiling. For any UK enterprise that holds customer, employee, patient, or
+prospect personal data, the question is no longer <em>whether</em> to comply — it's
+whether the compliance posture holds up to an ICO inquiry.</p>
 
 <div class="panel panel-info">
-  <h3>What the Act actually penalises (Schedule, §33)</h3>
+  <h3>What UK GDPR + DPA 2018 actually penalises (DPA 2018 Sch. 19; UK GDPR Art. 83)</h3>
   <table>
-    <thead><tr><th>Violation</th><th>Max penalty</th></tr></thead>
+    <thead><tr><th>Violation tier</th><th>Max penalty</th></tr></thead>
     <tbody>
-      <tr class="hl"><td>Failure to take reasonable security safeguards to prevent a personal-data breach</td><td><strong>₹250 crore</strong></td></tr>
-      <tr><td>Failure to notify the Board or affected principals of a breach</td><td>₹200 crore</td></tr>
-      <tr><td>Failure to fulfil obligations regarding children's data</td><td>₹200 crore</td></tr>
-      <tr><td>Failure to fulfil obligations of a Significant Data Fiduciary</td><td>₹150 crore</td></tr>
-      <tr><td>Catch-all — breach of any other provision of the Act or Rules</td><td>₹50 crore</td></tr>
+      <tr class="hl"><td>Higher maximum — breaches of the basic principles (Art. 5, 6, 7, 9), data subject rights (Art. 12–22), or international-transfer restrictions (Art. 44–49)</td><td><strong>£17.5 million or 4% of global annual turnover, whichever is higher</strong></td></tr>
+      <tr><td>Standard maximum — breaches of controller / processor obligations including security (Art. 32), breach notification (Art. 33–34), DPIAs (Art. 35), and records of processing (Art. 30)</td><td>£8.7 million or 2% of global annual turnover, whichever is higher</td></tr>
+      <tr><td>Children's data (Art. 8) — heightened scrutiny; ICO has signalled this as an enforcement priority</td><td>Higher tier applies</td></tr>
+      <tr><td>Breach notification failure (Art. 33) — independent of the underlying breach</td><td>Standard tier applies on top of higher-tier breach penalty</td></tr>
     </tbody>
   </table>
-  <p style="margin: 8px 0 0 0; font-size: 12px; color: #555;">The Board can impose these on
-  a per-incident basis. One material breach → one penalty up to ₹250 crore. Repeat incidents
-  or distinct violation types → separate penalties that stack.</p>
+  <p style="margin: 8px 0 0 0; font-size: 12px; color: #555;">The ICO can impose these
+  per-incident. The Commissioner can also issue enforcement notices, audits, and reprimands;
+  monetary penalties are only one of the available instruments.</p>
 </div>
 
-<p>For reference, India hasn't yet produced a landmark DPDP fine, but comparable regimes have.
-GDPR — which DPDP broadly follows — has produced
-<strong>€1.2 billion</strong> (Meta, 2023)<sup>[2]</sup>,
-<strong>€746 million</strong> (Amazon, 2021)<sup>[3]</sup>, and
-<strong>€345 million</strong> (TikTok, 2023, children's data)<sup>[4]</sup>. Indian enterprises
-are not immune: pre-DPDP, <strong>Mobikwik</strong> allegedly exposed 99 million users'
-records (2021)<sup>[5]</sup>, <strong>Domino's India</strong> had 180 million order records
-leak (2021)<sup>[6]</sup>, <strong>Air India</strong> lost data on 4.5 million passengers
-(2021)<sup>[7]</sup>. Under DPDP, any of those would have triggered a ₹250-crore-class
-inquiry.</p>
+<p>Recent ICO action makes the ceiling concrete.
+<strong>British Airways</strong> was fined <strong>£20 million</strong> in 2020 for a 2018
+breach affecting around 400,000 customer records (the ICO initially announced an
+intent-to-fine figure of £183 million).<sup>[2]</sup>
+<strong>Marriott International</strong> was fined <strong>£18.4 million</strong> for the
+Starwood breach the same year.<sup>[3]</sup>
+<strong>TikTok</strong> was fined <strong>£12.7 million</strong> in 2023 for using children's
+data without parental consent.<sup>[4]</sup>
+<strong>Clearview AI</strong> was fined <strong>£7.55 million</strong> in 2022 for scraping
+facial images without a lawful basis.<sup>[5]</sup>
+<strong>Interserve</strong> was fined <strong>£4.4 million</strong> in 2022 after a phishing
+attack exposed 113,000 employees' personal data because of inadequate security
+controls.<sup>[6]</sup> Every one of those is squarely in the territory the Accelerator's
+four enforcement layers address.</p>
 
 <!-- ================================================================== -->
 <!-- SECURITY PITCH -->
@@ -233,44 +238,49 @@ inquiry.</p>
 <h2 class="sec">Security — what this platform protects</h2>
 
 <p>The platform implements four <strong>independent enforcement layers</strong> against
-DPDP exposure. Each layer is Databricks-native — no bolt-on app, no custom ACL engine, no
-bypassable middleware. Each is verifiable in front of a regulator.</p>
+UK GDPR exposure. Each layer is Databricks-native — no bolt-on app, no custom ACL engine, no
+bypassable middleware. Each is verifiable in front of the ICO.</p>
 
 <div class="panel panel-sec">
-  <h3>Layer 1 — PII discovery and sensitivity tiering</h3>
+  <h3>Layer 1 — PII discovery and sensitivity tiering (UK GDPR Art. 30)</h3>
   <p>The platform automatically scans every table across your data estate and identifies
-  PII columns by type (Aadhaar, PAN, email, phone, medical record, etc.) and sensitivity
-  tier (critical, high, medium, low). Today's POC inventory:</p>
+  PII columns by type and sensitivity tier (critical, high, medium, low). The UK pack adds
+  five UK-specific patterns to the universal set:
+  <strong>NHS number</strong>, <strong>National Insurance number</strong>,
+  <strong>UK postcode</strong>, <strong>sort code</strong>, and <strong>IBAN</strong>. AI
+  free-text classifiers cover medical notes, clinical narrative, and incident reports that
+  regex can't.</p>
   <div class="kpi-grid">
-    <div class="kpi crit"><div class="v">33</div><div class="k">PII columns<br>detected</div></div>
-    <div class="kpi warn"><div class="v">14</div><div class="k">auto-tagged<br>in UC</div></div>
-    <div class="kpi"><div class="v">5</div><div class="k">source tables<br>scanned</div></div>
-    <div class="kpi ok"><div class="v">9</div><div class="k">PII<br>categories</div></div>
+    <div class="kpi crit"><div class="v">36</div><div class="k">PII columns<br>detected</div></div>
+    <div class="kpi warn"><div class="v">5</div><div class="k">UK-specific<br>patterns active</div></div>
+    <div class="kpi"><div class="v">10</div><div class="k">silver objects<br>scanned</div></div>
+    <div class="kpi ok"><div class="v">1,258</div><div class="k">UK-resident<br>principals</div></div>
   </div>
-  <p style="margin: 10px 0 0 0;"><em>Regulator asks: "what personal data do you hold?" Your
-  DPO opens the Personal Data Register and it's a live view — not a PowerPoint from last
-  year.</em></p>
+  <p style="margin: 10px 0 0 0;"><em>The ICO asks "show us your Article 30 record of
+  processing." Your DPO opens the Personal Data Register and it's a live view, generated
+  from Unity Catalog — not a Word document from last year that nobody trusts.</em></p>
 </div>
 
 <div class="panel panel-sec">
-  <h3>Layer 2 — column-level masking (DPDP §5(2) data minimization)</h3>
-  <p>Sensitive PII columns (email, phone, Aadhaar, PAN, passport, medical diagnosis) are
-  masked at the Unity Catalog layer. A marketing analyst querying the customer table sees
-  <code>o****@****.net</code>, not the real email. The mask applies to every query path —
-  SQL editor, dashboard tile, Genie question, REST API, notebook — not just the UI.</p>
+  <h3>Layer 2 — column-level masking (UK GDPR Art. 5(1)(c) data minimisation, Art. 32 security)</h3>
+  <p>Sensitive PII columns (email, phone, NHS number, NI number, sort code, IBAN, date of
+  birth) are masked at the Unity Catalog layer. A marketing analyst querying the customer
+  table sees <code>o****@****.co.uk</code>, not the real email. The mask applies to every
+  query path — SQL editor, dashboard tile, Genie question, REST API, notebook — not just
+  the UI.</p>
   <div class="before-after">
     <div class="ba-col ba-before">
       <span class="tag">Without masks</span>
       <div class="h">Typical approach</div>
-      <div>Marketing analyst runs a query → sees raw <code>priya.kumar@acme.com</code> →
-      copies to spreadsheet → emails vendor → breach waiting to happen</div>
+      <div>Marketing analyst runs a query → sees raw <code>oliver.bennett@example.co.uk</code> →
+      copies to spreadsheet → emails third-party agency → Article 32 breach waiting to happen</div>
     </div>
     <div class="ba-arrow">→</div>
     <div class="ba-col ba-after">
       <span class="tag">With this platform</span>
       <div class="h">UC column masks</div>
-      <div>Same analyst, same query, sees <code>p****@****.com</code>. Query patterns
-      unchanged; data minimization enforced at the column-read boundary.</div>
+      <div>Same analyst, same query, sees <code>o****@****.co.uk</code>. Query patterns
+      unchanged; data minimisation enforced at the column-read boundary.</div>
     </div>
   </div>
 </div>
@@ -283,33 +293,33 @@ bypassable middleware. Each is verifiable in front of a regulator.</p>
   can't accidentally browse marketing targeting lists. Boundaries are enforced by Unity
   Catalog grants at query time — not by UI hiding.</p>
   <div class="mock">
-    <div class="mock-label">Mockup — CCO dashboard, topline card</div>
+    <div class="mock-label">Mockup — CCO dashboard, UK-filtered topline</div>
     <div class="kpi-grid">
-      <div class="kpi crit"><div class="v">72</div><div class="k">critical<br>gaps</div></div>
-      <div class="kpi warn"><div class="v">52</div><div class="k">high<br>gaps</div></div>
-      <div class="kpi"><div class="v">33</div><div class="k">PII<br>columns</div></div>
-      <div class="kpi ok"><div class="v">292</div><div class="k">consenting<br>principals</div></div>
+      <div class="kpi crit"><div class="v">192</div><div class="k">UK-tagged<br>critical gaps</div></div>
+      <div class="kpi warn"><div class="v">88</div><div class="k">UK-tagged<br>high gaps</div></div>
+      <div class="kpi"><div class="v">36</div><div class="k">PII<br>columns</div></div>
+      <div class="kpi ok"><div class="v">141</div><div class="k">marketing-eligible<br>UK principals</div></div>
     </div>
   </div>
   <div class="screenshot-slot">
-    <b>Replace with screenshot:</b> one persona dashboard (e.g. CCO Executive Overview) with
-    real tile values, scoped Genie panel visible on the right.
+    <b>Replace with screenshot:</b> CCO Executive Overview filtered to <code>jurisdiction='GB'</code>,
+    with the scoped Genie panel visible on the right.
   </div>
 </div>
 
 <div class="panel panel-sec">
-  <h3>Layer 4 — DPDP §18 audit trail</h3>
+  <h3>Layer 4 — UK GDPR Art. 30 record + audit trail</h3>
   <p>Every query — by any user, from any UI path — is captured in Databricks' system audit
-  log with user identity, timestamp, and the exact SQL. When a regulator asks <em>"who
-  accessed patient record XYZ on March 15?"</em>, the DPO runs one query and gets a live
-  answer in seconds. Compare to the industry norm of extracting and reconstructing from
-  application logs, which takes weeks and rarely reconstructs completely.</p>
+  log with user identity, timestamp, and the exact SQL. When the ICO asks <em>"who accessed
+  this NHS number on 15 March?"</em>, the DPO runs one query and gets a live answer in
+  seconds. Compare with the industry norm of extracting and reconstructing from application
+  logs, which takes weeks and rarely reconstructs completely.</p>
   <div class="chat">
     <div class="q">Who queried our patient records in the last 7 days?</div>
-    <div class="a">Three users: dr.patel@acme (14 queries, clinical-access role),
-    audit.singh@acme (2 queries, compliance review on Tuesday), and the DPIA agent
-    (1 automated query for DPIA generation). Full list with timestamps
-    available in the audit console.</div>
+    <div class="a">Three users: dr.harper@trust.nhs.uk (14 queries, clinical-access role),
+    audit.shaw@compliance.co.uk (2 queries, ICO-readiness review on Tuesday), and the DPIA
+    agent (1 automated query for DPIA generation). Full list with timestamps available in
+    the audit console.</div>
   </div>
 </div>
 
@@ -317,8 +327,10 @@ bypassable middleware. Each is verifiable in front of a regulator.</p>
 <p>The same consent layer that answers <em>"can I email this customer?"</em> answers every
 downstream personal-data question across the enterprise. The <code>has_active_consent()</code>
 function is purpose-scoped and callable from anywhere — ML training pipelines, recommendation
-engines, product personalization layers, third-party enrichment flows. Each downstream
-system stops reimplementing its own consent logic and delegates to a single source of truth.</p>
+engines, product personalisation layers, third-party enrichment flows. Each downstream
+system stops reimplementing its own consent logic and delegates to a single source of
+truth. UK GDPR Art. 7(3) requires withdrawal to be as easy as granting consent, and
+withdrawal to take effect promptly — this gives you both, demonstrably.</p>
 
 <div class="panel panel-sec">
   <h3>One function, six purposes, every downstream system</h3>
@@ -327,7 +339,7 @@ system stops reimplementing its own consent logic and delegates to a single sour
     <div class="a"><code>has_active_consent('customer_04217', 'analytics')</code> → <strong>true</strong>. OK to include.</div>
   </div>
   <div class="chat">
-    <div class="q">[Marketing] Can we email customer_04217 about the new loyalty offer?</div>
+    <div class="q">[Marketing] Can we email customer_04217 about the loyalty offer?</div>
     <div class="a"><code>has_active_consent('customer_04217', 'marketing_email')</code> → <strong>false</strong>. Withdrawn 2026-04-12. Do not email.</div>
   </div>
   <div class="chat">
@@ -335,32 +347,36 @@ system stops reimplementing its own consent logic and delegates to a single sour
     <div class="a"><code>has_active_consent('customer_04217', 'third_party_sharing')</code> → <strong>false</strong>. Declined at capture. Do not share.</div>
   </div>
   <p style="margin: 10px 0 0 0;">Every consented action in the enterprise passes through the
-  same gate. Withdrawals propagate in real time via Delta CDF — downstream systems react the
-  moment a principal withdraws, no polling, no stale state.</p>
+  same gate. Withdrawals propagate in real time via Delta CDF — downstream views react the
+  moment a principal withdraws, no polling, no stale state. That is the operational evidence
+  UK GDPR Art. 7(3) asks for.</p>
 </div>
 
 <h3 class="sec" style="margin-top: 28px;">What this means for your risk exposure</h3>
 <p>The platform doesn't eliminate the penalty risk — nothing does — but it puts the enterprise
-on the defensible side of the key DPDP questions:</p>
+on the defensible side of the questions the ICO actually asks during an inquiry:</p>
 <table>
-  <thead><tr><th>Regulator question</th><th>Answer without platform</th><th>Answer with platform</th></tr></thead>
+  <thead><tr><th>ICO question</th><th>Answer without platform</th><th>Answer with platform</th></tr></thead>
   <tbody>
-    <tr class="hl"><td>"Show us your personal data inventory."</td>
+    <tr class="hl"><td>"Show us your Art. 30 record of processing."</td>
         <td>Manual PII audit, stale spreadsheet</td>
-        <td>Live view queried in seconds (36 columns across 10 silver objects: file-arrival, Lakeflow Connect, and Federation)</td></tr>
+        <td>Live view queried in seconds (36 columns across 10 silver objects: Auto Loader, Lakeflow Connect, and Federation)</td></tr>
     <tr><td>"Who accessed principal X's PII last month?"</td>
         <td>Extract app logs, reconstruct — weeks</td>
-        <td>One SQL query against audit log — minutes</td></tr>
-    <tr class="hl"><td>"Demonstrate reasonable security safeguards."</td>
-        <td>Describe policy, hope regulator accepts</td>
+        <td>One SQL query against the UC audit log — minutes</td></tr>
+    <tr class="hl"><td>"Demonstrate appropriate technical and organisational measures (Art. 32)."</td>
+        <td>Describe policy, hope the ICO accepts</td>
         <td>Show column masks + UC grants + audit log running live</td></tr>
-    <tr><td>"Prove withdrawal propagates without undue delay (§8(7))."</td>
+    <tr><td>"Prove withdrawal takes effect promptly (Art. 7(3))."</td>
         <td>Batch jobs run nightly</td>
         <td>Delta CDF streams withdrawals; downstream views auto-invalidate</td></tr>
+    <tr class="hl"><td>"Produce the DPIA for this high-risk processing (Art. 35)."</td>
+        <td>Find the last DPIA, hope the processing hasn't changed since</td>
+        <td>DPIA generator reads UC metadata + PII register + gap list and reproduces the DPIA on demand, citation-stamped</td></tr>
   </tbody>
 </table>
 
-<h3 class="sec" style="margin-top: 28px;">Vertical fit — the same masks work for every regulated sector</h3>
+<h3 class="sec" style="margin-top: 28px;">Vertical fit — the same masks work for every UK-regulated sector</h3>
 <p>The POC's synthetic data deliberately spans four sensitivity profiles. The same UC mask
 framework adapts to each — no per-sector custom code needed:</p>
 
@@ -368,45 +384,47 @@ framework adapts to each — no per-sector custom code needed:</p>
   <thead><tr><th>Sector</th><th>Sensitive columns in scope</th><th>Mask applied (non-admin view)</th></tr></thead>
   <tbody>
     <tr class="hl">
-      <td><strong>Healthcare</strong><br><em>patients_tagged</em></td>
-      <td>aadhaar_number, email, phone, emergency_contact_phone, insurance_id, medical_record_number, primary_diagnosis, current_prescription, allergies</td>
-      <td>IDs → <code>****XXXX</code> (last 4) · Medical free-text → <code>&lt;REDACTED&gt;</code> · Contact → partial mask</td>
+      <td><strong>NHS / Healthcare</strong><br><em>patients_tagged</em></td>
+      <td>nhs_number, email, phone, emergency_contact_phone, insurance_id, medical_record_number, primary_diagnosis, current_prescription, allergies</td>
+      <td>NHS / MRN → <code>****XXXX</code> (last 4) · Medical free-text → <code>&lt;REDACTED&gt;</code> · Contact → partial mask</td>
     </tr>
     <tr>
-      <td><strong>Financial</strong><br><em>employees_tagged, transactions_tagged</em></td>
-      <td>pan_number, bank_account, ifsc_code, passport_number, aadhaar_number</td>
-      <td>PAN/Aadhaar/bank → <code>****XXXX</code> · IFSC/passport → <code>&lt;REDACTED&gt;</code></td>
+      <td><strong>Financial Services (FCA-regulated)</strong><br><em>employees_tagged, transactions_tagged</em></td>
+      <td>ni_number, sort_code, iban, bank_account, passport_number, date_of_birth</td>
+      <td>NI / IBAN / account → <code>****XXXX</code> · Sort code / passport → <code>&lt;REDACTED&gt;</code></td>
     </tr>
     <tr class="hl">
       <td><strong>HR / Workforce</strong><br><em>employees_tagged</em></td>
-      <td>email, phone_number, aadhaar_number, pan_number, passport_number, bank_account</td>
-      <td>Contact → partial mask · Gov IDs → last-4 · Passport → full redaction</td>
+      <td>email, phone_number, ni_number, nhs_number, passport_number, sort_code, bank_account, date_of_birth</td>
+      <td>Contact → partial mask · Gov IDs → last-4 · Passport / DOB → full redaction</td>
     </tr>
     <tr>
       <td><strong>Consumer / B2C</strong><br><em>customers_tagged, users_tagged</em></td>
-      <td>email_address, mobile, phone</td>
-      <td>Email → <code>x****@****.com</code> · Phone → <code>******XXXX</code></td>
+      <td>email_address, mobile, phone, postcode</td>
+      <td>Email → <code>x****@****.co.uk</code> · Phone → <code>******XXXX</code> · Postcode → outward code only (<code>SW1A ***</code>)</td>
     </tr>
   </tbody>
 </table>
 
-<p style="margin: 12px 0 0 0; font-size: 13px; color: #555;"><em>A single platform covers four
-regulatory overlays without custom tooling: DPDP for all, plus sector-specific obligations —
-HIPAA-style controls for health data, RBI's Storage of Payment Systems Data mandate for
-financial, employment-law safeguards for workforce data.</em></p>
+<p style="margin: 12px 0 0 0; font-size: 13px; color: #555;"><em>A single platform covers
+overlapping regulatory regimes without bespoke tooling: UK GDPR for all, plus sector-specific
+obligations — the Common Law Duty of Confidentiality and NHS England's Data Security
+Standards for health data, FCA SYSC 13 and the PRA's operational-resilience expectations for
+financial services, and employment-law safeguards (DPA 2018 Part 3 for HR-context special
+category data).</em></p>
 
 <h3 class="sec" style="margin-top: 28px;">Delta Sharing — audit evidence without granting workspace access</h3>
-<p>When an external auditor, regulator, or DPBI inspector asks for evidence, the common
-failure mode is: <em>give them a workspace account, watch them struggle with SQL, worry about
-what they'll see.</em> This platform uses <strong>Databricks Delta Sharing</strong> to share
-read-only, time-boxed, auditor-scoped views (PII register, compliance gaps, audit log slice) —
-the auditor queries from their own workspace or tool of choice, never touches yours, and
-access is revocable in one command.</p>
+<p>When the ICO, an internal-audit team, or a Big-4 ICAEW auditor asks for evidence, the
+common failure mode is: <em>give them a workspace account, watch them struggle with SQL,
+worry about what they'll see.</em> This platform uses <strong>Databricks Delta Sharing</strong>
+to share read-only, time-boxed, auditor-scoped views (PII register, compliance gaps, audit
+log slice) — the auditor queries from their own workspace or tool of choice, never touches
+yours, and access is revocable in one command.</p>
 
 <div class="panel panel-sec">
   <h3>Auditor workflow, start to finish</h3>
   <ol style="margin: 8px 0 8px 24px; font-size: 13px;">
-    <li>DPO creates a Delta Share named <code>dpdp_audit_2026_q2</code> containing the
+    <li>DPO creates a Delta Share named <code>uk_gdpr_audit_2026_q2</code> containing the
         PII register + compliance gap list + audit-log slice for the relevant period.</li>
     <li>Auditor's email is added as a recipient; they receive an activation link.</li>
     <li>Auditor queries the shared views from their own Databricks workspace (or any
@@ -415,7 +433,7 @@ access is revocable in one command.</p>
         immediately invalidated; no residual workspace accounts to clean up.</li>
   </ol>
   <p style="margin: 6px 0 0 0;"><em>Zero additional infrastructure. Zero data copies. Zero
-  risk of orphan auditor accounts. Standard enterprise-audit workflow replaced with an
+  risk of orphan auditor accounts. The standard enterprise-audit workflow replaced with an
   idiomatic Databricks pattern.</em></p>
 </div>
 
@@ -424,25 +442,26 @@ access is revocable in one command.</p>
 <!-- ================================================================== -->
 <h2 class="ops">Operational efficiency — what this platform saves</h2>
 
-<p>DPDP compliance isn't a one-time project; it's an ongoing cost centre. Typical large
-Indian enterprises spend <strong>₹2–10 crore annually</strong> on compliance tooling,
-privacy consulting, and dedicated DPO staff<sup>[8]</sup>. Much of that spend is repetitive,
-knowledge-worker time that this platform automates or eliminates.</p>
+<p>UK GDPR compliance isn't a one-time project; it's an ongoing cost centre. Typical
+mid-to-large UK enterprises spend <strong>£500k–£3 million annually</strong> on compliance
+tooling, privacy consulting, and dedicated DPO and DPM staff.<sup>[7]</sup> Much of that
+spend is repetitive, knowledge-worker time that this platform automates or eliminates.</p>
 
 <div class="panel panel-ops">
-  <h3>Saving 1 — DPIA automation</h3>
-  <p>A Data Protection Impact Assessment (DPIA) is a structured review of how personal data
-  is processed for a given purpose. Under DPDP's Significant Data Fiduciary obligations and
-  GDPR Article 35, DPIAs are required for high-risk processing activities. Large enterprises
-  typically conduct <strong>15–30 DPIAs per year</strong>.</p>
+  <h3>Saving 1 — DPIA automation (UK GDPR Art. 35)</h3>
+  <p>A Data Protection Impact Assessment is a structured review of how personal data is
+  processed for a given purpose. Under UK GDPR Art. 35, DPIAs are mandatory for high-risk
+  processing — special category data at scale, large-scale monitoring, automated decision-making
+  with legal effect. Mid-to-large UK enterprises typically conduct
+  <strong>15–30 DPIAs per year</strong>.</p>
   <div class="before-after">
     <div class="ba-col ba-before">
       <span class="tag">Traditional DPIA</span>
       <div class="h">~3 months, 3 teams</div>
       <div>
-        Legal ·  IT ·  Compliance coordinate via email.<br>
+        Legal · IT · Compliance coordinate via email.<br>
         Interviews, documentation, sign-offs.<br>
-        External consultant: ₹10–50 lakh per DPIA<sup>[9]</sup>.<br>
+        External consultant: £30k–£100k per DPIA<sup>[8]</sup>.<br>
         Internal effort: ~60 person-hours.
       </div>
     </div>
@@ -452,18 +471,18 @@ knowledge-worker time that this platform automates or eliminates.</p>
       <div class="h">~30 seconds + human review</div>
       <div>
         Agent reads UC metadata, PII register, compliance gaps, consent coverage.<br>
-        Produces a structured DPIA draft with citations to actual table names + column counts.<br>
+        Produces a structured DPIA draft with citations to actual table names + column counts + UK GDPR Article references.<br>
         Human review: ~1–2 hours.
       </div>
     </div>
   </div>
   <div class="big-number" style="color: #2e7d32;">
-    <span class="n">~₹1.5–3 cr</span>
-    <span class="unit">annual consulting-fee reduction (20 DPIAs × ₹10 lakh median)</span>
+    <span class="n">£0.6m–£1.5m</span>
+    <span class="unit">annual consulting-fee reduction (20 DPIAs × £30k–£75k median)</span>
   </div>
   <div class="screenshot-slot">
     <b>Replace with screenshot:</b> Agent Bricks notebook showing the DPIA generator cell
-    output — the structured DPIA document it produces.
+    output — the structured DPIA document it produces, with UK GDPR Article citations.
   </div>
 </div>
 
@@ -473,12 +492,12 @@ knowledge-worker time that this platform automates or eliminates.</p>
   data analyst. Aggregate across a hundred-person compliance org, and it's thousands of
   analyst-hours per quarter spent answering questions that are lookups, not analysis.</p>
   <p>Four persona-specific dashboards + Genie spaces. The CMO asks Genie directly; the CCO
-  pulls the gap list themselves; the CFO sees penalty exposure without emailing anyone.</p>
+  pulls the gap list themselves; the CFO sees penalty exposure in £ without emailing anyone.</p>
   <div class="chat">
     <div class="q">Can I email customer_04217 for next week's campaign?</div>
     <div class="a">No — <code>customer_04217</code> withdrew marketing-email consent on
-    2026-04-12 via mobile app. Analytics consent is still active, but marketing
-    communications are not authorised.</div>
+    2026-04-12 via the mobile app. Analytics consent is still active, but marketing
+    communications are not authorised under Art. 7(3).</div>
   </div>
   <p style="margin: 12px 0 0 0;">Answered in <strong>5 seconds</strong> by a CMO from their
   Genie space — without a ticket, without waiting, without touching raw PII.</p>
@@ -486,23 +505,24 @@ knowledge-worker time that this platform automates or eliminates.</p>
 
 <div class="panel panel-ops">
   <h3>Saving 3 — faster regulatory response</h3>
-  <p>DPDP's breach-notification clock is <strong>72 hours from discovery</strong> under the
-  draft Rules<sup>[10]</sup>. DSR (Data Subject Request) fulfillment SLA is commonly
-  interpreted as <strong>30 days</strong>. These are hard deadlines; missing them triggers
-  §33 penalties independently of the underlying incident.</p>
+  <p>UK GDPR Art. 33 sets the breach-notification clock at <strong>72 hours from awareness</strong>.
+  DSR (Data Subject Request) fulfilment under Art. 12(3) is <strong>one calendar month</strong>,
+  extendable by two months for complex requests with notice. These are hard deadlines;
+  missing them triggers a standard-tier penalty independently of the underlying incident.</p>
   <div class="before-after">
     <div class="ba-col ba-before">
       <span class="tag">Without platform</span>
       <div class="h">Breach response: days to weeks</div>
-      <div>Scope assessment via manual log extraction; DPIA drafted by hand; principal list
-      compiled across siloed systems. 72-hour clock often missed.</div>
+      <div>Scope assessment via manual log extraction; ICO notification drafted by hand;
+      principal list compiled across siloed systems. The 72-hour clock is often missed.</div>
     </div>
     <div class="ba-arrow">→</div>
     <div class="ba-col ba-after">
       <span class="tag">With platform</span>
       <div class="h">Breach response: hours</div>
       <div>Audit log query + PII register + consent coverage in minutes. DPIA agent drafts
-      the initial notification. Principal list from UC lineage.</div>
+      the initial ICO notification with affected-principal counts and processing categories.
+      Principal list from UC lineage.</div>
     </div>
   </div>
 </div>
@@ -519,13 +539,13 @@ knowledge-worker time that this platform automates or eliminates.</p>
   <tbody>
     <tr class="hl">
       <td><strong>Penalty avoidance</strong></td>
-      <td>Risk reduction against <strong>₹250 crore</strong> per-incident ceiling</td>
+      <td>Risk reduction against <strong>£17.5m or 4% of global turnover</strong> per contravention (UK GDPR Art. 83(5))</td>
       <td>4-layer independent enforcement (discovery, masks, persona grants, audit trail)</td>
     </tr>
     <tr>
       <td><strong>DPIA automation</strong></td>
-      <td><strong>₹1.5–3 crore</strong> saved on external consulting</td>
-      <td>Agent Bricks DPIA generator — minutes, not months</td>
+      <td><strong>£0.6m–£1.5m</strong> saved on external consulting</td>
+      <td>Agent Bricks DPIA generator — minutes, not months; UK GDPR Article-cited</td>
     </tr>
     <tr class="hl">
       <td><strong>Self-service compliance</strong></td>
@@ -534,16 +554,22 @@ knowledge-worker time that this platform automates or eliminates.</p>
     </tr>
     <tr>
       <td><strong>Regulatory responsiveness</strong></td>
-      <td>72-hour breach-notification compliance; 30-day DSR SLA</td>
+      <td>72-hour ICO breach notification (Art. 33); one-month DSR SLA (Art. 12(3))</td>
       <td>Live audit log + live PII register + Delta CDF withdrawal stream</td>
+    </tr>
+    <tr class="hl">
+      <td><strong>Multi-jurisdiction reach</strong></td>
+      <td>Same platform serves UK + EU + APAC subsidiaries simultaneously</td>
+      <td>Per-data-subject routing (ADR-0001) — UK GDPR for GB principals, EU GDPR for EEA, DPDP for India, CCPA for California, in one database</td>
     </tr>
   </tbody>
 </table>
 
 <div class="quote">
-  "The enterprises that turn DPDP compliance from an annual audit scramble into a live
-  operational capability will have a real advantage — in regulator trust, in customer trust,
-  and in the flexibility to launch into regulated sectors without a compliance bottleneck."
+  "The enterprises that turn UK GDPR compliance from an annual audit scramble into a live
+  operational capability will have a real advantage — in ICO trust, in customer trust, and
+  in the flexibility to operate across UK, EU, and global jurisdictions without a compliance
+  bottleneck."
 </div>
 
 <!-- ================================================================== -->
@@ -552,36 +578,35 @@ knowledge-worker time that this platform automates or eliminates.</p>
 <div class="footer">
   <strong>Sources and notes</strong>
   <ol>
-    <li>Digital Personal Data Protection Act, 2023 (Act 22 of 2023); DPDP Rules, 2025. Penalty schedule §33.</li>
-    <li>Data Protection Commission (Ireland), decision against Meta Platforms Ireland Ltd., 12 May 2023.</li>
-    <li>CNPD (Luxembourg), decision against Amazon Europe Core S.à.r.l., 16 July 2021.</li>
-    <li>Data Protection Commission (Ireland), decision against TikTok Technology Ltd., 1 September 2023.</li>
-    <li>Multiple press reports, March 2021; company denied scope of breach. CERT-In investigation.</li>
-    <li>Press reports, April 2021, Redmorph / Alon Gal disclosure.</li>
-    <li>Air India public disclosure, May 2021; SITA SaaS provider attributed source.</li>
-    <li>Industry benchmarks from IAPP India Privacy Landscape survey, Big-4 DPDP readiness assessments (typical range across ₹500+ crore revenue enterprises).</li>
-    <li>Typical engagement fees from Big-4 consulting firms for single DPIA engagements, 2024–2026.</li>
-    <li>DPDP Rules, 2025 (draft and notified versions) — Rule 7 breach-notification obligations.</li>
+    <li>Data Protection Act 2018 c.12; UK GDPR — the retained version of Regulation (EU) 2016/679 as amended by the Data Protection, Privacy and Electronic Communications (Amendments etc) (EU Exit) Regulations 2019. Penalty regime: DPA 2018 Sch. 19; UK GDPR Art. 83.</li>
+    <li>Information Commissioner's Office, monetary penalty notice to British Airways plc, 16 October 2020.</li>
+    <li>Information Commissioner's Office, monetary penalty notice to Marriott International Inc., 30 October 2020.</li>
+    <li>Information Commissioner's Office, monetary penalty notice to TikTok Information Technologies UK Ltd. and TikTok Inc., 4 April 2023.</li>
+    <li>Information Commissioner's Office, monetary penalty notice to Clearview AI Inc., 18 May 2022.</li>
+    <li>Information Commissioner's Office, monetary penalty notice to Interserve Group Ltd., 24 October 2022.</li>
+    <li>Industry benchmarks from IAPP UK / EU Privacy Governance reports, DLA Piper GDPR fines tracker, and Big-4 UK DPO readiness assessments (typical range across £200m+ revenue enterprises).</li>
+    <li>Typical engagement fees from Big-4 and specialist consulting firms for single DPIA engagements in the UK market, 2024–2026.</li>
   </ol>
   <p style="margin-top: 14px;"><strong>Note on numbers.</strong> This page mixes three
   kinds of numbers; read them accordingly.</p>
   <ul style="margin: 4px 0 0 0;">
-    <li><strong>Regulatory ceilings</strong> (₹250 cr / ₹200 cr / ₹150 cr / ₹50 cr per
-    contravention, 72-hour breach clock, 30-day DSR SLA) are set by DPDP §33 and the 2025
-    Rules — these are law, not estimates.</li>
-    <li><strong>POC dataset measurements</strong> (33 PII columns, 72 critical gaps, 52
-    high gaps, 135 total gaps, 292 consenting principals, 1,000 consent events, etc.)
-    come from the synthetic <code>compliance_pack</code> workspace and are reproducible via the
-    SQL in <code>docs/how_to_test.html</code>. They are <strong>illustrative only</strong>
-    — in a real deployment the absolute counts depend on the customer's data estate, PII
-    density, consent-capture maturity, and scan scope. The transferable signal is the
-    <em>ratio and operational pattern</em> (critical-to-total gap mix, withdrawal
-    propagation latency, self-service lift), not the specific numbers.</li>
-    <li><strong>Industry-range estimates</strong> (₹2–10 cr annual compliance spend,
-    ₹10–50 lakh per DPIA, ₹1.5–3 cr annual DPIA-consulting reduction, "thousands of
-    analyst-hours saved") are directional industry benchmarks drawn from IAPP and Big-4
-    readiness assessments. Actual per-enterprise savings will vary with organization size,
-    regulatory designation (SDF vs. standard), and current tooling. Treat these as
+    <li><strong>Regulatory ceilings</strong> (£17.5m / £8.7m or 4% / 2% of global turnover,
+    72-hour breach clock, one-month DSR SLA) are set by UK GDPR + DPA 2018 — these are law,
+    not estimates.</li>
+    <li><strong>POC dataset measurements</strong> (36 PII columns, 192 UK-tagged critical
+    gaps, 88 high gaps, 818 total gaps across 4 packs, 1,258 UK-resident principals, 1,000
+    consent events, etc.) come from the synthetic <code>compliance_pack</code> workspace and
+    are reproducible via the SQL in <code>docs/how_to_test.html</code>. They are
+    <strong>illustrative only</strong> — in a real deployment the absolute counts depend on
+    the customer's data estate, PII density, consent-capture maturity, and scan scope. The
+    transferable signal is the <em>ratio and operational pattern</em>
+    (critical-to-total gap mix, withdrawal propagation latency, self-service lift), not the
+    specific numbers.</li>
+    <li><strong>Industry-range estimates</strong> (£500k–£3m annual compliance spend,
+    £30k–£100k per DPIA, £0.6m–£1.5m annual DPIA-consulting reduction, "hundreds of
+    analyst-hours saved") are directional industry benchmarks drawn from IAPP, DLA Piper,
+    and Big-4 readiness assessments. Actual per-enterprise savings will vary with
+    organisation size, regulatory designation, sector, and current tooling. Treat these as
     indicative ranges for business-case framing, not as committed outcomes.</li>
   </ul>
 </div>
