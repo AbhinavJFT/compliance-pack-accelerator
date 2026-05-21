@@ -150,7 +150,7 @@ targets:
     workspace:
       # ↓↓↓ Run `scripts/configure_workspace_host.sh https://dbc-<your-id>.cloud.databricks.com`
       #     once per clone — it rewrites the line below in place. ↓↓↓
-      host: https://dbc-c1ee818f-c92b.cloud.databricks.com
+      host: https://dbc-REPLACE-ME.cloud.databricks.com
     run_as:
       user_name: ${var.run_as_user}
 
