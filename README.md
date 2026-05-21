@@ -99,8 +99,7 @@ dpdp/
 │   ├── architecture.html             ← architecture diagram (open in browser → PDF)
 │   ├── presentation.html             ← 9-slide deck (open in browser → PDF)
 │   ├── how_to_test.html              ← step-by-step testing guide with SQL queries
-│   ├── test_results.html             ← screenshots of every test case execution
-│   └── DPDP_Audit_Gap_Finder.pptx   ← PowerPoint version of the deck
+│   └── test_results.html             ← screenshots of every test case execution
 │
 ├── synthetic_data/                   ← generator specs
 ├── tests/                            ← test specs (unit, integration, checkpoint, demo)
