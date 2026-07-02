@@ -47,25 +47,11 @@ def _section(title: str) -> None:
 # derive_jurisdiction
 # ---------------------------------------------------------------------------
 
-def test_derive_jurisdiction_india_variants() -> None:
-    for ci in ("IN", "in", "India", "INDIA", "ind", " India "):
-        got = derive_jurisdiction(ci)
-        assert got == "IN", f"derive_jurisdiction({ci!r}) → {got!r}, expected 'IN'"
-    print("  ✓ derive_jurisdiction maps every India variant to 'IN'")
-
-
 def test_derive_jurisdiction_uk_variants() -> None:
     for ci in ("GB", "UK", "United Kingdom", "england", "Scotland", "wales"):
         got = derive_jurisdiction(ci)
         assert got == "GB", f"derive_jurisdiction({ci!r}) → {got!r}, expected 'GB'"
     print("  ✓ derive_jurisdiction maps every UK variant to 'GB'")
-
-
-def test_derive_jurisdiction_us_variants() -> None:
-    for ci in ("US", "usa", "United States", "america"):
-        got = derive_jurisdiction(ci)
-        assert got == "US", f"derive_jurisdiction({ci!r}) → {got!r}, expected 'US'"
-    print("  ✓ derive_jurisdiction maps every US variant to 'US'")
 
 
 def test_derive_jurisdiction_eu_member_states() -> None:
@@ -77,17 +63,19 @@ def test_derive_jurisdiction_eu_member_states() -> None:
 
 
 def test_derive_jurisdiction_null_and_blank_and_unmapped() -> None:
-    for ci in (None, "", "  ", "Atlantis", "Wakanda"):
+    # India and the US are intentionally NOT mapped — DPDP and CCPA were
+    # removed from this deployment (UK/Europe-only scope).
+    for ci in (None, "", "  ", "Atlantis", "Wakanda", "India", "USA", "America"):
         got = derive_jurisdiction(ci)
         assert got is None, f"derive_jurisdiction({ci!r}) → {got!r}, expected None"
-    print("  ✓ derive_jurisdiction returns None for NULL/blank/unmapped")
+    print("  ✓ derive_jurisdiction returns None for NULL/blank/unmapped/removed-pack countries")
 
 
 # ---------------------------------------------------------------------------
 # loaded_packs / pack_for / active_pack
 # ---------------------------------------------------------------------------
 
-def test_loaded_packs_finds_dpdp() -> None:
+def test_loaded_packs_finds_default_pack() -> None:
     packs = loaded_packs()
     codes = [p.code for p in packs]
     assert DEFAULT_PACK_CODE in codes, (
@@ -114,26 +102,27 @@ def test_loaded_packs_each_has_metadata() -> None:
     print(f"  ✓ every loaded pack has code + metadata + jurisdiction populated")
 
 
-def test_pack_for_routes_in_to_dpdp() -> None:
-    p = pack_for("IN")
-    assert p is not None, "pack_for('IN') returned None — DPDP pack not loaded?"
-    assert p.code == "dpdp_2023", f"pack_for('IN') → {p.code}, expected 'dpdp_2023'"
-    print("  ✓ pack_for('IN') routes to dpdp_2023")
+def test_pack_for_routes_gb_to_uk_gdpr() -> None:
+    p = pack_for("GB")
+    assert p is not None, "pack_for('GB') returned None — uk_gdpr pack not loaded?"
+    assert p.code == "uk_gdpr", f"pack_for('GB') → {p.code}, expected 'uk_gdpr'"
+    print("  ✓ pack_for('GB') routes to uk_gdpr")
+
+
+def test_pack_for_routes_eu_to_eu_gdpr() -> None:
+    p = pack_for("EU")
+    assert p is not None, "pack_for('EU') returned None — eu_gdpr pack not loaded?"
+    assert p.code == "eu_gdpr", f"pack_for('EU') → {p.code}, expected 'eu_gdpr'"
+    print("  ✓ pack_for('EU') routes to eu_gdpr")
 
 
 def test_pack_for_returns_none_for_unmapped() -> None:
-    for jur in ("ZZ", "ATLANTIS", "", None):
+    # 'IN' and 'US' are jurisdiction codes with no loaded pack now that
+    # dpdp_2023 and ccpa were removed.
+    for jur in ("ZZ", "ATLANTIS", "", None, "IN", "US"):
         got = pack_for(jur)
         assert got is None, f"pack_for({jur!r}) → {got!r}, expected None"
-    print("  ✓ pack_for returns None for unmapped/blank/NULL jurisdictions")
-
-
-def test_pack_for_returns_none_when_only_dpdp_loaded() -> None:
-    """UK GDPR pack lands in M2; until then pack_for('GB') is None."""
-    if pack_for("GB") is None:
-        print("  ✓ pack_for('GB') is None — uk_gdpr pack not yet loaded (expected pre-M2)")
-    else:
-        print("  ✓ pack_for('GB') resolves — uk_gdpr pack is loaded")
+    print("  ✓ pack_for returns None for unmapped/blank/NULL/removed-pack jurisdictions")
 
 
 def test_active_pack_backward_compat() -> None:
@@ -154,17 +143,15 @@ def main() -> int:
 
     failures = 0
     tests = [
-        test_derive_jurisdiction_india_variants,
         test_derive_jurisdiction_uk_variants,
-        test_derive_jurisdiction_us_variants,
         test_derive_jurisdiction_eu_member_states,
         test_derive_jurisdiction_null_and_blank_and_unmapped,
-        test_loaded_packs_finds_dpdp,
+        test_loaded_packs_finds_default_pack,
         test_loaded_packs_hoists_default_to_position_zero,
         test_loaded_packs_each_has_metadata,
-        test_pack_for_routes_in_to_dpdp,
+        test_pack_for_routes_gb_to_uk_gdpr,
+        test_pack_for_routes_eu_to_eu_gdpr,
         test_pack_for_returns_none_for_unmapped,
-        test_pack_for_returns_none_when_only_dpdp_loaded,
         test_active_pack_backward_compat,
     ]
     for t in tests:
