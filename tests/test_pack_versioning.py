@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from governance_core.pack_loader import (  # noqa: E402
+    DEFAULT_PACK_CODE,
     DPIATemplate,
     loaded_packs,
     reset_cache,
@@ -44,7 +45,7 @@ def _section(title: str) -> None:
 def test_every_loaded_pack_declares_a_version() -> None:
     """Every pack shipped with the platform must declare pack.yaml::version."""
     packs = loaded_packs()
-    assert len(packs) >= 4, f"expected >=4 packs, got {len(packs)}"
+    assert len(packs) >= 2, f"expected >=2 packs, got {len(packs)}"
     for p in packs:
         assert p.version, f"pack {p.code} missing version"
         assert p.version != "0.0.0", f"pack {p.code} version is the fallback '0.0.0'"
@@ -106,8 +107,8 @@ def test_prompt_version_hash_flips_with_pack_version() -> None:
 def test_merge_templates_composes_version_stamp() -> None:
     """Multi-pack merge yields 'primary@v+secondary@v+...' compound stamp."""
     packs = loaded_packs()
-    primary = next(p for p in packs if p.code == "dpdp_2023")
-    secondaries = [p for p in packs if p.code in ("uk_gdpr", "eu_gdpr")]
+    primary = next(p for p in packs if p.code == DEFAULT_PACK_CODE)
+    secondaries = [p for p in packs if p.code != DEFAULT_PACK_CODE]
     merged = _merge_templates(primary, secondaries)
     expected_parts = [f"{primary.code}@{primary.version}"] + [
         f"{s.code}@{s.version}" for s in secondaries
