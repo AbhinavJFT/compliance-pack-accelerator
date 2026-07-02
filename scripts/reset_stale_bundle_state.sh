@@ -9,7 +9,7 @@
 # teammate's workspace, a fresh trial after the previous one expired), the
 # CLI tries to GET each cached ID on the new workspace and aborts:
 #
-#     Error: failed to get dashboard "dpdp_compliance_dashboard"
+#     Error: failed to get dashboard "compliance_overview_dashboard"
 #     Unable to find dashboard [01f1484e84f21c968834a85342bf1e5f]
 #
 # We record the workspace host the cache was last deployed against in a

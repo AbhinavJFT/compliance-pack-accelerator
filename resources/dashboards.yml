@@ -12,15 +12,15 @@
 #   3. Marketing-eligible principals (live-propagation demo)
 #   4. DSR request status (Artifact 3)
 #
-# The dashboard file is dashboards/dpdp_compliance.lvdash.json.
+# The dashboard file is dashboards/compliance_overview.lvdash.json.
 # On Day 14, the dashboard is the primary demo surface — not raw SQL notebooks.
 
 resources:
   dashboards:
-    dpdp_compliance_dashboard:
+    compliance_overview_dashboard:
       display_name: "Compliance Pack POC"
       warehouse_id: ${var.sql_warehouse_id}
-      file_path: ../dashboards/dpdp_compliance.lvdash.json
+      file_path: ../dashboards/compliance_overview.lvdash.json
 
       # Dashboard permissions: anyone in the workspace can view; the service
       # principal can edit.

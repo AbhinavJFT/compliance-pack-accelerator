@@ -1,6 +1,6 @@
 """Add a 'DPIA' page (2 tiles) to the master Lakeview dashboard.
 
-Modifies ``dashboards/dpdp_compliance.lvdash.json`` in place. The
+Modifies ``dashboards/compliance_overview.lvdash.json`` in place. The
 modified JSON is the deployable artifact — ``databricks bundle deploy``
 picks it up and updates the live dashboard via Lakeview API.
 
@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DASHBOARD_PATH = REPO_ROOT / "dashboards" / "dpdp_compliance.lvdash.json"
+DASHBOARD_PATH = REPO_ROOT / "dashboards" / "compliance_overview.lvdash.json"
 
 
 # ---------------------------------------------------------------------
