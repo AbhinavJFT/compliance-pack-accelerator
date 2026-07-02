@@ -12,7 +12,7 @@ This test queries `system.information_schema.column_tags` and asserts:
    PII tags (proxy for "classification reached the full source set")
 3. Tags exist on each of the 5 expected Silver tables
 4. The `compliance_pack.silver.*` tables have tags on typical critical
-   columns: aadhaar, pan, email
+   columns: nhs_number, credit_card, email
 
 Note: system.information_schema.column_tags may lag by up to 30s after
 ALTER TABLE ... SET TAGS. If this test runs immediately after
@@ -42,9 +42,10 @@ CLASSIFIED_TABLES = {
 
 EXPECTED_TAG_NAMES = {"pii_type", "pii_category", "sensitivity"}
 MIN_TAGGED_COLUMNS = 14
-# customers_tagged has aadhaar + pan columns that we'd hit once classifier
-# coverage extends; until then, these hints must land on the other tables.
-CRITICAL_HINTS = {"aadhaar", "pan", "email"}
+# patients_tagged.nhs_number, customers_tagged.credit_card_number, and
+# email (present on multiple tables) are the critical-PII hints that must
+# always be tagged once classification runs.
+CRITICAL_HINTS = {"nhs_number", "credit_card", "email"}
 
 
 def main() -> int:
