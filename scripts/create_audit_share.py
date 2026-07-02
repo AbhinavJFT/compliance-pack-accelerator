@@ -43,7 +43,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from persona_config import get_warehouse_id  # noqa: E402
 
-SHARE_NAME = "dpdp_audit_view_share"
+SHARE_NAME = "compliance_audit_view_share"
 WAREHOUSE_ID = get_warehouse_id()
 
 SHARE_OBJECTS = [

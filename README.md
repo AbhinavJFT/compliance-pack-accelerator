@@ -4,31 +4,32 @@
 [![Databricks](https://img.shields.io/badge/Databricks-native-FF3621.svg?logo=databricks&logoColor=white)](https://www.databricks.com/)
 
 A Databricks-native multi-jurisdiction compliance platform with pluggable
-**regulation packs**. Each pack — DPDP India 2023, UK GDPR, EU GDPR, CCPA,
-PIPEDA, … — is a directory of YAML files plus a small region-specific
-PII-pattern module. Compliance applies *per data subject*: each principal's
-`jurisdiction` column routes to the pack governing them, so an Indian SaaS
-with UK clients applies DPDP rules to Indian principals and UK GDPR rules
-to UK principals — same database, different rules per row, no manual
-sorting.
+**regulation packs**. Each pack — UK GDPR, EU GDPR, PIPEDA (planned), … —
+is a directory of YAML files plus a small region-specific PII-pattern
+module. Compliance applies *per data subject*: each principal's
+`jurisdiction` column routes to the pack governing them, so a UK-based
+SaaS with EU clients applies UK GDPR rules to UK principals and EU GDPR
+rules to EU principals — same database, different rules per row, no
+manual sorting.
 
-The seed pack today is **DPDP India 2023**, deployed end-to-end as the
-worked example. UK GDPR is the next pack, scoped under
+This deployment is scoped to **UK and Europe** — UK GDPR and EU GDPR are
+both deployed end-to-end, per
 [ADR-0001](docs/adr/0001-multi-jurisdiction-data-subject-routing.md) which
-is the binding architectural decision for the project.
+is the binding architectural decision for the project. The India (DPDP)
+and US (CCPA) packs originally in this platform have been removed.
 
 ## What's Built
 
 | Capability | Status | Key Numbers (multi-pack live state) |
 |---|---|---|
-| **PII Discovery & Data Inventory** | Live | 36 findings across 10 silver objects (8 tables + 2 federation views) · UC tags · 21.5K base rows · daily AI-based free-text scan (`ai_classify`) bridged into the register via `silver.pii_findings_all` |
-| **Consent Intelligence Engine** | Live | 1,000 events · 292 principals · 6 purposes · 4 channels |
-| **Compliance Audit & Gap Analysis** | Live | **51 multi-pack rules** (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA) · per-row routing on the `jurisdiction` column |
+| **PII Discovery & Data Inventory** | Live | Universal + UK/EU-specific PII patterns · UC tags · daily AI-based free-text scan (`ai_classify`) bridged into the register via `silver.pii_findings_all` |
+| **Consent Intelligence Engine** | Live | 1,000 events · multiple purposes · 4 channels |
+| **Compliance Audit & Gap Analysis** | Live | **26 multi-pack rules** (12 UK GDPR + 14 EU GDPR) · per-row routing on the `jurisdiction` column |
 | **Agent Bricks (AI Agents)** | Live | DPIA generator (30s, multi-regulator citations, pack-version-stamped prompts, auto-derived applicable packs per ADR-0001) · Compliance Q&A · PII classifier |
 | **AI/BI Dashboard** | Live | 10-page professional dashboard with Genie NL queries + ADR-0001 Q3 unmapped-principals tile |
 | **Persona Governance Layer** | Live | 4 sliced dashboards + 4 scoped Genie spaces (CCO/GC/CMO/CFO) with UC-enforced boundaries |
 | **Three-path ingestion demo** | Live | Auto Loader (5 tables) + Lakeflow Connect sim (3 SF tables) + Federation sim (2 views over `federation_mock`) |
-| **Regulation Pack Framework** | Live | `governance_core/` (regulation-agnostic loader + resolver, pack semver) · 4 packs: `regulations/dpdp_2023/` · `regulations/uk_gdpr/` · `regulations/eu_gdpr/` · `regulations/ccpa/` |
+| **Regulation Pack Framework** | Live | `governance_core/` (regulation-agnostic loader + resolver, pack semver) · 2 packs: `regulations/uk_gdpr/` · `regulations/eu_gdpr/` |
 | **Multi-jurisdiction routing** (ADR-0001) | Live · M1–M4 + Q2/Q3 follow-ups merged | Per-data-subject `jurisdiction` column · all packs in `regulations/` load simultaneously · per-row rule routing · loader-side jurisdiction validation · pack semver in DPIA prompts |
 
 ## Databricks Workspace
@@ -46,7 +47,7 @@ Databricks workspace. The pieces a teammate needs to know about:
 ## Repository Structure
 
 ```
-dpdp/
+compliance-pack-accelerator/
 ├── README.md                         ← you are here
 ├── SPEC.md                           ← original POC specification
 ├── databricks.yml                    ← DAB root (deploy entry point)
@@ -62,12 +63,10 @@ dpdp/
 │   ├── consent_model.py              ← consent-event schema contract
 │   └── pii_patterns/universal.py     ← 11 universal PIIPatterns + constants
 │
-├── regulations/                      ← Layer 3 regulation packs (4 packs live, all at v1.0.0)
+├── regulations/                      ← Layer 3 regulation packs (2 packs live, both at v1.0.0)
 │   ├── README.md                     ← pack authoring contract + semver bump rules
-│   ├── dpdp_2023/                    ← DPDP India 2023 (9 rules, IN PII patterns, 10 Indian languages)
 │   ├── uk_gdpr/                      ← UK GDPR + DPA 2018 (12 rules, NHS Number / NINO / UTR patterns)
-│   ├── eu_gdpr/                      ← EU GDPR Regulation 2016/679 (14 rules, 24 EU languages, IBAN + EU national IDs)
-│   └── ccpa/                         ← California CCPA/CPRA (16 rules, opt-out + GPC + SPI limit-use, US PII patterns)
+│   └── eu_gdpr/                      ← EU GDPR Regulation 2016/679 (14 rules, 24 EU languages, IBAN + EU national IDs)
 │
 │   Each pack contains: pack.yaml (metadata + version), rules.yaml,
 │   rights.yaml, notices.yaml, retention_defaults.yaml, residency.yaml,
@@ -77,7 +76,6 @@ dpdp/
 │   ├── bronze.sql                    ← 5 Auto Loader source tables + data_sources (SF + federation tables created by their seed scripts)
 │   ├── silver.sql                    ← 5 Auto Loader silver tables + pii_findings + discovered_tables (3 SF + 2 federation views layered on top)
 │   ├── register.sql                  ← personal_data_register view
-│   ├── compliance_rules.sql          ← 51 multi-pack rules (DPDP + UK GDPR + EU GDPR + CCPA) + compliance_gaps table
 │   ├── consent_events_delta.sql      ← consent log + Gold views
 │   ├── notice_versions.sql           ← consent notice templates
 │   └── pii_patterns.py               ← composition shim (governance_core + active pack)
@@ -104,7 +102,7 @@ dpdp/
 ├── synthetic_data/                   ← generator specs
 ├── tests/                            ← test specs (unit, integration, checkpoint, demo)
 ├── runbook/                          ← setup, troubleshooting, rollback
-└── reference/                        ← DPDP glossary, trial limits, proposal PDF
+└── reference/                        ← trial limits, proposal PDF
 ```
 
 ## Deploying in your own workspace
@@ -244,7 +242,7 @@ scripts/deploy_all.sh      # then redeploy
 
 ```bash
 export DATABRICKS_BUNDLE_ENGINE=direct     # required on newer workspaces
-export REGULATION_PACK=dpdp_2023           # default; swap for uk_gdpr / ccpa etc. once a pack is authored
+export REGULATION_PACK=eu_gdpr             # default; swap for uk_gdpr etc.
 
 # 0. UC bootstrap (catalog + schemas + volumes; Default-Storage workspaces reject DAB UC creation)
 python3 scripts/bootstrap_catalog.py
@@ -253,13 +251,13 @@ python3 scripts/bootstrap_catalog.py
 databricks bundle deploy --target dev
 
 # 2. Generate synthetic CSVs locally
-python3 generate_synthetic_data.py --output-dir /tmp/dpdp_landing
+python3 generate_synthetic_data.py --output-dir /tmp/compliance_landing
 
 # 3. Upload CSVs to the landing volume (one folder per source table)
 for tbl in employees customers patients transactions users; do
   databricks fs mkdir "dbfs:/Volumes/compliance_pack/bronze/landing/${tbl}" 2>/dev/null || true
   databricks fs cp --recursive --overwrite \
-    "/tmp/dpdp_landing/${tbl}/" \
+    "/tmp/compliance_landing/${tbl}/" \
     "dbfs:/Volumes/compliance_pack/bronze/landing/${tbl}/"
 done
 
@@ -313,19 +311,19 @@ python3 scripts/setup_all_personas.py
 
 The `phase1_bootstrap` job runs `pipelines/phase1_bootstrap.py` and produces:
 
-- `bronze.compliance_rules` — 51 multi-pack rules (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA), tagged with regulation_pack
+- `bronze.compliance_rules` — 26 multi-pack rules (12 UK GDPR + 14 EU GDPR), tagged with regulation_pack
 - `bronze.data_sources` — ingestion-source registry seeded with 10 canonical rows (5 Auto Loader + 3 Salesforce + 2 federation); the classifier reads `silver_table_name` from here, so adding a new ingestion path is a single row in `scripts/seed_data_sources.py:DATA_SOURCES_SEED` (the seed step runs in `deploy_all.sh` between the federation seeder and the medallion refresh; phase1_bootstrap also has an idempotent copy of the MERGE for partial-deploy resilience)
-- `silver.compliance_gaps` — ~135 rules × findings
+- `silver.compliance_gaps` — rules × findings
 - `compliance.consent_events_log` — 1,000 deterministic events (seed=42)
-- `compliance.notice_versions` — 3 language versions (en-IN, hi-IN, ta-IN)
+- `compliance.notice_versions` — seeded primary-locale versions (en-GB, en) + machine-translated languages
 - `compliance.dsr_requests` — schema only; populated by DSR workflows
-- `compliance.retention_audit` — for §8(7) enforcement evidence
+- `compliance.retention_audit` — for GDPR Art. 5(1)(e) enforcement evidence
 - `compliance.personal_data_register` — live view over pii_findings + discovered_tables
 - `compliance.has_active_consent()` — UDF for downstream consent checks
 - `gold.marketing_eligible_principals`, `gold.consent_coverage_summary`
 - `gold.persona_overview_metrics` + `gold.persona_sensitivity_histogram` — aggregate views backing non-CCO Executive Overview tiles
-- **37 UC column masks** on PII columns (email, phone, aadhaar, pan, medical, ifsc) — non-admins see redacted values automatically across all 3 ingestion patterns
-- **Residency row filter** on `employees_tagged.country` — non-admins see India-resident rows only (DPDP §16)
+- **UC column masks** on PII columns (email, phone, medical, bank account) — non-admins see redacted values automatically across all 3 ingestion patterns
+- **Residency row filter** on `employees_tagged.country` — non-admins see EU/EEA-resident rows only (GDPR Art. 44-49)
 
 All of that is one job run, idempotent, seed=42 reproducible. Then
 `setup_all_personas.py` wires the persona governance layer on top.
@@ -337,7 +335,7 @@ persona layer needs. Not part of the orchestrator because they are
 cross-persona or external-facing.
 
 ```bash
-# Delta Share for external auditors (creates dpdp_audit_view_share)
+# Delta Share for external auditors (creates compliance_audit_view_share)
 python3 scripts/create_audit_share.py
 
 # Discovery of a specific principal's data (DSR access request)
@@ -500,7 +498,7 @@ All data is generated deterministically with `seed=42` using `generate_synthetic
 
 ```bash
 pip install faker==33.3.1
-python generate_synthetic_data.py --output-dir /tmp/dpdp_landing --seed 42
+python generate_synthetic_data.py --output-dir /tmp/compliance_landing --seed 42
 ```
 
 The generator produces identical output on every run (verified via content hash).

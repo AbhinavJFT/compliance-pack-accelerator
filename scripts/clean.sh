@@ -41,7 +41,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 CATALOG="${COMPLIANCE_CATALOG:-compliance_pack}"
-TARGET="${DPDP_TARGET:-dev}"
+TARGET="${COMPLIANCE_TARGET:-dev}"
 
 LOCAL=1
 WORKSPACE=1
