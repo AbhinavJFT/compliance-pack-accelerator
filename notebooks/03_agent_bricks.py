@@ -62,7 +62,7 @@ MODEL_ENDPOINT = dbutils.widgets.get("model_endpoint")
 
 import mlflow
 
-dbutils.widgets.text("mlflow_experiment_path", "/Shared/dpdp_agent_bricks",
+dbutils.widgets.text("mlflow_experiment_path", "/Shared/compliance_agent_bricks",
                      "MLflow experiment path")
 MLFLOW_EXPERIMENT_PATH = dbutils.widgets.get("mlflow_experiment_path")
 

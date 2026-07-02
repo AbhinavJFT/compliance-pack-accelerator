@@ -26,7 +26,7 @@
 dbutils.widgets.text("catalog", "compliance_pack", "Unity Catalog name")
 dbutils.widgets.text("model_endpoint", "databricks-gpt-oss-120b",
                      "Foundation model endpoint")
-dbutils.widgets.text("mlflow_experiment_path", "/Shared/dpdp_agent_bricks",
+dbutils.widgets.text("mlflow_experiment_path", "/Shared/compliance_agent_bricks",
                      "MLflow experiment path")
 # Optional override: when set, forces single-pack mode against this pack code.
 # Default empty → ADR-0001 multi-pack: jurisdictions present in the data drive

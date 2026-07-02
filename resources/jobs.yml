@@ -142,7 +142,7 @@ resources:
             base_parameters:
               catalog: ${var.catalog_name}
               model_endpoint: "databricks-gpt-oss-120b"
-              mlflow_experiment_path: "/Shared/dpdp_agent_bricks"
+              mlflow_experiment_path: "/Shared/compliance_agent_bricks"
               # ADR-0001 multi-pack: pack selection auto-derives from
               # jurisdictions present in the data. Override via the
               # `regulation_pack` widget on an ad-hoc run if needed.

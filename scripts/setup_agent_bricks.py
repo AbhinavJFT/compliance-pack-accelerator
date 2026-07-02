@@ -46,7 +46,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from persona_config import get_model_endpoint, get_workspace_url  # noqa: E402
 
-DEFAULT_EXPERIMENT_PATH = "/Shared/dpdp_agent_bricks"
+DEFAULT_EXPERIMENT_PATH = "/Shared/compliance_agent_bricks"
 
 
 def _api(method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
