@@ -1,6 +1,6 @@
 """DSR discovery — find every row about a data principal across the estate.
 
-Implements Phase 1 of a DPDP §11/§12 Data Subject Request (access /
+Implements Phase 1 of a GDPR Art. 15/17 Data Subject Request (access /
 correction / erasure). Given a principal identifier, walks the PII
 register to find tables/columns that hold personal data, then searches
 each for rows matching the principal.
@@ -12,7 +12,7 @@ Emits a JSON bundle with:
       isn't an admin — DSR fulfilment must respect data minimisation)
     - timestamp + UC scan metadata
 
-Subject to DPDP §12 — the bundle itself IS the access response for
+Subject to GDPR Art. 15 — the bundle itself IS the access response for
 access requests. For erasure requests, run `dsr_erasure.py` after
 discovery confirms the scope.
 
@@ -44,7 +44,7 @@ from persona_config import get_warehouse_id, get_catalog  # noqa: E402
 
 # Tables to search and the column holding the principal's ID.
 # The synthetic POC uses customer_id / user_id / patient_id /
-# employee_id / data_principal_id depending on table. Real DPDP
+# employee_id / data_principal_id depending on table. Real
 # deployments extend this map as new sources onboard.
 DEFAULT_PRINCIPAL_TABLES = [
     ("silver",     "customers_tagged",     "customer_id"),

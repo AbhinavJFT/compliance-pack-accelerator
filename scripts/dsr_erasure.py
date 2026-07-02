@@ -1,4 +1,4 @@
-"""DSR erasure — execute a DPDP §12(b) right-to-erasure request.
+"""DSR erasure — execute a GDPR Art. 17 right-to-erasure request.
 
 DELETEs rows matching the principal from every table in the estate
 that holds their personal data, then VACUUMs each table to make the
@@ -15,17 +15,17 @@ Usage:
 
     # Then, with explicit confirmation:
     python3 scripts/dsr_erasure.py --principal-id customer_04217 --request-id dsr_xxxx \\
-        --reason "DPDP §12(b) erasure request submitted 2026-04-15" --confirm
+        --reason "GDPR Art. 17 erasure request submitted 2026-04-15" --confirm
 
     # Dry-run (default; reports what would happen without mutating):
     python3 scripts/dsr_erasure.py --principal-id customer_04217 --request-id dsr_xxxx
 
 Caveats:
     - Retention-required data (legally mandated records like financial
-      transactions under RBI rules) should NOT be erased. This script
+      transactions under FCA rules) should NOT be erased. This script
       deletes from every known table; exclusions must be configured
       in PRESERVE_TABLES below. Consult legal before enabling.
-    - Consent-events-log is preserved by default (DPDP audit evidence
+    - Consent-events-log is preserved by default (GDPR audit evidence
       of consent withdrawals is itself a record-of-processing
       obligation).
 """
@@ -49,10 +49,10 @@ from governance_core.pack_loader import active_pack  # noqa: E402
 # ---------------------------------------------------------------------------
 # Regulation-pack-driven defaults
 # ---------------------------------------------------------------------------
-# The reason text / requester language / SLA are not DPDP literals — they
-# come from the active regulation pack's rights.yaml + pack.yaml. Switching
-# pack (REGULATION_PACK=uk_gdpr, ccpa, ...) gives you the correct citation,
-# locale, and SLA deadline with no code change.
+# The reason text / requester language / SLA are not literals hardcoded
+# here — they come from the active regulation pack's rights.yaml +
+# pack.yaml. Switching pack (REGULATION_PACK=uk_gdpr, eu_gdpr, ...) gives
+# you the correct citation, locale, and SLA deadline with no code change.
 _PACK = active_pack()
 _ERASURE_RIGHT = next(
     (r for r in _PACK.rights() if r.get("code") == "erasure"), {}
