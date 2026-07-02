@@ -18,9 +18,8 @@ active pack is switchable via a single env var without code changes elsewhere.
 
 ## Activation
 
-    export REGULATION_PACK=dpdp_2023    # default — current POC behavior
-    export REGULATION_PACK=uk_gdpr      # Phase 1 target
-    export REGULATION_PACK=ccpa
+    export REGULATION_PACK=eu_gdpr      # default
+    export REGULATION_PACK=uk_gdpr
 
 Pack directories live under `regulations/<code>/`.
 
@@ -48,13 +47,13 @@ class PackLoaderError(RuntimeError):
     """Raised when the active pack is missing, malformed, or incomplete."""
 
 
-DEFAULT_PACK_CODE = "dpdp_2023"
+DEFAULT_PACK_CODE = "eu_gdpr"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PACKS_ROOT = REPO_ROOT / "regulations"
 
 
 def active_pack_code() -> str:
-    """Return the active regulation pack code. Defaults to DPDP-2023 (current POC)."""
+    """Return the active regulation pack code. Defaults to EU GDPR."""
     return os.environ.get("REGULATION_PACK") or DEFAULT_PACK_CODE
 
 
@@ -128,7 +127,7 @@ class Pack:
 
     @property
     def primary_locale(self) -> str:
-        return self.metadata.get("primary_locale", "en-IN")
+        return self.metadata.get("primary_locale", "en")
 
     @property
     def version(self) -> str:
@@ -189,9 +188,9 @@ class Pack:
     def persona_guidance(self) -> dict:
         """Return per-persona Genie guidance contributed by this pack.
 
-        Schema is defined in regulations/dpdp_2023/persona_guidance.yaml.
+        Schema is defined in regulations/README.md's pack contract.
         Top-level keys:
-          - short_name       : str  (e.g. "DPDP")
+          - short_name       : str  (e.g. "UK GDPR")
           - glossary_entry   : str  (multi-line)
           - cco / gc / cmo / cfo : dict with persona-specific fields
                                    (scope_note, rule_section_mapping,
@@ -293,7 +292,7 @@ def load() -> Pack:
     The returned Pack is the *primary* pack for this deployment, defined as:
       1. Whatever ``REGULATION_PACK`` env var points at, if set.
       2. Otherwise the first pack in ``loaded_packs()`` order.
-      3. Otherwise ``DEFAULT_PACK_CODE`` (``dpdp_2023``).
+      3. Otherwise ``DEFAULT_PACK_CODE`` (``eu_gdpr``).
 
     Used by older call sites that haven't been migrated to multi-pack-aware
     queries. Safe to keep — ADR-0001 explicitly preserves it as a primary-pack
@@ -329,13 +328,9 @@ active_pack = load
 # Override at deploy time by extending this dict before calling
 # derive_jurisdiction(); the helper is small enough to monkey-patch in tests.
 COUNTRY_TO_JURISDICTION: dict[str, str] = {
-    # India / DPDP
-    "IN": "IN", "IND": "IN", "INDIA": "IN",
     # United Kingdom / UK GDPR
     "GB": "GB", "UK": "GB", "GBR": "GB", "UNITED KINGDOM": "GB",
     "ENGLAND": "GB", "SCOTLAND": "GB", "WALES": "GB", "NORTHERN IRELAND": "GB",
-    # United States / CCPA (and state-level laws)
-    "US": "US", "USA": "US", "UNITED STATES": "US", "AMERICA": "US",
     # EU / EU GDPR — every EU/EEA member state routes to a single EU code
     # for now. A future ADR may split per-member-state if national-DPA
     # divergences (cookies, transfers) require pack-per-country.
@@ -383,8 +378,6 @@ def derive_jurisdiction(country: str | None) -> str | None:
 
     Examples
     --------
-    >>> derive_jurisdiction("India")
-    'IN'
     >>> derive_jurisdiction("uk")
     'GB'
     >>> derive_jurisdiction("Germany")
@@ -411,7 +404,7 @@ def loaded_packs() -> list[Pack]:
     load (per ADR-0001 §"Loader and pack mechanics").
 
     Order is the lexically-sorted directory order, with ``DEFAULT_PACK_CODE``
-    (``dpdp_2023``) hoisted to position 0 if present — this defines the
+    (``eu_gdpr``) hoisted to position 0 if present — this defines the
     "primary" pack used by ``active_pack()`` and by the DPIA generator
     when an activity touches multiple jurisdictions and needs a primary
     framework for the narrative.
@@ -446,7 +439,7 @@ def pack_for(jurisdiction: str | None) -> Pack | None:
     """Return the regulation pack that governs principals with this jurisdiction.
 
     The match is on each pack's ``jurisdiction`` field in ``pack.yaml``
-    (e.g., ``IN`` for DPDP, ``GB`` for UK GDPR, ``EU`` for EU GDPR).
+    (e.g., ``GB`` for UK GDPR, ``EU`` for EU GDPR).
     Returns ``None`` for an unmapped jurisdiction (caller decides whether
     to fall back, raise, or surface as a compliance gap).
 
@@ -507,8 +500,9 @@ def validate_jurisdictions(
       - ``null`` — NULL/None present. Indicates rows with no jurisdiction
         captured at all (the "unmapped principals" gap).
       - ``unmapped_known`` — code is in ``COUNTRY_TO_JURISDICTION``'s value
-        set (e.g., ``'US'``) but no loaded pack declares that jurisdiction.
-        Indicates a missing pack — author it or remove those principals.
+        set (e.g., ``'EU'`` in a deployment where only ``uk_gdpr`` is loaded)
+        but no loaded pack declares that jurisdiction. Indicates a missing
+        pack — author it or remove those principals.
       - ``unmapped_unknown`` — code is not in either ``COUNTRY_TO_JURISDICTION``
         values or any loaded pack. Indicates bad data — the row's
         ``jurisdiction`` value was set to something the platform doesn't
