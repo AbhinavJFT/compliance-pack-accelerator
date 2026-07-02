@@ -119,7 +119,7 @@ ALTER TABLE compliance_pack.silver.patients_tagged
 -- ---------------------------------------------------------------------------
 -- Lakeflow Connect (Salesforce) ingestion — silver tables populated by
 -- scripts/seed_salesforce_data.py. Same governance treatment as Auto Loader
--- sources: non-admin personas see masked Aadhaar/PAN/IFSC/email/phone.
+-- sources: non-admin personas see masked VAT number/email/phone.
 -- ---------------------------------------------------------------------------
 
 -- sf_leads_tagged
@@ -129,10 +129,6 @@ ALTER TABLE compliance_pack.silver.sf_leads_tagged
   ALTER COLUMN phone             SET MASK compliance_pack.compliance.mask_phone;
 ALTER TABLE compliance_pack.silver.sf_leads_tagged
   ALTER COLUMN mobile            SET MASK compliance_pack.compliance.mask_phone;
-ALTER TABLE compliance_pack.silver.sf_leads_tagged
-  ALTER COLUMN aadhaar           SET MASK compliance_pack.compliance.mask_id_last4;
-ALTER TABLE compliance_pack.silver.sf_leads_tagged
-  ALTER COLUMN pan               SET MASK compliance_pack.compliance.mask_id_last4;
 
 -- sf_contacts_tagged
 ALTER TABLE compliance_pack.silver.sf_contacts_tagged
@@ -141,16 +137,10 @@ ALTER TABLE compliance_pack.silver.sf_contacts_tagged
   ALTER COLUMN phone             SET MASK compliance_pack.compliance.mask_phone;
 ALTER TABLE compliance_pack.silver.sf_contacts_tagged
   ALTER COLUMN mobile            SET MASK compliance_pack.compliance.mask_phone;
-ALTER TABLE compliance_pack.silver.sf_contacts_tagged
-  ALTER COLUMN aadhaar           SET MASK compliance_pack.compliance.mask_id_last4;
-ALTER TABLE compliance_pack.silver.sf_contacts_tagged
-  ALTER COLUMN pan               SET MASK compliance_pack.compliance.mask_id_last4;
-ALTER TABLE compliance_pack.silver.sf_contacts_tagged
-  ALTER COLUMN ifsc              SET MASK compliance_pack.compliance.mask_full;
 
--- sf_accounts_tagged (company-level — only PAN + phone are PII here)
+-- sf_accounts_tagged (company-level — only VAT number + phone are PII here)
 ALTER TABLE compliance_pack.silver.sf_accounts_tagged
-  ALTER COLUMN company_pan       SET MASK compliance_pack.compliance.mask_id_last4;
+  ALTER COLUMN vat_number        SET MASK compliance_pack.compliance.mask_id_last4;
 ALTER TABLE compliance_pack.silver.sf_accounts_tagged
   ALTER COLUMN primary_phone     SET MASK compliance_pack.compliance.mask_phone;
 

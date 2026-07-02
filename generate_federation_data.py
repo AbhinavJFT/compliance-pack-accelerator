@@ -43,22 +43,23 @@ DEFAULT_SEED = 44
 DEFAULT_LEAD_SCORING = 200
 DEFAULT_CAMPAIGN_RESPONSE = 100
 GENERATOR_DATE = date(2026, 4, 27)
-IST = timezone(timedelta(hours=5, minutes=30))
+TZ = timezone.utc
 
 # Reuse SF-side names so generated leads collide with sf_leads.lead_id
 FIRST_NAMES = [
-    "Aarav", "Vivaan", "Aditya", "Arjun", "Ishaan", "Reyansh", "Krishna",
-    "Sai", "Aryan", "Vihaan", "Aanya", "Diya", "Aadhya", "Ananya", "Pari",
-    "Anika", "Navya", "Saanvi", "Riya", "Myra", "Karan", "Kabir", "Rohan",
-    "Aditi", "Priya", "Tanvi", "Pooja", "Nisha", "Meera", "Shreya",
+    "Oliver", "George", "Harry", "Jack", "Jacob", "Noah", "Charlie", "Muhammad",
+    "Thomas", "Oscar", "William", "James", "Leo", "Alfie", "Henry",
+    "Olivia", "Amelia", "Isla", "Ava", "Emily", "Isabella", "Mia", "Poppy",
+    "Ella", "Lily", "Charlotte", "Freya", "Grace", "Evie", "Sophia",
 ]
 LAST_NAMES = [
-    "Sharma", "Verma", "Iyer", "Reddy", "Nair", "Menon", "Khanna", "Kapoor",
-    "Mehta", "Shah", "Patel", "Joshi", "Banerjee", "Bose", "Dutta",
+    "Smith", "Jones", "Williams", "Brown", "Taylor", "Davies", "Wilson",
+    "Evans", "Thomas", "Johnson", "Roberts", "Walker", "Wright", "Robinson",
+    "Thompson",
 ]
 COMPANIES = [
-    "Saffron Technologies", "Trident Industries", "Bharat Solutions",
-    "Nimbus Systems", "Granite Logistics", "Lotus Pharma", "Banyan Foods",
+    "Anchor Technologies", "Trident Industries", "Albion Solutions",
+    "Nimbus Systems", "Granite Logistics", "Thistle Pharma", "Foxglove Foods",
     "Indigo Bank", "Crimson Capital", "Helix Healthcare",
     "Polaris Telecom", "Quanta Networks", "Vertex Energy", "Zenith Holdings",
 ]
@@ -66,7 +67,7 @@ SCORE_BANDS = ["cold", "warm", "hot", "qualified"]
 CAMPAIGNS = [
     ("CMP-2026-Q1-WEBINAR",   "Compliance Pack Webinar Q1",      "email"),
     ("CMP-2026-Q1-WHITEPAPER","Privacy Architecture Whitepaper", "email"),
-    ("CMP-2026-Q2-EVENT",     "India Data Privacy Summit",        "paid_event"),
+    ("CMP-2026-Q2-EVENT",     "UK Data Privacy Summit",           "paid_event"),
     ("CMP-2026-Q1-LINKEDIN",  "LinkedIn Sponsored — Compliance", "social"),
     ("CMP-2026-Q1-SMS",       "Reactivation SMS Drip",            "sms"),
     ("CMP-2026-Q1-RETARGET",  "Retargeting — Lead Qualification", "paid_search"),
@@ -74,10 +75,9 @@ CAMPAIGNS = [
 RESPONSE_TYPES = ["clicked", "downloaded", "replied", "registered", "unsubscribed"]
 
 
-def _phone_india(rng: random.Random) -> str:
-    head = rng.choice("6789")
+def _phone_uk(rng: random.Random) -> str:
     rest = "".join(str(rng.randint(0, 9)) for _ in range(9))
-    return f"+91 {head}{rest[:4]} {rest[4:]}"
+    return f"+44 7{rest[:3]} {rest[3:]}"
 
 
 def _email(first: str, last: str, company: str, rng: random.Random) -> str:
@@ -96,7 +96,7 @@ def _datetime_in_window(rng: random.Random, start: date, end: date) -> datetime:
     day = start + timedelta(days=rng.randint(0, delta))
     return datetime(day.year, day.month, day.day,
                     rng.randint(0, 23), rng.randint(0, 59), rng.randint(0, 59),
-                    tzinfo=IST)
+                    tzinfo=TZ)
 
 
 def _generate_lead_scoring(rng: random.Random, n: int) -> list[dict[str, Any]]:
@@ -123,7 +123,7 @@ def _generate_lead_scoring(rng: random.Random, n: int) -> list[dict[str, Any]]:
             "email":              _email(first, last, company, rng),
             "first_name":         first,
             "last_name":          last,
-            "phone":              _phone_india(rng),
+            "phone":              _phone_uk(rng),
             "company":            company,
             "score":              score,
             "score_band":         band,
