@@ -1,6 +1,6 @@
 # §6 · Synthetic data generator
 
-> ⚠️ **Pre-build planning document.** The generator design is accurate (`generate_synthetic_data.py` at the repo root implements it). References to `ingest_synthetic_data` / `generate_consent_events` as separate jobs are stale — on free-trial both are produced inline by `generate_synthetic_data.py` + `pipelines/phase1_bootstrap.py`.
+> ⚠️ **Pre-build planning document.** The generator *design* (deterministic seeding, table shapes, DSR test principal concept) is still accurate, but the India-specific details below (Aadhaar/PAN/IFSC formats, Indian states/cities, 70/25/5 IN/GB mix) describe the pre-2026-07-02 generator. `generate_synthetic_data.py` was rewritten for a UK/EU-only jurisdiction mix (60/35/5 GB/EU/unmapped) when the DPDP/CCPA packs were removed — see the current file for the actual implementation. References to `ingest_synthetic_data` / `generate_consent_events` as separate jobs are also stale — on free-trial both are produced inline by `generate_synthetic_data.py` + `pipelines/phase1_bootstrap.py`.
 
 ## 6.1 · Why synthetic data
 

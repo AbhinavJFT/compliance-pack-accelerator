@@ -1,5 +1,12 @@
 # DSR principal specification · `customer_04217`
 
+> ⚠️ **Pre-build planning document, since superseded.** `customer_04217` was
+> originally pinned to an Indian jurisdiction (mobile format below) because
+> "many tests assert DPDP-specific behaviour against this row." As of
+> 2026-07-02, DPDP/CCPA were removed and this principal is re-pinned to the
+> UK (GB) in `generate_synthetic_data.py`. The mobile format and other
+> India-specific details below are historical.
+
 The Day 11-12 DSR end-to-end test (INT-03) runs against a specific deterministic principal. This file documents exactly what that principal's data footprint must look like, which is what the test asserts.
 
 ## Principal identity

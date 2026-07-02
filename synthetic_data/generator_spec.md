@@ -1,5 +1,13 @@
 # Synthetic data generator · implementation notes
 
+> ⚠️ **Pre-build planning document, since superseded.** The India-specific
+> generators described below (Aadhaar/PAN/IFSC formats, Indian mobile/IP
+> ranges) were removed from `generate_synthetic_data.py` on 2026-07-02 along
+> with the DPDP/CCPA packs — the generator is now UK/EU-shaped (60/35/5
+> GB/EU/unmapped mix). This doc is left as historical implementation
+> rationale; see the current `generate_synthetic_data.py` for what actually
+> runs today.
+
 Detailed implementation notes extending §6 of the main spec. Read §6 first.
 
 ## Expected file output layout
