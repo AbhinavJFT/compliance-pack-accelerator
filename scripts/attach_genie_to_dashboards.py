@@ -53,8 +53,8 @@ BANNER_TEXT = {
     ),
     "cfo": (
         "### Ask the [CFO Agent →]({space_url})\n"
-        "Penalty exposure, gap counts weighted by DPDP ceilings, remediation "
-        "cost. AI/BI Genie scoped to CFO data only."
+        "Penalty exposure, gap counts weighted by EU/UK GDPR ceilings, "
+        "remediation cost. AI/BI Genie scoped to CFO data only."
     ),
 }
 
