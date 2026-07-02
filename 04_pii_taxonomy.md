@@ -1,6 +1,6 @@
 # §4 · PII taxonomy and classification
 
-> ⚠️ **Pre-build planning document.** Taxonomy and pattern-library design are accurate and match `schemas/pii_patterns.py`. Process notes referencing a separate `apply_uc_tags` job are superseded — classification + UC tag application run inside `pipelines/classification_dlt.py` + `pipelines/phase1_bootstrap.py`.
+> ⚠️ **Pre-build planning document.** The 9-category taxonomy and general pattern-library design are still representative, but this doc was written around the original DPDP-only build: it's saturated with DPDP-specific framing and India-specific patterns (`phone_india`, `passport_india`, `ifsc`) that were removed entirely from `schemas/pii_patterns.py` / `governance_core/pii_patterns/` on 2026-07-02 along with the `dpdp_2023` and `ccpa` packs. **For the current pattern set, see `governance_core/pii_patterns/universal.py` (universal patterns) and `regulations/<pack>/pii_patterns.py` (region-specific — currently UK/EU only).** Process notes referencing a separate `apply_uc_tags` job are also superseded — classification + UC tag application run inside `pipelines/classification_dlt.py` + `pipelines/phase1_bootstrap.py`.
 
 ## 4.1 · Why this section is load-bearing
 
