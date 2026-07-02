@@ -22,7 +22,7 @@ The Databricks Asset Bundle (`databricks.yml` at the repo root plus `resources/*
 | Hand-writing an Auto Loader notebook | The `medallion_pipeline` resource plus `pipelines/medallion.py` |
 | Creating 7 Workflow jobs in the UI | `resources.jobs.*` in `jobs.yml` |
 | Hosting the DSR portal as a notebook-exposed endpoint | `resources.apps.dsr_portal` plus `apps/dsr_portal/` |
-| Building the Day 14 dashboard in SQL Editor | `resources.dashboards.*` plus `dashboards/dpdp_compliance.lvdash.json` |
+| Building the Day 14 dashboard in SQL Editor | `resources.dashboards.*` plus `dashboards/compliance_overview.lvdash.json` |
 | Applying grants in Unity Catalog Explorer | `permissions` blocks in each resource |
 
 There is no manual UI interaction in the deployment path. If you find yourself clicking in the Databricks UI to create something the POC depends on, stop — either add it to the bundle, or raise a scope question.
@@ -55,7 +55,7 @@ compliance_pack_spec/
 │   ├── requirements.txt
 │   └── README.md
 └── dashboards/
-    └── dpdp_compliance.lvdash.json
+    └── compliance_overview.lvdash.json
 ```
 
 The `pipelines/` directory holds the executable notebooks and scripts that the DAB resources reference. The bundle itself is metadata; the pipelines are where the actual logic lives.
@@ -129,7 +129,7 @@ bundle deploy
   │   ├── sync_consent_to_delta (scheduled, initially paused)
   │   ├── process_dsr_request
   │   └── e2e_verify
-  ├── creates Databricks App dpdp-dsr-portal (resources/apps.yml)
+  ├── creates Databricks App compliance-dsr-portal (resources/apps.yml)
   │   └── with resource grants (Lakebase, UC, job trigger)
   └── creates AI/BI dashboard "Compliance Pack POC" (resources/dashboards.yml)
 ```

@@ -1,6 +1,6 @@
 # §3 · Data contracts
 
-> ⚠️ **Pre-build planning document.** Source-table schemas are still accurate and match the active `bronze.*` / `silver.*` tables. Ingestion-via-notebook details are superseded — ingestion runs inside the DLT medallion (`pipelines/medallion.py`).
+> ⚠️ **Pre-build planning document.** Source-table schemas were accurate at time of writing but have since drifted: the India-specific columns shown below (`aadhaar_number`, `pan_number`, `passport_number`, `ifsc_code`) were dropped from `bronze.*`/`silver.*` on 2026-07-02 when the DPDP/CCPA packs were removed — see `schemas/bronze.sql` and `schemas/silver.sql` for the current column set. Ingestion-via-notebook details are superseded — ingestion runs inside the DLT medallion (`pipelines/medallion.py`).
 
 ## 3.1 · The base source tables (Auto Loader landing zone)
 
