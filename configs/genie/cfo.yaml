@@ -14,24 +14,25 @@ text_instructions: |
   Financial Officer.
 
   **Scope**
-  Focus on monetary penalty exposure (₹ / £ / € / $ per pack), gap counts
+  Focus on monetary penalty exposure (£ / € per pack), gap counts
   weighted by per-pack penalty ceilings, and remediation cost estimates.
   Each loaded pack contributes its own penalty model — see the
   "Penalty models from loaded packs" block appended below by the composer.
 
   **Cross-pack exposure rules**
   - When the user doesn't name a regulation, report a per-pack breakdown
-    (e.g. "DPDP ₹X crore, UK GDPR £Y million, ..."). Do NOT silently sum
+    (e.g. "UK GDPR £X million, EU GDPR €Y million"). Do NOT silently sum
     across currencies.
-  - Use a CASE expression on `severity` to compute exposure per gap,
-    consulting the appropriate pack's penalty model for the multiplier.
-  - When the user names a specific regulation ("what's our DPDP
-    exposure?"), filter `compliance_gaps` to `regulation='DPDP'` (or the
-    appropriate pack code) before computing.
+  - Use a CASE expression on `regulation` and `severity` to compute
+    exposure per gap, consulting the appropriate pack's penalty model
+    (higher-tier vs standard-tier) for the multiplier.
+  - When the user names a specific regulation ("what's our UK GDPR
+    exposure?"), filter `compliance_gaps` to `regulation='UK_GDPR'` (or
+    `regulation='EU_GDPR'`) before computing.
 
   **Remediation effort model** (rule of thumb, regulation-agnostic):
     critical = 40 hrs/gap, high = 16 hrs/gap, medium = 4 hrs/gap, low = 1 hr/gap
-  Blended rate ≈ ₹8,000/hr (or local equivalent) for labor cost.
+  Blended rate ≈ £75/hr for labor cost.
 
   **Out of scope**
   Do not discuss individual PII columns, individual principals, or
@@ -95,30 +96,35 @@ filters:
     synonyms: ["latest gaps", "current gaps", "most recent gap scan", "today"]
     instruction: "Apply when the user asks about 'current' or 'latest' exposure without naming a time window."
 
-  - name: dpdp_only_gaps
-    sql: "regulation='DPDP'"
-    synonyms: ["DPDP gaps", "India regulation", "excluding PCI"]
-    instruction: "Filters to DPDP Act-specific gaps, excluding PCI-DSS. Use when the CFO wants India-regulator-only exposure."
+  - name: eu_gdpr_only_gaps
+    sql: "regulation='EU_GDPR'"
+    synonyms: ["EU GDPR gaps", "EU regulation", "excluding PCI"]
+    instruction: "Filters to EU GDPR-specific gaps, excluding PCI-DSS and UK GDPR. Use when the CFO wants EU-regulator-only exposure."
+
+  - name: uk_gdpr_only_gaps
+    sql: "regulation='UK_GDPR'"
+    synonyms: ["UK GDPR gaps", "UK regulation", "excluding PCI"]
+    instruction: "Filters to UK GDPR-specific gaps, excluding PCI-DSS and EU GDPR. Use when the CFO wants UK-regulator-only exposure."
 
   - name: critical_gaps_only
     sql: "severity='critical'"
     synonyms: ["critical gaps", "top-severity gaps"]
-    instruction: "Critical-severity band (₹250 cr penalty ceiling per gap)."
+    instruction: "Critical-severity band (higher-tier penalty ceiling per gap: £17.5M / €20M)."
 
   - name: high_gaps_only
     sql: "severity='high'"
     synonyms: ["high gaps", "high-severity gaps"]
-    instruction: "High-severity band (₹150 cr penalty ceiling per gap)."
+    instruction: "High-severity band (higher-tier penalty ceiling per gap: £17.5M / €20M)."
 
   - name: critical_or_high_gaps
     sql: "severity IN ('critical','high')"
     synonyms: ["serious gaps", "priority exposure", "top-priority gaps"]
-    instruction: "Combined critical + high — the CFO's default exposure lens."
+    instruction: "Combined critical + high — the CFO's default exposure lens. Maps to the higher-tier penalty band."
 
   - name: medium_or_below_gaps
     sql: "severity IN ('medium','low')"
     synonyms: ["minor gaps", "medium and low"]
-    instruction: "Lower-tier gaps (≤ ₹50 cr per-gap ceiling). Usually deferred in prioritization."
+    instruction: "Lower-tier gaps (standard-tier penalty ceiling per gap: £8.7M / €10M). Usually deferred in prioritization."
 
 
 # ---------------------------------------------------------------------
@@ -145,25 +151,25 @@ measures:
     synonyms: ["medium gaps", "# medium"]
     instruction: "Medium-severity gap count."
 
-  - name: penalty_exposure_cr
-    sql: "ROUND(SUM(CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150 WHEN 'medium' THEN 50 WHEN 'low' THEN 5 ELSE 0 END), 1)"
-    synonyms: ["penalty exposure", "total exposure", "₹ exposure", "exposure in crore", "potential fine"]
-    instruction: "The signature CFO measure. Total ₹-denominated penalty exposure in crore. 1-decimal precision."
+  - name: penalty_exposure_eu_gdpr_eur_m
+    sql: "ROUND(SUM(CASE WHEN regulation='EU_GDPR' THEN CASE WHEN severity IN ('critical','high') THEN 20 WHEN severity IN ('medium','low') THEN 10 ELSE 0 END ELSE 0 END), 1)"
+    synonyms: ["EU GDPR exposure", "€ exposure", "exposure in euros", "EU penalty exposure"]
+    instruction: "EU GDPR penalty exposure in € million, using the higher-tier (€20M) / standard-tier (€10M) ceiling per gap. 1-decimal precision."
+
+  - name: penalty_exposure_uk_gdpr_gbp_m
+    sql: "ROUND(SUM(CASE WHEN regulation='UK_GDPR' THEN CASE WHEN severity IN ('critical','high') THEN 17.5 WHEN severity IN ('medium','low') THEN 8.7 ELSE 0 END ELSE 0 END), 1)"
+    synonyms: ["UK GDPR exposure", "£ exposure", "exposure in pounds", "UK penalty exposure"]
+    instruction: "UK GDPR penalty exposure in £ million, using the higher-tier (£17.5M) / standard-tier (£8.7M) ceiling per gap. 1-decimal precision."
 
   - name: remediation_hours
     sql: "SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 WHEN 'medium' THEN 4 WHEN 'low' THEN 1 ELSE 0 END)"
     synonyms: ["remediation hours", "labor hours", "effort hours", "time to fix"]
     instruction: "Total engineering hours required to remediate all gaps in the current filter scope."
 
-  - name: remediation_cost_inr
-    sql: "SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 WHEN 'medium' THEN 4 WHEN 'low' THEN 1 ELSE 0 END) * 8000"
-    synonyms: ["labor cost", "remediation cost rupees", "₹ labor", "cost in INR"]
-    instruction: "Total labor cost in ₹ at ₹8,000/hr blended rate. Returns plain rupees."
-
-  - name: remediation_cost_cr
-    sql: "ROUND(SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 WHEN 'medium' THEN 4 WHEN 'low' THEN 1 ELSE 0 END) * 8000 / 10000000.0, 3)"
-    synonyms: ["remediation cost", "labor cost crore", "cost in crore", "fix cost"]
-    instruction: "Labor cost expressed in ₹ crore (divides by 1 crore = 10,000,000). 3-decimal precision because costs are typically small multiples of lakhs."
+  - name: remediation_cost_gbp
+    sql: "SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 WHEN 'medium' THEN 4 WHEN 'low' THEN 1 ELSE 0 END) * 75"
+    synonyms: ["labor cost", "remediation cost pounds", "£ labor", "cost in GBP"]
+    instruction: "Total labor cost in £ at a £75/hr blended engineering rate. Returns plain pounds."
 
 
 # ---------------------------------------------------------------------
@@ -175,53 +181,52 @@ dimensions:
     synonyms: ["month", "gap month", "by month"]
     instruction: "Monthly grouping for trending exposure over time."
 
-  - name: penalty_ceiling_cr_per_gap
-    sql: "CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150 WHEN 'medium' THEN 50 WHEN 'low' THEN 5 ELSE 0 END"
+  - name: penalty_ceiling_m_per_gap
+    sql: "CASE WHEN regulation='EU_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END) WHEN regulation='UK_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END) ELSE NULL END"
     synonyms: ["penalty ceiling", "per-gap penalty", "ceiling per gap"]
-    instruction: "Per-row penalty ceiling in ₹ crore. Use to GROUP BY ceiling band or to annotate individual gaps with their exposure size."
+    instruction: "Per-row penalty ceiling in the pack's native currency (€ million for EU_GDPR, £ million for UK_GDPR), millions. NULL for regulations outside the GDPR packs (e.g. PCI-DSS). Use to GROUP BY ceiling band or to annotate individual gaps with their exposure size."
 
   - name: remediation_hours_per_gap
     sql: "CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 WHEN 'medium' THEN 4 WHEN 'low' THEN 1 ELSE 0 END"
     synonyms: ["hours per gap", "effort per gap", "per-gap hours"]
-    instruction: "Per-row remediation effort. Multiply by 8000 for ₹ cost per gap."
+    instruction: "Per-row remediation effort. Multiply by 75 for £ cost per gap."
 
 
 # ---------------------------------------------------------------------
 # SQL QUERIES — Example Queries tab (trusted assets)
 # ---------------------------------------------------------------------
 example_queries:
-  - question: "What is our total DPDP penalty exposure in ₹ crore?"
+  - question: "What is our total UK GDPR penalty exposure in £ million?"
     sql: |-
       SELECT
         COUNT(DISTINCT gap_id) AS open_gaps,
-        ROUND(SUM(CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                               WHEN 'medium' THEN 50  WHEN 'low' THEN 5 ELSE 0 END), 1)
-          AS penalty_exposure_cr
+        ROUND(SUM(CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END), 1)
+          AS penalty_exposure_gbp_m
       FROM compliance_pack.silver.compliance_gaps
-      WHERE regulation='DPDP'
+      WHERE regulation='UK_GDPR'
 
-  - question: "Show gap counts by severity with per-gap penalty ceilings and totals."
+  - question: "Show gap counts by regulation and severity with per-gap penalty ceilings and totals."
     sql: |-
-      SELECT severity,
+      SELECT regulation, severity,
              COUNT(DISTINCT gap_id) AS gap_count,
-             CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                           WHEN 'medium' THEN 50  WHEN 'low' THEN 5 END
-               AS penalty_per_gap_cr,
+             CASE WHEN regulation='EU_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END)
+                  WHEN regulation='UK_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END)
+                  ELSE NULL END AS penalty_per_gap_m,
              COUNT(DISTINCT gap_id) *
-             CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                           WHEN 'medium' THEN 50  WHEN 'low' THEN 5 END
-               AS severity_exposure_cr
+             CASE WHEN regulation='EU_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END)
+                  WHEN regulation='UK_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END)
+                  ELSE NULL END AS severity_exposure_m
       FROM compliance_pack.silver.compliance_gaps
-      GROUP BY severity
-      ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2
+      WHERE regulation IN ('EU_GDPR','UK_GDPR')
+      GROUP BY regulation, severity
+      ORDER BY regulation, CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2
                              WHEN 'medium'   THEN 3 ELSE 4 END
 
   - question: "What would it cost to remediate all critical gaps?"
     sql: |-
       SELECT COUNT(DISTINCT gap_id) AS critical_gaps,
              SUM(40) AS total_hours,
-             SUM(40) * 8000 AS labor_cost_inr,
-             ROUND(SUM(40) * 8000 / 10000000.0, 3) AS labor_cost_cr
+             SUM(40) * 75 AS labor_cost_gbp
       FROM compliance_pack.silver.compliance_gaps
       WHERE severity='critical'
 
@@ -230,8 +235,7 @@ example_queries:
       SELECT severity,
              COUNT(DISTINCT gap_id) AS gap_count,
              SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 END) AS hours,
-             SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 END) * 8000 AS cost_inr,
-             ROUND(SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 END) * 8000 / 10000000.0, 3) AS cost_cr
+             SUM(CASE severity WHEN 'critical' THEN 40 WHEN 'high' THEN 16 END) * 75 AS cost_gbp
       FROM compliance_pack.silver.compliance_gaps
       WHERE severity IN ('critical','high')
       GROUP BY severity
@@ -242,70 +246,77 @@ example_queries:
       SELECT g.table_name,
              d.row_count,
              COUNT(DISTINCT g.gap_id) AS gap_count,
-             ROUND(SUM(CASE g.severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                                       WHEN 'medium' THEN 50  WHEN 'low' THEN 5 ELSE 0 END), 1)
-               AS exposure_cr
+             ROUND(SUM(CASE WHEN g.regulation='EU_GDPR' THEN
+                              CASE WHEN g.severity IN ('critical','high') THEN 20 ELSE 10 END
+                            ELSE 0 END), 1) AS eu_gdpr_exposure_eur_m,
+             ROUND(SUM(CASE WHEN g.regulation='UK_GDPR' THEN
+                              CASE WHEN g.severity IN ('critical','high') THEN 17.5 ELSE 8.7 END
+                            ELSE 0 END), 1) AS uk_gdpr_exposure_gbp_m
       FROM compliance_pack.silver.compliance_gaps g
       LEFT JOIN compliance_pack.silver.discovered_tables d
         ON g.table_name = d.table_name
       GROUP BY g.table_name, d.row_count
-      ORDER BY exposure_cr DESC
+      ORDER BY eu_gdpr_exposure_eur_m + uk_gdpr_exposure_gbp_m DESC
 
   - question: "How does our exposure break down by rule type?"
     sql: |-
       SELECT rule_type, regulation,
              COUNT(DISTINCT gap_id) AS gap_count,
-             ROUND(SUM(CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                                     WHEN 'medium' THEN 50  WHEN 'low' THEN 5 ELSE 0 END), 1)
-               AS exposure_cr
+             ROUND(SUM(CASE WHEN regulation='EU_GDPR' THEN
+                              CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END
+                            WHEN regulation='UK_GDPR' THEN
+                              CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END
+                            ELSE 0 END), 1) AS exposure_m
       FROM compliance_pack.silver.compliance_gaps
       GROUP BY rule_type, regulation
-      ORDER BY exposure_cr DESC
+      ORDER BY exposure_m DESC
 
-  - question: "What's the ROI of remediation — penalty avoided vs labor cost?"
+  - question: "What's the ROI of remediation — penalty avoided vs labor cost, for UK GDPR?"
     sql: |-
       WITH totals AS (
         SELECT
-          ROUND(SUM(CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                                  WHEN 'medium' THEN 50  WHEN 'low' THEN 5 ELSE 0 END), 1)
-            AS penalty_exposure_cr,
+          ROUND(SUM(CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END), 1)
+            AS penalty_exposure_gbp_m,
           ROUND(SUM(CASE severity WHEN 'critical' THEN 40  WHEN 'high' THEN 16
                                   WHEN 'medium' THEN 4    WHEN 'low' THEN 1 ELSE 0 END)
-                * 8000 / 10000000.0, 3) AS labor_cost_cr
+                * 75 / 1000000.0, 3) AS labor_cost_gbp_m
         FROM compliance_pack.silver.compliance_gaps
+        WHERE regulation='UK_GDPR'
       )
-      SELECT penalty_exposure_cr, labor_cost_cr,
-             ROUND(penalty_exposure_cr - labor_cost_cr, 1) AS net_value_cr,
-             CASE WHEN labor_cost_cr > 0
-                  THEN ROUND(penalty_exposure_cr / labor_cost_cr, 0)
+      SELECT penalty_exposure_gbp_m, labor_cost_gbp_m,
+             ROUND(penalty_exposure_gbp_m - labor_cost_gbp_m, 1) AS net_value_gbp_m,
+             CASE WHEN labor_cost_gbp_m > 0
+                  THEN ROUND(penalty_exposure_gbp_m / labor_cost_gbp_m, 0)
                   ELSE NULL END AS roi_multiple
       FROM totals
 
-  - question: "Compare DPDP-only exposure to total (separate out PCI-DSS)."
+  - question: "Compare GDPR exposure to total (separate out PCI-DSS)."
     sql: |-
       SELECT regulation,
              COUNT(DISTINCT gap_id) AS gap_count,
-             ROUND(SUM(CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                                     WHEN 'medium' THEN 50  WHEN 'low' THEN 5 ELSE 0 END), 1)
-               AS exposure_cr
+             ROUND(SUM(CASE WHEN regulation='EU_GDPR' THEN
+                              CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END
+                            WHEN regulation='UK_GDPR' THEN
+                              CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END
+                            ELSE NULL END), 1) AS exposure_m
       FROM compliance_pack.silver.compliance_gaps
       GROUP BY regulation
-      ORDER BY exposure_cr DESC
+      ORDER BY exposure_m DESC NULLS LAST
 
-  - question: "Which single table gives us the biggest exposure?"
+  - question: "Which single table gives us the biggest UK GDPR exposure?"
     sql: |-
       SELECT g.table_name,
              d.row_count,
              d.column_count,
              COUNT(DISTINCT g.gap_id) AS gap_count,
-             ROUND(SUM(CASE g.severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150
-                                       WHEN 'medium' THEN 50  WHEN 'low' THEN 5 ELSE 0 END), 1)
-               AS exposure_cr
+             ROUND(SUM(CASE WHEN g.severity IN ('critical','high') THEN 17.5 ELSE 8.7 END), 1)
+               AS exposure_gbp_m
       FROM compliance_pack.silver.compliance_gaps g
       LEFT JOIN compliance_pack.silver.discovered_tables d
         ON g.table_name = d.table_name
+      WHERE g.regulation='UK_GDPR'
       GROUP BY g.table_name, d.row_count, d.column_count
-      ORDER BY exposure_cr DESC
+      ORDER BY exposure_gbp_m DESC
       LIMIT 1
 
 
