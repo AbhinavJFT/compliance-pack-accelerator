@@ -104,19 +104,20 @@ def test_compose_for_persona_default_auto_compose_true() -> None:
 # DPIA template merge
 # ---------------------------------------------------------------------------
 
-def test_template_for_activity_in_only_picks_dpdp() -> None:
-    """Indian principals only → DPDP template unchanged."""
-    tpl = template_for_activity(["IN", "IN", "IN"])
+def test_template_for_activity_eu_only_picks_eu_gdpr() -> None:
+    """EU principals only → EU GDPR template unchanged."""
+    tpl = template_for_activity(["EU", "EU", "EU"])
     assert tpl is not None
-    # DPDP framework name is "Digital Personal Data Protection Act, 2023 (India)";
-    # citation style is "DPDP §<section_number>" — assert against the
-    # discriminating substrings, not the abbreviation alone.
-    assert "Digital Personal Data Protection Act" in tpl.legal_framework_name, (
+    # EU GDPR framework name is "EU General Data Protection Regulation
+    # (Regulation (EU) 2016/679)"; citation style is "EU GDPR Art.
+    # <article_number>" — assert against the discriminating substrings,
+    # not the abbreviation alone (which UK GDPR's name also contains).
+    assert "Regulation (EU) 2016/679" in tpl.legal_framework_name, (
         f"unexpected framework name: {tpl.legal_framework_name!r}"
     )
-    assert "DPDP §" in tpl.section_citation_style
+    assert "EU GDPR Art." in tpl.section_citation_style
     assert "Multi-regulation scope" not in tpl.system_prompt
-    print(f"  ✓ IN-only activity → DPDP template, no multi-pack augmentation")
+    print(f"  ✓ EU-only activity → EU GDPR template, no multi-pack augmentation")
 
 
 def test_template_for_activity_gb_only_picks_uk_gdpr() -> None:
@@ -129,24 +130,24 @@ def test_template_for_activity_gb_only_picks_uk_gdpr() -> None:
     print("  ✓ GB-only activity → UK GDPR template, no multi-pack augmentation")
 
 
-def test_template_for_activity_in_and_gb_merges() -> None:
+def test_template_for_activity_eu_and_gb_merges() -> None:
     """Both jurisdictions present → merged template citing both packs."""
-    tpl = template_for_activity(["IN", "GB"])
+    tpl = template_for_activity(["EU", "GB"])
     assert tpl is not None
-    # Joined framework name "DPDP Act ... + UK GDPR ..."
-    assert "Digital Personal Data Protection Act" in tpl.legal_framework_name
+    # Joined framework name "EU GDPR ... + UK GDPR ..."
+    assert "Regulation (EU) 2016/679" in tpl.legal_framework_name
     assert "UK General Data Protection Regulation" in tpl.legal_framework_name or "Data Protection Act 2018" in tpl.legal_framework_name
     # Multi-regulation augmentation present in system_prompt
     assert "Multi-regulation scope" in tpl.system_prompt
-    # Primary pack drives citation style (DPDP is hoisted first in loaded_packs)
-    assert "DPDP §" in tpl.section_citation_style
+    # Primary pack drives citation style (eu_gdpr is hoisted first in loaded_packs — DEFAULT_PACK_CODE)
+    assert "EU GDPR Art." in tpl.section_citation_style
     # At least one section description carries the cross-reference marker
     has_cross_ref = any(
         "Secondary regulation reference" in v
         for v in tpl.section_descriptions.values()
     )
     assert has_cross_ref, "merged template missing 'Secondary regulation reference' annotation"
-    print("  ✓ IN+GB activity → merged template (DPDP primary, UK GDPR secondary cross-ref)")
+    print("  ✓ EU+GB activity → merged template (EU GDPR primary, UK GDPR secondary cross-ref)")
 
 
 def test_template_for_activity_null_only_returns_none() -> None:
@@ -158,19 +159,19 @@ def test_template_for_activity_null_only_returns_none() -> None:
 
 
 def test_template_for_activity_mixed_with_unmapped_ignores_null() -> None:
-    """Mix of IN + None → drops None, returns DPDP template."""
-    tpl = template_for_activity(["IN", None, "IN"])
+    """Mix of EU + None → drops None, returns EU GDPR template."""
+    tpl = template_for_activity(["EU", None, "EU"])
     assert tpl is not None
-    assert "Digital Personal Data Protection Act" in tpl.legal_framework_name
+    assert "Regulation (EU) 2016/679" in tpl.legal_framework_name
     assert "Multi-regulation scope" not in tpl.system_prompt
     print("  ✓ NULL jurisdictions are filtered out of the pack-resolution set")
 
 
 def test_template_for_activity_unknown_jurisdiction_skipped() -> None:
     """Unknown code (e.g., 'ZZ') is skipped; remaining mapped jurisdictions win."""
-    tpl = template_for_activity(["ZZ", "IN"])
+    tpl = template_for_activity(["ZZ", "EU"])
     assert tpl is not None
-    assert "Digital Personal Data Protection Act" in tpl.legal_framework_name
+    assert "Regulation (EU) 2016/679" in tpl.legal_framework_name
     print("  ✓ unknown jurisdiction codes are skipped without breaking the resolver")
 
 
@@ -187,9 +188,9 @@ def main() -> int:
         test_compose_no_packs_returns_base_unchanged,
         test_compose_for_persona_honours_auto_compose_false,
         test_compose_for_persona_default_auto_compose_true,
-        test_template_for_activity_in_only_picks_dpdp,
+        test_template_for_activity_eu_only_picks_eu_gdpr,
         test_template_for_activity_gb_only_picks_uk_gdpr,
-        test_template_for_activity_in_and_gb_merges,
+        test_template_for_activity_eu_and_gb_merges,
         test_template_for_activity_null_only_returns_none,
         test_template_for_activity_mixed_with_unmapped_ignores_null,
         test_template_for_activity_unknown_jurisdiction_skipped,
