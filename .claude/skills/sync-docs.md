@@ -1,6 +1,6 @@
 ---
 name: sync-docs
-description: Audit every DPDP-POC doc that might reference a just-landed change and update the stale ones in a single pass. Run this after any commit that changes behavior, tests, or the deploy path.
+description: Audit every Compliance Pack POC doc that might reference a just-landed change and update the stale ones in a single pass. Run this after any commit that changes behavior, tests, or the deploy path.
 ---
 
 # sync-docs — keep the Compliance Pack POC docs consistent after a change
@@ -11,7 +11,7 @@ any substantive change.
 
 ## When to run
 
-Invoke `/dpdp:sync-docs` (or call this skill directly from a prompt) when
+Invoke `/sync-docs` (or call this skill directly from a prompt) when
 you've just:
 
 - Added or renamed a script under `scripts/` or `pipelines/`

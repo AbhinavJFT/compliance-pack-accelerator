@@ -12,34 +12,34 @@ This file provides context for Claude Code or any AI assistant working on this r
 
 **Compliance Pack Accelerator** — a Databricks-native compliance platform
 that handles multiple data-protection regulations through pluggable
-"regulation packs". Each pack (DPDP India 2023, UK GDPR, EU GDPR, CCPA,
-…) is a directory of yaml files plus a small region-specific PII-pattern
-module. Compliance applies *per data subject* — each principal's
-jurisdiction routes to the pack that governs them — so an Indian SaaS
-with UK clients applies DPDP rules to Indian principals and UK GDPR
-rules to UK principals, simultaneously, in the same database. See
+"regulation packs". Each pack (UK GDPR, EU GDPR, …) is a directory of
+yaml files plus a small region-specific PII-pattern module. Compliance
+applies *per data subject* — each principal's jurisdiction routes to
+the pack that governs them — so a UK-based SaaS with EU clients applies
+UK GDPR rules to UK principals and EU GDPR rules to EU principals,
+simultaneously, in the same database. See
 [ADR-0001](docs/adr/0001-multi-jurisdiction-data-subject-routing.md)
-for why.
+for why. This deployment is scoped to UK and Europe — the India (DPDP)
+and US (CCPA) packs originally in this platform have been removed.
 
 ## Current State (as of May 2026)
 
-### What's Built and Live (4-pack multi-jurisdiction deployment)
+### What's Built and Live (2-pack multi-jurisdiction deployment)
 
 Everything below is deployed and queryable on the Databricks workspace.
-DPDP / UK GDPR / EU GDPR are live in the workspace; CCPA is authored
-locally and MERGEs into bronze on the next bundle deploy.
+UK GDPR and EU GDPR are both live in the workspace.
 
 | Component | State | Key Detail |
 |---|---|---|
-| PII Discovery (Module 01) | COMPLETE | 36 findings across 10 silver objects · universal patterns + 5 IN-specific + 5 UK-specific + 8 EU-specific + 7 US-specific PII patterns active · AI free-text classifier (`pipelines/pii_ai_scan.py`, daily, per-row state in `compliance.pii_ai_scan_row_state`) bridged via `silver.pii_findings_all` |
+| PII Discovery (Module 01) | COMPLETE | Universal patterns + 5 UK-specific + 8 EU-specific PII patterns active · AI free-text classifier (`pipelines/pii_ai_scan.py`, daily, per-row state in `compliance.pii_ai_scan_row_state`) bridged via `silver.pii_findings_all` |
 | Consent Intelligence (Module 02) | COMPLETE | 1,000 events in Delta (no Lakebase — not available in trial) |
-| Compliance Audit (Module 05) | COMPLETE | 51 multi-pack rules across 4 packs (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA), 818 gaps tagged by source pack, per-row routing, pack semver in DPIA prompts |
+| Compliance Audit (Module 05) | COMPLETE | 26 multi-pack rules across 2 packs (12 UK GDPR + 14 EU GDPR), gaps tagged by source pack, per-row routing, pack semver in DPIA prompts |
 | Agent Bricks | COMPLETE | DPIA generator (pack-version-stamped prompts), Compliance Q&A, PII classifier |
 | DPIA Generator (productionised) | COMPLETE | Quarterly cron + structured pydantic output + GC/CCO approval flow + Databricks Review App + multi-regulator citation merge across loaded packs · pipeline auto-derives applicable packs from `jurisdiction_breakdown` (no hardcoded pack) · `dpia_runs.regulation_packs ARRAY<STRING>` records contributors |
 | Dashboard | COMPLETE | 10-page Lakeview dashboard + jurisdiction filter on Executive Overview + unmapped-principals counter tile (ADR-0001 Q3) |
 | Data Source Onboarding | COMPLETE | Notebook with Federation/Lakeflow/Auto Loader patterns |
-| Synthetic Data | COMPLETE | Seed=42, deterministic, mixed-jurisdiction 70/25/5 IN/GB/unmapped (3,503 IN + 1,258 GB + 239 NULL customers live) |
-| Regulation-Pack Framework (ADR-0001) | COMPLETE | `governance_core/` + 4 packs in `regulations/`. Multi-pack loader, per-data-subject rule routing, pack semver (Q2), loader-side jurisdiction validation (Q3). M1–M4 + Q2/Q3/EU/CCPA all merged. |
+| Synthetic Data | COMPLETE | Seed=42, deterministic, mixed-jurisdiction 60/35/5 GB/EU/unmapped |
+| Regulation-Pack Framework (ADR-0001) | COMPLETE | `governance_core/` + 2 packs in `regulations/`. Multi-pack loader, per-data-subject rule routing, pack semver (Q2), loader-side jurisdiction validation (Q3). M1–M4 + Q2/Q3 all merged. |
 
 ### What's NOT Built (Phase 1 scope)
 
@@ -166,7 +166,7 @@ databricks api post /api/2.0/lakeview/dashboards/<dashboard_id>/published \
 Whenever you land code, SQL, or config that changes BEHAVIOR, TESTS, or the
 DEPLOY PATH, audit these docs in one pass before committing. Miss any of
 them and the next teammate hits a surprise. Invoke the skill via
-`/dpdp:sync-docs` for a systematic walk-through, or run this checklist
+`/sync-docs` for a systematic walk-through, or run this checklist
 manually:
 
 | Doc | Update when... |
@@ -195,11 +195,12 @@ region-specific PII patterns) live in `regulations/<REGULATION_PACK>/`.
 Regulation-agnostic code + universal PII patterns live in `governance_core/`.
 Switching packs is one env var + `bundle run phase1_bootstrap` — no code edit.
 
-- `REGULATION_PACK` env var (default `dpdp_2023`) selects the active pack
+- `REGULATION_PACK` env var (default `eu_gdpr`) selects the active pack
 - `governance_core/pack_loader.py` is the single entry point (typed accessors)
 - `schemas/pii_patterns.py` is a composition shim — still the one import for consumers
-- Current pack under `regulations/dpdp_2023/` has 9 yaml files + `pii_patterns.py`
-- To add a new pack (UK GDPR, CCPA, PIPEDA): copy `dpdp_2023/` as template,
+- Current packs under `regulations/eu_gdpr/` and `regulations/uk_gdpr/` each have
+  11 yaml files + `pii_patterns.py`
+- To add a new pack (e.g. PIPEDA): copy `eu_gdpr/` as template,
   rewrite each yaml/py with regulation-specific values. Zero code edits needed
   outside `regulations/<new_code>/`. Contract in `regulations/README.md`.
 
@@ -210,7 +211,7 @@ Framework overview: `docs/modular_framework.html`.
 - `schemas/pii_patterns.py` — the 16-pattern library is referenced by classification scripts
 - `schemas/bronze.sql` and `schemas/silver.sql` — column names must match the generator output exactly
 - `generate_synthetic_data.py` — changing this changes the DSR principal's footprint; update tests accordingly
-- `dashboards/dpdp_compliance.lvdash.json` — 177K file, adapted from accelerator; edit via API, not by hand
+- `dashboards/compliance_overview.lvdash.json` — 177K file, adapted from accelerator; edit via API, not by hand
 
 ## Origin
 
