@@ -7,17 +7,19 @@ phase1_bootstrap to have been run after the M4 cut-over.
 
 What's asserted:
   - silver.customers_tagged carries the `jurisdiction` column with both
-    IN and GB values present (the M2 70/25/5 mix).
-  - bronze.compliance_rules contains rules from BOTH dpdp_2023 and uk_gdpr
-    (M2 multi-pack loader).
+    GB and EU values present (the 60/35/5 GB/EU/unmapped mix).
+  - bronze.compliance_rules contains rules from BOTH eu_gdpr and uk_gdpr
+    (multi-pack loader).
   - silver.compliance_gaps contains gaps tagged with regulation_pack from
-    both packs (M2 multi-pack gap engine).
-  - Retention semantics differ per pack: pack_for('IN') returns 730d
-    marketing retention; pack_for('GB') returns 90d (loaded via the
-    pack_loader, not from the workspace).
+    both packs (multi-pack gap engine).
+  - Per-jurisdiction divergence: pack_for('EU') and pack_for('GB') resolve
+    to different packs with different penalty models (€20M vs £17.5M
+    higher-tier ceiling, different currencies) — loaded via the
+    pack_loader, not from the workspace.
 
-Run pre- or post-deploy. If the workspace hasn't been cut over to M2+ yet,
-the test fails clearly identifying which assertion couldn't be satisfied.
+Run pre- or post-deploy. If the workspace hasn't been cut over to the
+current pack set yet, the test fails clearly identifying which assertion
+couldn't be satisfied.
 """
 
 from __future__ import annotations
@@ -77,21 +79,21 @@ def main() -> int:
     passed = 0
     failed = 0
 
-    # 1. customers_tagged has both IN and GB jurisdiction values
+    # 1. customers_tagged has both GB and EU jurisdiction values
     rows = _sql(
         "SELECT jurisdiction, COUNT(*) FROM compliance_pack.silver.customers_tagged "
         "GROUP BY jurisdiction ORDER BY 2 DESC"
     )
     jur_mix = {r[0]: int(r[1]) for r in rows}
-    in_count = jur_mix.get("IN", 0)
     gb_count = jur_mix.get("GB", 0)
-    if _check(f"silver.customers_tagged has IN principals (count={in_count})",
-              in_count >= 100):
+    eu_count = jur_mix.get("EU", 0)
+    if _check(f"silver.customers_tagged has GB principals (count={gb_count})",
+              gb_count >= 100):
         passed += 1
     else:
         failed += 1
-    if _check(f"silver.customers_tagged has GB principals (count={gb_count})",
-              gb_count >= 100):
+    if _check(f"silver.customers_tagged has EU principals (count={eu_count})",
+              eu_count >= 100):
         passed += 1
     else:
         failed += 1
@@ -102,15 +104,15 @@ def main() -> int:
         "GROUP BY regulation_pack"
     )
     rule_mix = {r[0]: int(r[1]) for r in rows}
-    dpdp_rules = rule_mix.get("dpdp_2023", 0)
+    eu_rules = rule_mix.get("eu_gdpr", 0)
     uk_rules = rule_mix.get("uk_gdpr", 0)
-    if _check(f"bronze.compliance_rules has DPDP rules (count={dpdp_rules})",
-              dpdp_rules >= 9):
+    if _check(f"bronze.compliance_rules has EU GDPR rules (count={eu_rules})",
+              eu_rules >= 14):
         passed += 1
     else:
         failed += 1
     if _check(f"bronze.compliance_rules has UK GDPR rules (count={uk_rules})",
-              uk_rules >= 8):
+              uk_rules >= 12):
         passed += 1
     else:
         failed += 1
@@ -121,10 +123,10 @@ def main() -> int:
         "GROUP BY regulation_pack ORDER BY 2 DESC"
     )
     gap_mix = {r[0]: int(r[1]) for r in rows}
-    dpdp_gaps = gap_mix.get("dpdp_2023", 0)
+    eu_gaps = gap_mix.get("eu_gdpr", 0)
     uk_gaps = gap_mix.get("uk_gdpr", 0)
-    if _check(f"silver.compliance_gaps tagged with dpdp_2023 (count={dpdp_gaps})",
-              dpdp_gaps >= 50):
+    if _check(f"silver.compliance_gaps tagged with eu_gdpr (count={eu_gaps})",
+              eu_gaps >= 50):
         passed += 1
     else:
         failed += 1
@@ -134,13 +136,17 @@ def main() -> int:
     else:
         failed += 1
 
-    # 4. Per-jurisdiction retention semantics — pack-loader-side assertion,
-    #    proves the architecture's per-row decision rule.
-    in_pack = pack_for("IN")
+    # 4. Per-jurisdiction divergence — pack-loader-side assertion, proves
+    #    the architecture's per-row decision rule. Retention defaults are
+    #    identical between eu_gdpr and uk_gdpr in this repo (UK GDPR
+    #    retained EU GDPR's provisions closely), so the discriminating
+    #    signal is the penalty model instead: different ceiling amounts
+    #    AND different currencies.
+    eu_pack = pack_for("EU")
     gb_pack = pack_for("GB")
-    if _check("pack_for('IN') resolves to dpdp_2023",
-              in_pack is not None and in_pack.code == "dpdp_2023",
-              f"got {in_pack.code if in_pack else None!r}"):
+    if _check("pack_for('EU') resolves to eu_gdpr",
+              eu_pack is not None and eu_pack.code == "eu_gdpr",
+              f"got {eu_pack.code if eu_pack else None!r}"):
         passed += 1
     else:
         failed += 1
@@ -151,25 +157,25 @@ def main() -> int:
     else:
         failed += 1
 
-    in_marketing = in_pack.retention_default("marketing_email") if in_pack else -1
-    gb_marketing = gb_pack.retention_default("marketing_email") if gb_pack else -1
+    eu_penalty = (eu_pack.metadata.get("max_penalty") or [{}])[0] if eu_pack else {}
+    gb_penalty = (gb_pack.metadata.get("max_penalty") or [{}])[0] if gb_pack else {}
     if _check(
-        f"DPDP marketing retention = 730d (IN principals), got {in_marketing}",
-        in_marketing == 730,
+        f"EU GDPR higher-tier penalty = €20M, got {eu_penalty.get('amount')} {eu_penalty.get('currency')}",
+        eu_penalty.get("amount") == 20_000_000 and eu_penalty.get("currency") == "EUR",
     ):
         passed += 1
     else:
         failed += 1
     if _check(
-        f"UK GDPR marketing retention = 90d (GB principals), got {gb_marketing}",
-        gb_marketing == 90,
+        f"UK GDPR higher-tier penalty = £17.5M, got {gb_penalty.get('amount')} {gb_penalty.get('currency')}",
+        gb_penalty.get("amount") == 17_500_000 and gb_penalty.get("currency") == "GBP",
     ):
         passed += 1
     else:
         failed += 1
     if _check(
-        f"Per-jurisdiction divergence proven: {in_marketing}d (IN) vs {gb_marketing}d (GB)",
-        in_marketing != gb_marketing,
+        f"Per-jurisdiction divergence proven: {eu_penalty.get('currency')} vs {gb_penalty.get('currency')}",
+        eu_penalty.get("currency") != gb_penalty.get("currency"),
     ):
         passed += 1
     else:
