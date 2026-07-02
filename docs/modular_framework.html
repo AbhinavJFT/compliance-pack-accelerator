@@ -104,7 +104,7 @@
   <div class="subtitle">Current architecture · How the structure makes new regulations a config change · UK integration walkthrough</div>
 </div>
 
-<p>The accelerator started as a DPDP-India compliance POC. A recent refactor turned it
+<p>The accelerator started as a single-regulation compliance POC. A refactor turned it
 into a <strong>regulation-adaptive governance platform on the lakehouse</strong>: the
 core code knows nothing about any specific regulation, and every regulation-specific
 value lives in a single directory. Adding a new regulation is a configuration change,
@@ -161,8 +161,8 @@ specific configuration; Layer 4 is the user-facing skin.</p>
 <h2>Directory map</h2>
 
 <p>Where each layer physically lives in the repo. The <code>regulations/</code>
-directory is the extension point: 4 packs sit there today (DPDP / UK GDPR / EU GDPR /
-CCPA, all live), each at semver v1.0.0; all are loaded simultaneously, with per-row
+directory is the extension point: 2 packs sit there today (UK GDPR / EU GDPR,
+both live), each at semver v1.0.0; both are loaded simultaneously, with per-row
 routing by <code>jurisdiction</code> column (see
 <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a>).</p>
 
@@ -177,12 +177,10 @@ routing by <code>jurisdiction</code> column (see
 │   └── pii_patterns/
 │       └── universal.py               <span class="comment">   11 universal PIIPatterns</span>
 │
-├── regulations/                       <span class="comment">← Layer 3 — 4 packs live (DPDP / UK / EU / CCPA, all v1.0.0)</span>
+├── regulations/                       <span class="comment">← Layer 3 — 2 packs live (UK / EU, both v1.0.0)</span>
 │   │
-│   ├── dpdp_2023/                     <span class="comment">── India (DPDP 2023): 9 rules · 5 India PII patterns · 10 Indian languages</span>
 │   ├── uk_gdpr/                       <span class="comment">── UK (UK GDPR + DPA 2018): 12 rules · NHS/NINO/UTR · en-GB+cy-GB+gd-GB</span>
-│   ├── eu_gdpr/                       <span class="comment">── EU/EEA (Reg. (EU) 2016/679): 14 rules · IBAN/EU VAT/DE-FR-IT-ES IDs · 24 EU languages</span>
-│   └── ccpa/                          <span class="comment">── California (CCPA/CPRA): 16 rules · SSN/ITIN/EIN/DL/passport · 12 California-prevalent languages</span>
+│   └── eu_gdpr/                       <span class="comment">── EU/EEA (Reg. (EU) 2016/679): 14 rules · IBAN/EU VAT/DE-FR-IT-ES IDs · 24 EU languages</span>
 │
 │   Each pack ships the same 10 files: pack.yaml (with `version:`) · rules.yaml ·
 │   rights.yaml · notices.yaml · retention_defaults.yaml · residency.yaml ·
@@ -211,19 +209,20 @@ routing by <code>jurisdiction</code> column (see
 <p>Two observations that make the modularity visible:</p>
 <ul>
   <li><strong>Only <code>regulations/</code> grows</strong> when a new regulation is
-  added. Each new pack is 9–10 files (1 Python module + 8 YAMLs + 1 dpia_template.yaml)
-  next to its siblings — no file under any other directory changes. The current
-  4-pack live state proved this: EU GDPR (Apr 2026) and CCPA (May 2026) shipped without
+  added. Each new pack is 9–11 files (1 Python module + 8-10 YAMLs + 1 dpia_template.yaml)
+  next to its siblings — no file under any other directory changes. The platform's
+  multi-pack history proved this: UK GDPR and EU GDPR both shipped without
   a single edit to <code>governance_core/</code>, <code>pipelines/</code>, or
   <code>schemas/</code>.</li>
   <li><strong>All packs in <code>regulations/</code> are loaded simultaneously.</strong>
   Each customer-level row carries a <code>jurisdiction</code> column that routes rule
-  evaluation to the pack governing that principal. An Indian SaaS with UK + EU +
-  California clients runs <code>dpdp_2023</code> + <code>uk_gdpr</code> +
-  <code>eu_gdpr</code> + <code>ccpa</code> active in the same workspace, applying
-  DPDP rules to Indian principals (730-day retention), UK GDPR to UK principals
-  (90-day), EU GDPR to EU principals (90-day, with member-state statutory overrides),
-  and CCPA to California principals (90-day plus opt-out-of-sale) — same database.
+  evaluation to the pack governing that principal. A UK-based SaaS with UK + EU
+  clients runs <code>uk_gdpr</code> +
+  <code>eu_gdpr</code> active in the same workspace, applying
+  UK GDPR to UK principals
+  (90-day retention), and EU GDPR to EU principals (90-day, with member-state statutory overrides)
+  — same database. Adding a third jurisdiction (e.g. PIPEDA for Canada) is the same
+  9–11-file authoring exercise, with no re-architecture required.
   See <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a> for the
   per-data-subject routing design and 24 enumerated edge cases. (Earlier drafts of this
   doc described a single-pack-active model selected by a <code>REGULATION_PACK</code>
@@ -288,10 +287,10 @@ the pack loader.</p>
     <span class="keyword">for</span> rule <span class="keyword">in</span> pack.rules(): ...
 
 <span class="comment"># Per-row routing — pick the pack governing this principal:</span>
-pack = pack_for(jurisdiction=<span class="string">"IN"</span>)
-retention_days = pack.retention_default(purpose=<span class="string">"marketing_email"</span>)  <span class="comment"># 730 (DPDP)</span>
 pack = pack_for(jurisdiction=<span class="string">"GB"</span>)
-retention_days = pack.retention_default(purpose=<span class="string">"marketing_email"</span>)  <span class="comment"># 90 (UK GDPR)</span></pre>
+retention_days = pack.retention_default(purpose=<span class="string">"marketing_email"</span>)  <span class="comment"># 90 (UK GDPR)</span>
+pack = pack_for(jurisdiction=<span class="string">"EU"</span>)
+retention_days = pack.retention_default(purpose=<span class="string">"marketing_email"</span>)  <span class="comment"># 90 (EU GDPR)</span></pre>
 
 <p>Adding a regulation is a one-touch operation — author a pack directory under
 <code>regulations/</code>, redeploy. Nothing under <code>pipelines/</code>,
@@ -300,86 +299,82 @@ to any principal whose <code>jurisdiction</code> matches its declared
 <code>jurisdiction</code> code.</p>
 
 <!-- ================================================================== -->
-<h2>Integrating the UK data protection regime (walkthrough)</h2>
+<h2>Integrating a new jurisdiction (PIPEDA walkthrough)</h2>
 
-<p>Concrete demonstration. The POC currently ships DPDP-India only; the example below
-is what a UK pack would look like when that phase begins. It shows the <em>entire</em>
-authoring surface — nothing outside this directory would change.</p>
+<p>Concrete demonstration. The platform currently ships UK GDPR + EU GDPR, both live;
+the example below is what a Canadian PIPEDA pack would look like when that phase
+begins. It shows the <em>entire</em> authoring surface — nothing outside this
+directory would change.</p>
 
 <h3>Directory layout</h3>
 
 <pre>regulations/
-├── dpdp_2023/                      <span class="comment">← already shipped (India)</span>
-└── uk_gdpr/                        <span class="comment">← authored when the UK phase begins</span>
-    ├── pack.yaml                   <span class="comment">jurisdiction=GB, ICO, £17.5M ceiling</span>
-    ├── rules.yaml                  <span class="comment">rules keyed to DPA 2018 + UK GDPR articles</span>
-    ├── rights.yaml                 <span class="comment">7 rights activated</span>
-    ├── notices.yaml                <span class="comment">en-GB body, consent legal basis</span>
-    ├── retention_defaults.yaml     <span class="comment">per-purpose retention (storage limitation)</span>
-    ├── residency.yaml              <span class="comment">UK + adequacy list</span>
-    ├── breach_sla.yaml             <span class="comment">72h to ICO + high-risk subject notification</span>
-    ├── languages.yaml              <span class="comment">en-GB primary, cy-GB / gd-GB optional</span>
-    └── pii_patterns.py             <span class="comment">NHS number, NINO, UK postcode, UTR</span></pre>
+├── uk_gdpr/                        <span class="comment">← already shipped (UK)</span>
+├── eu_gdpr/                        <span class="comment">← already shipped (EU/EEA)</span>
+└── pipeda/                         <span class="comment">← authored when the Canada phase begins</span>
+    ├── pack.yaml                   <span class="comment">jurisdiction=CA, OPC, no fixed penalty ceiling (order-based)</span>
+    ├── rules.yaml                  <span class="comment">rules keyed to PIPEDA's 10 Fair Information Principles</span>
+    ├── rights.yaml                 <span class="comment">access + correction rights activated</span>
+    ├── notices.yaml                <span class="comment">en-CA / fr-CA body, meaningful-consent basis</span>
+    ├── retention_defaults.yaml     <span class="comment">per-purpose retention</span>
+    ├── residency.yaml              <span class="comment">Canada + adequacy list</span>
+    ├── breach_sla.yaml             <span class="comment">"as soon as feasible" to OPC + affected individuals</span>
+    ├── languages.yaml              <span class="comment">en-CA primary, fr-CA required (Official Languages Act)</span>
+    └── pii_patterns.py             <span class="comment">SIN (Social Insurance Number), Canadian postal code</span></pre>
 
 <h3>Representative pack contents</h3>
 
 <p><code>pack.yaml</code>:</p>
-<pre><span class="keyword">name</span>: <span class="string">"UK Data Protection Act 2018 (as amended by UK GDPR 2021)"</span>
-<span class="keyword">code</span>: uk_gdpr
-<span class="keyword">jurisdiction</span>: GB
-<span class="keyword">supervising_authority</span>: <span class="string">"Information Commissioner's Office (ICO)"</span>
-<span class="keyword">primary_locale</span>: en-GB
-<span class="keyword">max_penalty</span>:
-  - { amount: 17_500_000, currency: GBP, trigger: <span class="string">"higher-tier infringement"</span> }
-  - { amount:  8_700_000, currency: GBP, trigger: <span class="string">"standard infringement"</span> }
+<pre><span class="keyword">name</span>: <span class="string">"Personal Information Protection and Electronic Documents Act"</span>
+<span class="keyword">code</span>: pipeda
+<span class="keyword">jurisdiction</span>: CA
+<span class="keyword">supervising_authority</span>: <span class="string">"Office of the Privacy Commissioner of Canada (OPC)"</span>
+<span class="keyword">primary_locale</span>: en-CA
+<span class="keyword">penalty_structure</span>: order_based_no_fixed_ceiling
 <span class="keyword">activates</span>:
-  <span class="keyword">rights</span>: [access, rectification, erasure, portability, objection, restriction, no_auto_decision]
-  <span class="keyword">pii_pattern_packs</span>: [universal, uk]
-  <span class="keyword">minor_age</span>: 13
+  <span class="keyword">rights</span>: [access, rectification]
+  <span class="keyword">pii_pattern_packs</span>: [universal, ca]
+  <span class="keyword">minor_age</span>: <span class="keyword">null</span>
   <span class="keyword">consent_default</span>: opt_in</pre>
 
-<p><code>pii_patterns.py</code> (UK-specific):</p>
+<p><code>pii_patterns.py</code> (Canada-specific):</p>
 <pre><span class="keyword">from</span> governance_core.pii_patterns.universal <span class="keyword">import</span> PIIPattern, ...
 
-NHS_NUMBER = PIIPattern(
-    pattern_id=<span class="string">"nhs_number"</span>, category=CATEGORY_HEALTH, sensitivity=SENSITIVITY_CRITICAL,
-    regex_pattern=<span class="string">r"\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b"</span>,
-    column_hints=[<span class="string">"nhs"</span>, <span class="string">"nhs_number"</span>, <span class="string">"patient_nhs"</span>], ...)
+SIN = PIIPattern(
+    pattern_id=<span class="string">"ca_sin"</span>, category=CATEGORY_DIRECT_GOV, sensitivity=SENSITIVITY_CRITICAL,
+    regex_pattern=<span class="string">r"\b\d{3}[\s-]?\d{3}[\s-]?\d{3}\b"</span>,
+    column_hints=[<span class="string">"sin"</span>, <span class="string">"social_insurance_number"</span>], ...)
 
-NINO = PIIPattern(
-    pattern_id=<span class="string">"uk_nino"</span>, category=CATEGORY_DIRECT_GOV, sensitivity=SENSITIVITY_CRITICAL,
-    regex_pattern=<span class="string">r"\b[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]\b"</span>, ...)
+CA_POSTAL_CODE = PIIPattern(...)  <span class="comment"># A1A 1A1 format</span>
 
-UK_POSTCODE = PIIPattern(...)
-UTR         = PIIPattern(...)       <span class="comment"># Unique Taxpayer Reference</span>
+IN_SPECIFIC_PATTERNS = [SIN, CA_POSTAL_CODE]</pre>
 
-IN_SPECIFIC_PATTERNS = [NHS_NUMBER, NINO, UK_POSTCODE, UTR]</pre>
-
-<p>The other files (<code>rules.yaml</code> citing UK GDPR articles,
-<code>rights.yaml</code> activating 7 rights with SLAs, <code>residency.yaml</code>
-listing the UK + adequacy countries, etc.) follow the same straightforward yaml shape.</p>
+<p>The other files (<code>rules.yaml</code> citing PIPEDA's Fair Information
+Principles, <code>rights.yaml</code> activating the applicable rights with SLAs,
+<code>residency.yaml</code> listing Canada + adequacy countries, etc.) follow the
+same straightforward yaml shape.</p>
 
 <h3>Activation</h3>
 
-<pre><span class="comment"># Drop the pack files under regulations/uk_gdpr/, then redeploy.</span>
-<span class="comment"># All packs in regulations/ load simultaneously. UK principals (rows where</span>
-<span class="comment"># customers_tagged.jurisdiction = 'GB') automatically pick up UK GDPR rules</span>
-<span class="comment"># on next phase1_bootstrap run; Indian principals continue under DPDP.</span>
+<pre><span class="comment"># Drop the pack files under regulations/pipeda/, then redeploy.</span>
+<span class="comment"># All packs in regulations/ load simultaneously. Canadian principals (rows where</span>
+<span class="comment"># customers_tagged.jurisdiction = 'CA') automatically pick up PIPEDA rules</span>
+<span class="comment"># on next phase1_bootstrap run; UK and EU principals continue under their own packs.</span>
 databricks bundle run phase1_bootstrap --target dev</pre>
 
 <h3>What the deploy then produces</h3>
 
 <table>
   <thead>
-    <tr><th>Table / view</th><th>Before (DPDP)</th><th>After (UK)</th></tr>
+    <tr><th>Table / view</th><th>Before (UK + EU only)</th><th>After (+ PIPEDA)</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>bronze.compliance_rules</code></td><td>Rules citing DPDP Sec. 5, 8, 11, 16, 33</td><td>Rules citing UK GDPR Art. 5 / 17 / 32 + DPA 2018</td></tr>
-    <tr><td><code>compliance.notice_versions</code></td><td>3 seeded + 7 machine-translated Indian languages</td><td>en-GB primary + any locales declared in <code>languages.yaml</code></td></tr>
-    <tr><td><code>consent_events_log.retention_duration_days</code></td><td>Per-purpose DPDP values</td><td>Per-purpose UK values (storage-limitation)</td></tr>
-    <tr><td><code>compliance.residency_filter</code> UDF body</td><td><code>country IN ('India')</code></td><td><code>country IN ('United Kingdom', &hellip;)</code></td></tr>
-    <tr><td><code>silver.pii_findings</code></td><td>Includes Aadhaar, PAN, IFSC</td><td>Includes NHS Number, NINO, UK Postcode</td></tr>
-    <tr><td>DSR erasure audit trail</td><td><code>en-IN</code> locale + <code>"DPDP Sec. 12(b) right to erasure"</code></td><td><code>en-GB</code> locale + <code>"UK GDPR Art. 17 right to erasure"</code></td></tr>
+    <tr><td><code>bronze.compliance_rules</code></td><td>26 rules citing UK GDPR + EU GDPR articles</td><td>+ rules citing PIPEDA's Fair Information Principles</td></tr>
+    <tr><td><code>compliance.notice_versions</code></td><td>en-GB / en primary + machine-translated locales</td><td>+ en-CA / fr-CA locales declared in <code>languages.yaml</code></td></tr>
+    <tr><td><code>consent_events_log.retention_duration_days</code></td><td>Per-purpose UK/EU values (storage-limitation)</td><td>+ per-purpose PIPEDA values</td></tr>
+    <tr><td><code>compliance.residency_filter</code> UDF body</td><td><code>country IN ('United Kingdom', &hellip;)</code></td><td><code>country IN ('United Kingdom', 'Canada', &hellip;)</code></td></tr>
+    <tr><td><code>silver.pii_findings</code></td><td>Includes NHS Number, NINO, UK Postcode, IBAN, EU VAT</td><td>+ Includes SIN, Canadian Postal Code</td></tr>
+    <tr><td>DSR erasure audit trail</td><td><code>en-GB</code> locale + <code>"UK GDPR Art. 17 right to erasure"</code></td><td>+ <code>en-CA</code> locale + <code>"PIPEDA Principle 9 correction"</code> (PIPEDA has no direct erasure right)</td></tr>
   </tbody>
 </table>
 
