@@ -6,9 +6,8 @@
 -- patients_tagged) carry a `jurisdiction` column that drives per-data-subject
 -- rule routing — see ADR-0001 (docs/adr/0001-multi-jurisdiction-data-subject-routing.md).
 -- The DLT silver materialiser (pipelines/medallion.py) derives the value from
--- whatever country signal is available in the source row, falling back to
--- 'IN' for the M1-era synthetic data which is uniformly Indian. M2 introduces
--- a 70/25/5 IN/GB/unmapped split in the synthetic generators.
+-- whatever country signal is available in the source row. The synthetic
+-- generators produce a GB/EU/unmapped jurisdiction mix.
 
 -- ============================================================================
 -- employees_tagged
@@ -20,9 +19,6 @@ CREATE TABLE IF NOT EXISTS compliance_pack.silver.employees_tagged (
     email                   STRING,
     phone_number            STRING,
     date_of_birth           DATE,
-    aadhaar_number          STRING,
-    pan_number              STRING,
-    passport_number         STRING,
     address                 STRING,
     city                    STRING,
     state                   STRING,
@@ -31,7 +27,6 @@ CREATE TABLE IF NOT EXISTS compliance_pack.silver.employees_tagged (
     postal_code             STRING,
     salary                  DECIMAL(10,2),
     bank_account            STRING,
-    ifsc_code               STRING,
     department              STRING,
     designation             STRING,
     hire_date               DATE,
@@ -54,8 +49,6 @@ CREATE TABLE IF NOT EXISTS compliance_pack.silver.customers_tagged (
     email_address           STRING,
     mobile                  STRING,
     date_of_birth           DATE,
-    aadhaar_number          STRING,
-    pan_number              STRING,
     credit_card_number      STRING,
     cvv                     STRING,
     billing_address         STRING,
@@ -70,7 +63,7 @@ CREATE TABLE IF NOT EXISTS compliance_pack.silver.customers_tagged (
     last_activity_date      DATE,
     account_holder_name     STRING,
     ip_address              STRING,
-    jurisdiction            STRING,        -- ADR-0001 routing key (M1: hardcoded 'IN')
+    jurisdiction            STRING,        -- ADR-0001 routing key, derived from country
     _source_file            STRING      NOT NULL,
     _ingested_at            TIMESTAMP   NOT NULL,
     _source_hash            STRING      NOT NULL
@@ -89,7 +82,6 @@ CREATE TABLE IF NOT EXISTS compliance_pack.silver.patients_tagged (
     full_name               STRING,
     date_of_birth           DATE,
     gender                  STRING,
-    aadhaar_number          STRING,
     nhs_number              STRING,        -- UK GDPR special-category PII (Art. 9)
     phone                   STRING,
     email                   STRING,
