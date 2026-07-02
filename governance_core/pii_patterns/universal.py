@@ -4,16 +4,17 @@ Direct-identifier patterns that are universally classified as personal data:
 email, phone (international format), payment card, CVV, bank account, name,
 address, date of birth, IP address, medical record, insurance ID.
 
-Region-specific patterns (Aadhaar, PAN, NHS, SSN, SIN, ...) live in
+Region-specific patterns (NHS, NINO, VAT, IBAN, ...) live in
 `regulations/<pack>/pii_patterns.py` and are composed with these at load
 time by `schemas/pii_patterns.py`.
 
 ## Design invariants
 
-- Every universal pattern MUST apply under at least 3 regulations.
-  Anything specific to one regime (India-PAN, UK-NINO, US-SSN) belongs in a pack.
+- A universal pattern applies to personal data regardless of which loaded
+  pack (EU GDPR, UK GDPR) governs the principal. Anything specific to one
+  regime or country (UK-NINO, DE-Steuer-ID) belongs in a pack.
 - No locale or country code assumption in the regex. Phone formats with a
-  country-code prefix (e.g. `+91`) go in region packs.
+  country-code prefix (e.g. `+44`) go in region packs.
 
 ## Exports
 
@@ -165,7 +166,7 @@ EMAIL_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_MEDIUM,
     regex_pattern=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
     column_hints=["email", "e_mail", "email_address", "mail"],
-    regulations=["DPDP", "GDPR", "CCPA"],
+    regulations=["GDPR"],
     description="Email Address",
     priority=90,
 )
@@ -177,7 +178,7 @@ PHONE_INTL_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_MEDIUM,
     regex_pattern=r"\+\d{1,3}[-.\s]?\d{3,14}",
     column_hints=["phone", "mobile", "telephone"],
-    regulations=["DPDP", "GDPR", "CCPA"],
+    regulations=["GDPR"],
     description="International Phone Number",
     priority=80,
 )
@@ -189,7 +190,7 @@ CREDIT_CARD_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_CRITICAL,
     regex_pattern=r"\b(?:4\d{12}(?:\d{3})?|5[1-5]\d{14}|3[47]\d{13}|6(?:011|5\d{2})\d{12})\b",
     column_hints=["credit_card", "card_number", "cc_number", "creditcard"],
-    regulations=["DPDP", "PCI-DSS", "GDPR", "CCPA"],
+    regulations=["PCI-DSS", "GDPR"],
     description="Credit Card Number",
     priority=100,
 )
@@ -201,7 +202,7 @@ CVV_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_CRITICAL,
     regex_pattern=None,
     column_hints=["cvv", "cvc", "security_code", "card_security"],
-    regulations=["DPDP", "PCI-DSS"],
+    regulations=["PCI-DSS"],
     description="Card Security Code",
     priority=100,
 )
@@ -213,7 +214,7 @@ BANK_ACCOUNT_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_HIGH,
     regex_pattern=None,
     column_hints=["bank_account", "account_number", "iban", "routing_number"],
-    regulations=["DPDP", "PCI-DSS"],
+    regulations=["PCI-DSS"],
     description="Bank Account Number",
     priority=95,
 )
@@ -228,7 +229,7 @@ NAME_PATTERN = PIIPattern(
         "name", "first_name", "last_name", "full_name",
         "firstname", "lastname", "patient_name", "account_holder_name",
     ],
-    regulations=["DPDP", "GDPR", "CCPA"],
+    regulations=["GDPR"],
     description="Person Name",
     priority=70,
 )
@@ -240,7 +241,7 @@ ADDRESS_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_MEDIUM,
     regex_pattern=None,
     column_hints=["address", "street", "billing_address", "shipping_address"],
-    regulations=["DPDP", "GDPR", "CCPA"],
+    regulations=["GDPR"],
     description="Physical Address",
     priority=75,
 )
@@ -252,7 +253,7 @@ DOB_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_HIGH,
     regex_pattern=None,
     column_hints=["dob", "date_of_birth", "birth_date", "birthdate"],
-    regulations=["DPDP", "GDPR", "HIPAA"],
+    regulations=["GDPR", "HIPAA"],
     description="Date of Birth",
     priority=80,
 )
@@ -264,7 +265,7 @@ IP_ADDRESS_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_MEDIUM,
     regex_pattern=r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b",
     column_hints=["ip_address", "ip", "client_ip", "user_ip", "last_login_ip"],
-    regulations=["DPDP", "GDPR", "CCPA"],
+    regulations=["GDPR"],
     description="IP Address",
     priority=60,
 )
@@ -285,7 +286,7 @@ MEDICAL_RECORD_PATTERN = PIIPattern(
         "diagnosis", "prescription",
         "treatment", "health_condition", "allergies",
     ],
-    regulations=["DPDP", "HIPAA"],
+    regulations=["HIPAA"],
     description="Medical Record",
     priority=100,
     # AI-classifiable: clinical free-text fields can't be regex'd, but
@@ -315,7 +316,7 @@ CLINICAL_NOTES_PATTERN = PIIPattern(
     sensitivity=SENSITIVITY_CRITICAL,
     regex_pattern=None,
     column_hints=["notes"],
-    regulations=["DPDP", "HIPAA"],
+    regulations=["HIPAA"],
     description="Free-text clinical notes (observations, follow-ups, treatment plans)",
     priority=100,
     ai_labels=["clinical_observation", "treatment_plan",
@@ -331,7 +332,7 @@ INSURANCE_ID_PATTERN = PIIPattern(
     column_hints=[
         "insurance_id", "policy_number", "insurance_number", "health_insurance",
     ],
-    regulations=["DPDP", "HIPAA"],
+    regulations=["HIPAA"],
     description="Insurance ID",
     priority=90,
 )
