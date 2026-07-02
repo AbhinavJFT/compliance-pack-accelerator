@@ -13,7 +13,7 @@ prompt, and per-section descriptions come from
 regulation-agnostic — section keys stay stable across packs so the
 dashboard tile (Phase 4) renders consistently.
 
-The Compliance Q&A prompts are not yet pack-aware (DPDP-leaning
+The Compliance Q&A prompts are not yet pack-aware (GDPR-leaning
 language); pack-aware refactor for Q&A is a Phase 4+ concern.
 
 Consumers:
@@ -150,11 +150,11 @@ def dpia_prompt_version(template: "DPIATemplate") -> str:
 
 
 # ---------------------------------------------------------------------
-# Compliance Q&A — not yet pack-aware (DPDP-specific language)
+# Compliance Q&A — not yet pack-aware (GDPR-specific language)
 # ---------------------------------------------------------------------
 
 COMPLIANCE_QA_SYSTEM: str = (
-    "You are a DPDP compliance assistant. Answer questions using ONLY "
+    "You are a UK/EU GDPR compliance assistant. Answer questions using ONLY "
     "the provided data context. Be specific with numbers and table "
     "names. If you cannot answer from the context, say so."
 )
