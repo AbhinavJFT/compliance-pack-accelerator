@@ -627,7 +627,7 @@
               "frame": {
                 "title": "Filter by Jurisdiction (ADR-0001)",
                 "showTitle": true,
-                "description": "Slices every Executive Overview tile by the principal's regulation pack: IN \u2192 DPDP, GB \u2192 UK GDPR. Leaving the filter unset returns all jurisdictions."
+                "description": "Slices every Executive Overview tile by the principal's regulation pack: GB \u2192 UK GDPR, EU \u2192 EU GDPR. Leaving the filter unset returns all jurisdictions."
               },
               "widgetType": "filter-multi-select",
               "encodings": {
@@ -649,7 +649,7 @@
         },
         {
           "widget": {
-            "name": "dpdp-compliance-dashboard",
+            "name": "compliance-overview-dashboard",
             "queries": [
               {
                 "name": "main_query",

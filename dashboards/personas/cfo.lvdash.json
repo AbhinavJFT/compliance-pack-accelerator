@@ -234,7 +234,7 @@
       "name": "374f7b59",
       "displayName": "high_risk_tables",
       "queryLines": [
-        "SELECT 'Aggregate summary \u2014 table-level breakdown available to CCO' AS full_table_name, pii_columns, critical_pii AS critical_count, high_pii AS high_count, CAST((critical_pii*3 + high_pii*2) AS INT) AS risk_score FROM compliance_pack.gold.persona_overview_metrics"
+        "SELECT 'Aggregate summary — table-level breakdown available to CCO' AS full_table_name, pii_columns, critical_pii AS critical_count, high_pii AS high_count, CAST((critical_pii*3 + high_pii*2) AS INT) AS risk_score FROM compliance_pack.gold.persona_overview_metrics"
       ]
     },
     {
@@ -486,10 +486,10 @@
         "  CONCAT('Q', QUARTER(generated_at), ' ', YEAR(generated_at)) AS quarter,\n",
         "  generated_at,\n",
         "  status,\n",
-        "  COALESCE(reviewed_by, '\u2014') AS reviewer,\n",
+        "  COALESCE(reviewed_by, '—') AS reviewer,\n",
         "  reviewed_at,\n",
         "  ROUND(latency_seconds, 1) AS latency_s,\n",
-        "  CASE WHEN parse_error IS NOT NULL THEN '\u26a0 parse error' ELSE 'OK' END AS parse_status,\n",
+        "  CASE WHEN parse_error IS NOT NULL THEN '⚠ parse error' ELSE 'OK' END AS parse_status,\n",
         "  prompt_version,\n",
         "  regulation_pack\n",
         "FROM compliance_pack.compliance.dpia_runs\n",
@@ -506,10 +506,10 @@
         "  generated_at,\n",
         "  run_id,\n",
         "  status,\n",
-        "  COALESCE(reviewed_by, '\u2014') AS reviewer,\n",
+        "  COALESCE(reviewed_by, '—') AS reviewer,\n",
         "  reviewed_at,\n",
         "  ROUND(latency_seconds, 1) AS latency_s,\n",
-        "  CASE WHEN parse_error IS NOT NULL THEN '\u26a0 parse error' ELSE 'OK' END AS parse_status\n",
+        "  CASE WHEN parse_error IS NOT NULL THEN '⚠ parse error' ELSE 'OK' END AS parse_status\n",
         "FROM compliance_pack.compliance.dpia_runs\n",
         "ORDER BY generated_at DESC\n",
         "LIMIT 8\n"
@@ -529,7 +529,9 @@
       "name": "4a450169",
       "displayName": "cfo_penalty_exposure_total",
       "queryLines": [
-        "SELECT ROUND(SUM(CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150 WHEN 'medium' THEN 50 ELSE 5 END) / 100, 1) AS exposure_hundreds_cr\n",
+        "SELECT\n",
+        "  ROUND(SUM(CASE WHEN regulation='EU_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END) ELSE 0 END), 1) AS eu_gdpr_exposure_eur_m,\n",
+        "  ROUND(SUM(CASE WHEN regulation='UK_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END) ELSE 0 END), 1) AS uk_gdpr_exposure_gbp_m\n",
         "FROM compliance_pack.silver.compliance_gaps;"
       ]
     },
@@ -537,9 +539,9 @@
       "name": "070c4d8f",
       "displayName": "cfo_gaps_by_severity_with_penalty",
       "queryLines": [
-        "SELECT severity, COUNT(*) AS gap_count, MAX(CASE severity WHEN 'critical' THEN 250 WHEN 'high' THEN 150 WHEN 'medium' THEN 50 ELSE 5 END) AS penalty_ceiling_cr\n",
-        "FROM compliance_pack.silver.compliance_gaps GROUP BY severity\n",
-        "ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END;"
+        "SELECT regulation, severity, COUNT(*) AS gap_count, MAX(CASE WHEN regulation='EU_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END) WHEN regulation='UK_GDPR' THEN (CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END) ELSE NULL END) AS penalty_ceiling_m\n",
+        "FROM compliance_pack.silver.compliance_gaps WHERE regulation IN ('EU_GDPR','UK_GDPR') GROUP BY regulation, severity\n",
+        "ORDER BY regulation, CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END;"
       ]
     }
   ],
@@ -547,7 +549,8 @@
     {
       "name": "d732d928",
       "displayName": "Global Filters",
-      "pageType": "PAGE_TYPE_GLOBAL_FILTERS"
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layout": []
     },
     {
       "name": "6942c052",
@@ -580,7 +583,7 @@
               "frame": {
                 "title": "Filter by Jurisdiction (ADR-0001)",
                 "showTitle": true,
-                "description": "Slices every Executive Overview tile by the principal's regulation pack: IN \u2192 DPDP, GB \u2192 UK GDPR. Leaving the filter unset returns all jurisdictions."
+                "description": "Slices every Executive Overview tile by the principal's regulation pack: GB → UK GDPR, EU → EU GDPR. Leaving the filter unset returns all jurisdictions."
               },
               "widgetType": "filter-multi-select",
               "encodings": {
@@ -602,7 +605,7 @@
         },
         {
           "widget": {
-            "name": "dpdp-compliance-dashboard",
+            "name": "compliance-overview-dashboard",
             "queries": [
               {
                 "name": "main_query",
@@ -2270,7 +2273,7 @@
       "layout": [
         {
           "widget": {
-            "name": "cfo-exposure",
+            "name": "cfo-exposure-eu",
             "queries": [
               {
                 "name": "main_query",
@@ -2278,8 +2281,8 @@
                   "datasetName": "4a450169",
                   "fields": [
                     {
-                      "name": "exposure_hundreds_cr",
-                      "expression": "`exposure_hundreds_cr`"
+                      "name": "eu_gdpr_exposure_eur_m",
+                      "expression": "`eu_gdpr_exposure_eur_m`"
                     }
                   ],
                   "disaggregated": true
@@ -2291,19 +2294,60 @@
               "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "Total Penalty Exposure (\u20b9 hundred crore)",
-                "description": "Sum of DPDP penalty ceilings for all open gaps"
+                "title": "EU GDPR Penalty Exposure (€ million)",
+                "description": "Sum of EU GDPR penalty ceilings for all open gaps"
               },
               "encodings": {
                 "value": {
-                  "fieldName": "exposure_hundreds_cr",
-                  "displayName": "Total Penalty Exposure (\u20b9 hundred crore)"
+                  "fieldName": "eu_gdpr_exposure_eur_m",
+                  "displayName": "EU GDPR Penalty Exposure (€ million)"
                 }
               }
             }
           },
           "position": {
             "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "cfo-exposure-uk",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4a450169",
+                  "fields": [
+                    {
+                      "name": "uk_gdpr_exposure_gbp_m",
+                      "expression": "`uk_gdpr_exposure_gbp_m`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "UK GDPR Penalty Exposure (£ million)",
+                "description": "Sum of UK GDPR penalty ceilings for all open gaps"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "uk_gdpr_exposure_gbp_m",
+                  "displayName": "UK GDPR Penalty Exposure (£ million)"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
             "y": 0,
             "width": 3,
             "height": 3
@@ -2319,6 +2363,10 @@
                   "datasetName": "070c4d8f",
                   "fields": [
                     {
+                      "name": "regulation",
+                      "expression": "`regulation`"
+                    },
+                    {
                       "name": "severity",
                       "expression": "`severity`"
                     },
@@ -2327,8 +2375,8 @@
                       "expression": "`gap_count`"
                     },
                     {
-                      "name": "penalty_ceiling_cr",
-                      "expression": "`penalty_ceiling_cr`"
+                      "name": "penalty_ceiling_m",
+                      "expression": "`penalty_ceiling_m`"
                     }
                   ],
                   "disaggregated": true
@@ -2340,34 +2388,40 @@
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "Gaps by Severity with Per-Incident Penalty Ceiling"
+                "title": "Gaps by Regulation/Severity with Per-Incident Penalty Ceiling"
               },
               "encodings": {
                 "columns": [
                   {
+                    "fieldName": "regulation",
+                    "displayName": "Regulation",
+                    "type": "string",
+                    "order": 0
+                  },
+                  {
                     "fieldName": "severity",
                     "displayName": "Severity",
                     "type": "string",
-                    "order": 0
+                    "order": 1
                   },
                   {
                     "fieldName": "gap_count",
                     "displayName": "Open Gaps",
                     "type": "string",
-                    "order": 1
+                    "order": 2
                   },
                   {
-                    "fieldName": "penalty_ceiling_cr",
-                    "displayName": "Per-Gap Ceiling (\u20b9 Cr)",
+                    "fieldName": "penalty_ceiling_m",
+                    "displayName": "Per-Gap Ceiling (M, native currency)",
                     "type": "string",
-                    "order": 2
+                    "order": 3
                   }
                 ]
               }
             }
           },
           "position": {
-            "x": 3,
+            "x": 6,
             "y": 0,
             "width": 5,
             "height": 4
