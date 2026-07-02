@@ -5,19 +5,18 @@
 # processed. The Act sets no fixed limits; the values below reflect ICO
 # guidance and prevailing UK industry practice for each purpose.
 #
-# These are SHORTER than the DPDP defaults (e.g., marketing 90 vs 730 days)
-# because UK ICO has historically pushed back on long marketing retention
-# absent positive re-consent. This is exactly the behaviour ADR-0001's
-# per-data-subject routing preserves: a UK principal under this pack gets
-# 90-day marketing retention; an Indian principal under DPDP gets 730 — same
-# database, different policies per row.
+# UK ICO has historically pushed back on long marketing retention absent
+# positive re-consent, which is why these values match the EU GDPR pack's
+# defaults. ADR-0001's per-data-subject routing means each principal's own
+# pack governs their retention policy, even when — as here — two packs
+# happen to agree on the numbers.
 
 defaults:
   core_service:              365      # 1 year — duration of active customer relationship
   marketing_email:            90      # 3 months — re-consent required after this
   marketing_sms:              90
   product_personalization:   180      # 6 months
-  analytics:                 180      # 6 months — tighter than DPDP's 730
+  analytics:                 180      # 6 months
   third_party_sharing:        90      # Shortest
 
 # Statutory overrides — UK retention legally mandated by other Acts.

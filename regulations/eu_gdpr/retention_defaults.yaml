@@ -7,12 +7,11 @@
 # match the UK GDPR pack's defaults since the UK retained EU GDPR's storage-
 # limitation principle without amendment.
 #
-# These are SHORTER than the DPDP defaults (marketing 90 vs 730 days) because
-# the EDPB has historically pushed back on long marketing retention absent
-# positive re-consent — the same posture UK ICO took. This is exactly the
-# behaviour ADR-0001's per-data-subject routing preserves: an EU principal
-# under this pack gets 90-day marketing retention; an Indian principal under
-# DPDP gets 730 — same database, different policies per row.
+# The EDPB has historically pushed back on long marketing retention absent
+# positive re-consent — the same posture UK ICO took, which is why these
+# values match the UK GDPR pack's defaults. ADR-0001's per-data-subject
+# routing means each principal's own pack governs their retention policy,
+# even when — as here — two packs happen to agree on the numbers.
 
 defaults:
   core_service:              365      # 1 year — duration of active customer relationship

@@ -6,10 +6,10 @@
 # additionally requires notifying affected data subjects without undue delay
 # where the breach is likely to result in a HIGH risk.
 #
-# For multi-jurisdiction incidents affecting both UK and Indian principals,
-# the company is obligated to notify BOTH the ICO (under UK GDPR Art. 33) and
-# the DPBI (under DPDP §8(6)) in parallel — see ADR-0001 §"Per-deployment /
-# per-company rules".
+# For multi-jurisdiction incidents affecting both UK and EU principals, the
+# company is obligated to notify BOTH the ICO (under UK GDPR Art. 33) and the
+# lead supervisory authority (under EU GDPR Art. 33) in parallel — see
+# ADR-0001 §"Per-deployment / per-company rules".
 
 notification:
   # Primary regulator deadline

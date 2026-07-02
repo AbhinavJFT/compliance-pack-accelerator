@@ -2,12 +2,12 @@
 #
 # Source of truth for the UK GDPR rows in bronze.compliance_rules. Loaded by
 # pipelines/phase1_bootstrap.py via governance_core.pack_loader; MERGE'd
-# into the bronze.compliance_rules Delta table alongside DPDP rules under
+# into the bronze.compliance_rules Delta table alongside EU GDPR rules under
 # multi-pack mode (ADR-0001).
 #
 # Each rule fires per principal — the gap-engine query joins
 # silver.pii_findings to silver.customers_tagged.jurisdiction = 'GB' before
-# evaluating these rules; Indian principals are governed by DPDP rules
+# evaluating these rules; EU principals are governed by EU GDPR rules
 # instead.
 #
 # Schema per entry:

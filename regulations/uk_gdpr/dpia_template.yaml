@@ -12,9 +12,9 @@
 #   - Optional per-section description overrides that get merged into the
 #     JSON schema fed to the model
 #
-# For multi-jurisdiction activities (an Indian SaaS processing both Indian
-# and UK principals), the DPIA generator selects this template if UK
-# principals appear in the activity's data scope. If both DPDP and UK GDPR
+# For multi-jurisdiction activities (a UK-based SaaS processing both UK
+# and EU principals), the DPIA generator selects this template if UK
+# principals appear in the activity's data scope. If both EU GDPR and UK GDPR
 # principals are present, the primary pack drives the narrative and the
 # other pack's citations appear inline (ADR-0001 Decision §"DPIA generator
 # output is per-processing-activity").

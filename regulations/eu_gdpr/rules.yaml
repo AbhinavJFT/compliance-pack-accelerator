@@ -2,14 +2,14 @@
 #
 # Source of truth for the EU GDPR rows in bronze.compliance_rules. Loaded by
 # pipelines/phase1_bootstrap.py via governance_core.pack_loader; MERGE'd
-# into the bronze.compliance_rules Delta table alongside DPDP and UK GDPR
-# rules under multi-pack mode (ADR-0001).
+# into the bronze.compliance_rules Delta table alongside UK GDPR rules under
+# multi-pack mode (ADR-0001).
 #
 # Each rule fires per principal — the gap engine joins silver.pii_findings
 # to silver.customers_tagged.jurisdiction = 'EU' before evaluating these
-# rules; IN principals are governed by DPDP, GB by UK GDPR.
+# rules; GB principals are governed by UK GDPR instead.
 #
-# Rule IDs use the EU- prefix; otherwise the schema matches DPDP and UK GDPR
+# Rule IDs use the EU- prefix; otherwise the schema matches the UK GDPR
 # rule rows. EU GDPR retained the same article structure as UK GDPR (UK GDPR
 # IS retained EU GDPR with minor amendments), so the rule set largely mirrors
 # the UK pack; differences captured here:
