@@ -57,7 +57,7 @@ INSERT INTO public.notice_versions (
 ) VALUES (
     'marketing_notice',
     1,
-    'en-IN',
+    'en-GB',
     now(),
     E'We collect and process your personal data for the following purposes:\n\n'
     E'1. Core service delivery (contractual necessity)\n'
@@ -68,9 +68,9 @@ INSERT INTO public.notice_versions (
     E'6. Product personalization based on your behavior (requires your consent)\n\n'
     E'You may withdraw consent at any time via account settings or by contacting our DPO.\n'
     E'For questions or rights requests, contact dpo@example.com.\n\n'
-    E'This notice complies with the Digital Personal Data Protection Act 2023.',
+    E'This notice complies with the UK General Data Protection Regulation and the Data Protection Act 2018.',
     encode(sha256(
-        E'marketing_notice_v1_en-IN_' ||
+        E'marketing_notice_v1_en-GB_' ||
         'core_service,marketing_email,marketing_sms,analytics,third_party_sharing,product_personalization'
     )::bytea, 'hex'),
     'consent',

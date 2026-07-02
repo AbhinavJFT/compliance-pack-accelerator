@@ -1,4 +1,4 @@
--- Unity Catalog column masks for DPDP data minimization (§5(2)).
+-- Unity Catalog column masks for GDPR data minimization (Art. 5(1)(c)).
 --
 -- Unmasks only for members of the workspace `admins` group (the
 -- deployer / service principal). Persona demo users (CCO/GC/CMO/CFO)
@@ -120,8 +120,8 @@ ALTER TABLE compliance_pack.silver.patients_tagged
 ALTER TABLE compliance_pack.silver.patients_tagged
   ALTER COLUMN allergies                 SET MASK compliance_pack.compliance.mask_full;
 -- Free-text clinical notes — discovered by pii_ai_scan (CLINICAL_NOTES_PATTERN).
--- DPDP §3(c) sensitive personal data + HIPAA PHI: critical sensitivity, full mask
--- for non-admin personas. Same treatment as the other clinical free-text columns.
+-- GDPR Art. 9 special-category data + HIPAA PHI: critical sensitivity, full
+-- mask for non-admin personas. Same treatment as the other clinical free-text columns.
 ALTER TABLE compliance_pack.silver.patients_tagged
   ALTER COLUMN notes                     SET MASK compliance_pack.compliance.mask_full;
 

@@ -1,12 +1,12 @@
--- Persona-aware row filter — extends the DPDP §16 residency-filter pattern
+-- Persona-aware row filter — extends the EU GDPR residency-filter pattern
 -- (schemas/residency_filter.sql) to per-persona row visibility.
 --
 -- Why this exists:
 --   - Column masks hide VALUES but every persona still sees every ROW.
 --   - UC row filters hide ROWS at query time, independent of UI path
 --     (dashboard tile, Genie question, SQL editor, notebook, API).
---   - The existing residency_filter fences non-admins to India-resident
---     rows (DPDP §16). This filter adds a second dimension: persona
+--   - The existing residency_filter fences non-admins to EU/EEA-resident
+--     rows (GDPR Art. 44-49). This filter adds a second dimension: persona
 --     identity via current_user().
 --
 -- Policy on compliance_pack.compliance.consent_events_log:
@@ -22,8 +22,9 @@
 --                                            separately by UC SELECT)
 --
 -- Why `purpose` (not notice_language or region):
---   The synthetic dataset was generated single-language (en-IN), so a
---   language-based filter would be a no-op. `purpose` has 6 values in
+--   The synthetic dataset spans multiple languages (en-GB, de-DE, fr-FR, ...),
+--   but they don't split cleanly along a persona-relevant axis. `purpose`
+--   has 6 values in
 --   the POC data (analytics, core_service, marketing_email,
 --   marketing_sms, product_personalization, third_party_sharing) and
 --   splits ~50/50 along the marketing vs. non-marketing axis — a clean
