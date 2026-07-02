@@ -11,11 +11,11 @@
 # MAGIC - `silver.discovered_tables` (from medallion.py)
 # MAGIC
 # MAGIC **What this notebook produces:**
-# MAGIC - `bronze.compliance_rules`  (9 DPDP rules)
+# MAGIC - `bronze.compliance_rules`  (26 rules: 12 UK GDPR + 14 EU GDPR)
 # MAGIC - `bronze.data_sources`      (10 ingestion-source rows; classifier reads silver_table_name from here)
-# MAGIC - `silver.compliance_gaps`   (~135 gaps, from rules × pii_findings)
+# MAGIC - `silver.compliance_gaps`   (gaps, from rules × pii_findings)
 # MAGIC - `compliance.consent_events_log` (1,000 synthetic consent events, deterministic seed=42)
-# MAGIC - `compliance.notice_versions`    (1 notice: marketing_notice v1 en-IN)
+# MAGIC - `compliance.notice_versions`    (1 notice: marketing_notice v1, primary locale)
 # MAGIC - `compliance.dsr_requests`        (schema only — DSR app writes rows)
 # MAGIC - `compliance.personal_data_register` (view on pii_findings)
 # MAGIC - `compliance.has_active_consent()`   (UDF)
@@ -248,7 +248,7 @@ def _restore_grants_on(table_fq: str, saved: list) -> None:
 #
 # Both tables gain a `regulation_pack` column in M2 (ADR-0001) so rule rows
 # and gap rows are tagged with their source pack — required so the dashboard
-# can slice by pack and so an Indian principal's gap (DPDP rule) is
+# can slice by pack and so an EU principal's gap (EU GDPR rule) is
 # distinguishable from a UK principal's gap (UK GDPR rule) on the same column.
 spark.sql(f"""
 CREATE TABLE IF NOT EXISTS {CATALOG}.bronze.compliance_rules (
@@ -262,7 +262,7 @@ CREATE TABLE IF NOT EXISTS {CATALOG}.bronze.compliance_rules (
     is_active             BOOLEAN NOT NULL,
     regulation_pack       STRING                 -- ADR-0001 M2: source pack code
 ) USING DELTA
-  COMMENT 'Multi-pack compliance gap detection rules (DPDP, UK GDPR, ...)'
+  COMMENT 'Multi-pack compliance gap detection rules (UK GDPR, EU GDPR, ...)'
 """)
 
 # Backfill regulation_pack on pre-M2 tables (CREATE TABLE IF NOT EXISTS is a
@@ -543,14 +543,14 @@ print(f"✓ bronze.data_sources seeded — {_n} rows ({len(DATA_SOURCES_SEED)} e
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3 — Load 9 DPDP compliance rules
+# MAGIC ## 3 — Load multi-pack compliance rules
 
 # COMMAND ----------
 
 # Rules are loaded from the active regulation pack:
 #   regulations/<REGULATION_PACK>/rules.yaml
 #
-# Default pack is `dpdp_2023`. On a UK GDPR / CCPA / PIPEDA deployment,
+# Default pack is `eu_gdpr`. On a UK GDPR / PIPEDA deployment,
 # set REGULATION_PACK at job level and re-run — no code change needed here.
 #
 # Path resolution: the Databricks bundle syncs the whole repo to
@@ -602,7 +602,7 @@ _pack = _packs[0] if _packs else None
 if _pack is None:
     raise RuntimeError(
         "No regulation packs found under regulations/. At least one pack "
-        "(e.g., regulations/dpdp_2023/) must be present for phase1_bootstrap."
+        "(e.g., regulations/eu_gdpr/) must be present for phase1_bootstrap."
     )
 
 # ADR-0001 Q3: validate that every jurisdiction value present in the live
@@ -1376,7 +1376,7 @@ try:
     # map (UC does not record column-level lineage at the system-table tier).
     spark.sql(f"""
     CREATE OR REPLACE VIEW {CATALOG}.gold.data_lineage AS
-    WITH dpdp_lineage AS (
+    WITH compliance_lineage AS (
       SELECT
         source_table_full_name AS source_table,
         target_table_full_name AS target_table,
@@ -1400,7 +1400,7 @@ try:
       COALESCE(p.column_mapping, '') AS column_mapping,
       (p.column_mapping IS NOT NULL) AS has_pii_flow,
       l.mapped_at
-    FROM dpdp_lineage l
+    FROM compliance_lineage l
     LEFT JOIN target_pii p ON p.target_table = l.target_table
     """)
 
@@ -1416,7 +1416,7 @@ finally:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8 — Column masks (DPDP §5(2)) and cross-border row filter (DPDP §16)
+# MAGIC ## 8 — Column masks (GDPR Art. 5(1)(c)) and cross-border row filter (GDPR Art. 44-49)
 # MAGIC
 # MAGIC Workspace-level governance controls. All five mask UDFs + the
 # MAGIC residency filter gate on `is_member('admins')` — workspace admins
@@ -1461,11 +1461,7 @@ for name, body in mask_functions:
 mask_targets = [
     ("silver.employees_tagged",  "email",                    "mask_email"),
     ("silver.employees_tagged",  "phone_number",             "mask_phone"),
-    ("silver.employees_tagged",  "aadhaar_number",           "mask_id_last4"),
-    ("silver.employees_tagged",  "pan_number",               "mask_id_last4"),
-    ("silver.employees_tagged",  "passport_number",          "mask_full"),
     ("silver.employees_tagged",  "bank_account",             "mask_id_last4"),
-    ("silver.employees_tagged",  "ifsc_code",                "mask_full"),
     ("silver.customers_tagged",  "email_address",            "mask_email"),
     ("silver.customers_tagged",  "mobile",                   "mask_phone"),
     ("silver.users_tagged",      "email",                    "mask_email"),
@@ -1473,7 +1469,7 @@ mask_targets = [
     ("silver.patients_tagged",   "email",                    "mask_email"),
     ("silver.patients_tagged",   "phone",                    "mask_phone"),
     ("silver.patients_tagged",   "emergency_contact_phone",  "mask_phone"),
-    ("silver.patients_tagged",   "aadhaar_number",           "mask_id_last4"),
+    ("silver.patients_tagged",   "nhs_number",               "mask_id_last4"),
     ("silver.patients_tagged",   "insurance_id",             "mask_id_last4"),
     ("silver.patients_tagged",   "medical_record_number",    "mask_id_last4"),
     ("silver.patients_tagged",   "primary_diagnosis",        "mask_full"),
@@ -1492,8 +1488,8 @@ print(f"✓ {len(mask_functions)} mask UDFs + {len(mask_targets)} column masks a
 #   allowed_countries: [...]      → determines the UDF body
 #   apply_filter_to: [{table,column}] → which silver tables get the filter
 # Non-admin callers see only rows where `country` is in the allowed list.
-# For DPDP this is ['India'] (§16); for UK GDPR the pack would list UK + EEA.
-_allowed_countries = _pack.residency_allowed_countries() or ["India"]
+# For eu_gdpr this is the EU/EEA member states; for uk_gdpr it's the UK.
+_allowed_countries = _pack.residency_allowed_countries() or ["United Kingdom"]
 _quoted_countries = ", ".join(f"'{c}'" for c in _allowed_countries)
 spark.sql(f"""
     CREATE OR REPLACE FUNCTION {CATALOG}.compliance.residency_filter(country STRING)

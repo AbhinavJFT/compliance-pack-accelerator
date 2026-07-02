@@ -8,8 +8,7 @@
 -- Masking strategy by PII type:
 --   email                  → "x****@****.com"
 --   phone / mobile         → "******" + last 4
---   aadhaar / pan / bank   → "****" + last 4
---   passport / ifsc        → full redaction
+--   NHS number / bank      → "****" + last 4
 --   medical free-text      → "<REDACTED>"
 --   date_of_birth          → keep year only
 --
@@ -73,15 +72,7 @@ ALTER TABLE compliance_pack.silver.employees_tagged
 ALTER TABLE compliance_pack.silver.employees_tagged
   ALTER COLUMN phone_number      SET MASK compliance_pack.compliance.mask_phone;
 ALTER TABLE compliance_pack.silver.employees_tagged
-  ALTER COLUMN aadhaar_number    SET MASK compliance_pack.compliance.mask_id_last4;
-ALTER TABLE compliance_pack.silver.employees_tagged
-  ALTER COLUMN pan_number        SET MASK compliance_pack.compliance.mask_id_last4;
-ALTER TABLE compliance_pack.silver.employees_tagged
-  ALTER COLUMN passport_number   SET MASK compliance_pack.compliance.mask_full;
-ALTER TABLE compliance_pack.silver.employees_tagged
   ALTER COLUMN bank_account      SET MASK compliance_pack.compliance.mask_id_last4;
-ALTER TABLE compliance_pack.silver.employees_tagged
-  ALTER COLUMN ifsc_code         SET MASK compliance_pack.compliance.mask_full;
 
 -- customers_tagged
 ALTER TABLE compliance_pack.silver.customers_tagged
@@ -108,7 +99,7 @@ ALTER TABLE compliance_pack.silver.patients_tagged
 ALTER TABLE compliance_pack.silver.patients_tagged
   ALTER COLUMN emergency_contact_phone   SET MASK compliance_pack.compliance.mask_phone;
 ALTER TABLE compliance_pack.silver.patients_tagged
-  ALTER COLUMN aadhaar_number            SET MASK compliance_pack.compliance.mask_id_last4;
+  ALTER COLUMN nhs_number                SET MASK compliance_pack.compliance.mask_id_last4;
 ALTER TABLE compliance_pack.silver.patients_tagged
   ALTER COLUMN insurance_id              SET MASK compliance_pack.compliance.mask_id_last4;
 ALTER TABLE compliance_pack.silver.patients_tagged
