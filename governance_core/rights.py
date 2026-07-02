@@ -7,17 +7,17 @@ future `dsr_rectification.py` / `dsr_portability.py` / ...) will enact.
 
 ## Rights universe
 
-| Right | DPDP | GDPR (UK/EU) | CCPA/CPRA | PIPEDA | Notes |
-|---|---|---|---|---|---|
-| `access` | §11 | Art. 15 | §1798.100 | Principle 9 | Universal — implemented today in `dsr_discovery.py` |
-| `rectification` | §12(a) | Art. 16 | CPRA §1798.106 | Principle 9 | Correction of inaccurate data |
-| `erasure` | §12(b) | Art. 17 | §1798.105 | (via correction) | Implemented today in `dsr_erasure.py` |
-| `portability` | — | Art. 20 | — | — | GDPR-specific; structured export to another controller |
-| `objection` | §13 | Art. 21 | §1798.120 (sale) | Principle 3 | Opt-out of processing / sale |
-| `restriction` | — | Art. 18 | — | — | Suspend processing pending dispute resolution |
-| `no_auto_decision` | — | Art. 22 | CPRA ADMT | — | Opt-out of purely automated decisions |
-| `grievance` | §13 | — | — | Principle 10 | India/Canada specific complaint channel |
-| `nominee` | §14 | — | — | — | DPDP-specific: designate successor on death |
+| Right | GDPR (UK/EU) | PIPEDA (planned) | Notes |
+|---|---|---|---|
+| `access` | Art. 15 | Principle 9 | Universal — implemented today in `dsr_discovery.py` |
+| `rectification` | Art. 16 | Principle 9 | Correction of inaccurate data |
+| `erasure` | Art. 17 | (via correction) | Implemented today in `dsr_erasure.py` |
+| `portability` | Art. 20 | — | GDPR-specific; structured export to another controller |
+| `objection` | Art. 21 | Principle 3 | Opt-out of processing / sale |
+| `restriction` | Art. 18 | — | Suspend processing pending dispute resolution |
+| `no_auto_decision` | Art. 22 | — | Opt-out of purely automated decisions |
+| `grievance` | — | Principle 10 | Complaint channel to a supervisory authority; not activated by the current GDPR packs |
+| `nominee` | — | — | Not activated by any currently loaded or planned pack; kept for extensibility (e.g. successor-designation regimes) |
 
 ## Migration status (Phase 0)
 
