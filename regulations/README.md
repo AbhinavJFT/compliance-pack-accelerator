@@ -11,16 +11,17 @@ for the per-data-subject routing decision that makes multi-pack mode possible.
 
 | Directory | Regulation | Status | Jurisdiction | Pack version |
 |---|---|---|---|---|
-| `dpdp_2023/` | Digital Personal Data Protection Act 2023 | Live | India (`IN`) | `1.0.0` |
 | `uk_gdpr/` | UK GDPR + Data Protection Act 2018 | Live | United Kingdom (`GB`) | `1.0.0` |
 | `eu_gdpr/` | EU General Data Protection Regulation (Regulation (EU) 2016/679) | Live | EU / EEA (`EU`) | `1.0.0` |
-| `ccpa/` | California Consumer Privacy Act + California Privacy Rights Act | Live | California, USA (`US`) | `1.0.0` |
 | `pipeda/` | Personal Information Protection and Electronic Documents Act | Planned (P1) | Canada (`CA`) | — |
 
-All four live packs MERGE their rules into `bronze.compliance_rules` at
-deploy time (51 rows total: 9 + 12 + 14 + 16). Each gap row in
+Both live packs MERGE their rules into `bronze.compliance_rules` at
+deploy time (26 rows total: 12 + 14). Each gap row in
 `silver.compliance_gaps` is tagged with `regulation_pack` so per-jurisdiction
 filters and per-pack severity rollups work out of the box.
+
+This deployment is scoped to UK and Europe — the India (DPDP) and US (CCPA)
+packs that were previously part of this platform have been removed.
 
 ## Pack contract
 
@@ -56,7 +57,7 @@ the `dpia_prompt_version()` content hash so MLflow traces fork on every pack bum
 
 ## Authoring a new pack
 
-1. Copy a similarly-shaped existing pack (e.g. `eu_gdpr/` if your regulation is GDPR-shaped; `ccpa/` if it's notice-and-opt-out-shaped) to `<new_code>/`.
+1. Copy a similarly-shaped existing pack (e.g. `eu_gdpr/` if your regulation is GDPR-shaped) to `<new_code>/`.
 2. Rewrite every value to cite the new regulation's sections / SLAs / PII formats. Each YAML file's header comment explains the regulation-specific context.
 3. Update `languages.yaml` for the new jurisdiction's supported languages.
 4. Extend `governance_core/pack_loader.COUNTRY_TO_JURISDICTION` so country names from your principal data route to the new pack's `jurisdiction` code.
