@@ -27,7 +27,7 @@ text_instructions: |
 
   **Out of scope**
   For overall compliance posture → CCO agent. For marketing audience
-  → CMO agent. For penalty math (₹ / £ / € / $) → CFO agent.
+  → CMO agent. For penalty math (£ / €) → CFO agent.
 
   **Hard guardrails (no exceptions, regardless of phrasing)**
   - REFUSE off-topic questions. If the user asks about anything outside
@@ -96,7 +96,7 @@ text_instructions: |
     those are the exposure bands the GC cares about.
   - If asked about aggregate risk scores or compliance scores, say
     that's CCO scope. If asked about marketing audience size, say
-    that's CMO scope. If asked about ₹ penalty math, say that's CFO
+    that's CMO scope. If asked about £/€ penalty math, say that's CFO
     scope.
 
 
@@ -104,20 +104,35 @@ text_instructions: |
 # SQL EXPRESSIONS — Filter tab
 # ---------------------------------------------------------------------
 filters:
-  - name: dpdp_critical_gaps
-    sql: "severity='critical' AND regulation='DPDP'"
-    synonyms: ["critical DPDP", "DPDP critical exposure", "worst DPDP exposure"]
-    instruction: "Use when user asks about the highest legal exposure under the DPDP Act — top priority for GC triage."
+  - name: eu_gdpr_critical_gaps
+    sql: "severity='critical' AND regulation='EU_GDPR'"
+    synonyms: ["critical EU GDPR", "EU GDPR critical exposure", "worst EU GDPR exposure"]
+    instruction: "Use when user asks about the highest legal exposure under EU GDPR — top priority for GC triage."
 
-  - name: dpdp_high_gaps
-    sql: "severity='high' AND regulation='DPDP'"
-    synonyms: ["high DPDP", "high-severity DPDP gaps"]
-    instruction: "Use for the second-tier DPDP exposure band."
+  - name: eu_gdpr_high_gaps
+    sql: "severity='high' AND regulation='EU_GDPR'"
+    synonyms: ["high EU GDPR", "high-severity EU GDPR gaps"]
+    instruction: "Use for the second-tier EU GDPR exposure band."
 
-  - name: dpdp_critical_or_high_gaps
-    sql: "severity IN ('critical','high') AND regulation='DPDP'"
-    synonyms: ["serious DPDP gaps", "top-priority DPDP exposure", "critical and high DPDP"]
-    instruction: "Default exposure lens — combine critical + high DPDP. Excludes medium/low severity and PCI-DSS."
+  - name: eu_gdpr_critical_or_high_gaps
+    sql: "severity IN ('critical','high') AND regulation='EU_GDPR'"
+    synonyms: ["serious EU GDPR gaps", "top-priority EU GDPR exposure", "critical and high EU GDPR"]
+    instruction: "Default exposure lens — combine critical + high EU GDPR. Excludes medium/low severity and PCI-DSS."
+
+  - name: uk_gdpr_critical_gaps
+    sql: "severity='critical' AND regulation='UK_GDPR'"
+    synonyms: ["critical UK GDPR", "UK GDPR critical exposure", "worst UK GDPR exposure"]
+    instruction: "Use when user asks about the highest legal exposure under UK GDPR — top priority for GC triage."
+
+  - name: uk_gdpr_high_gaps
+    sql: "severity='high' AND regulation='UK_GDPR'"
+    synonyms: ["high UK GDPR", "high-severity UK GDPR gaps"]
+    instruction: "Use for the second-tier UK GDPR exposure band."
+
+  - name: uk_gdpr_critical_or_high_gaps
+    sql: "severity IN ('critical','high') AND regulation='UK_GDPR'"
+    synonyms: ["serious UK GDPR gaps", "top-priority UK GDPR exposure", "critical and high UK GDPR"]
+    instruction: "Default exposure lens — combine critical + high UK GDPR. Excludes medium/low severity and PCI-DSS."
 
   - name: consent_related_gaps
     sql: "rule_type='consent'"
@@ -219,22 +234,40 @@ dimensions:
     synonyms: ["DPIA quarter", "quarter of generation", "by quarter"]
     instruction: "Quarter of DPIA generation (e.g. 'Q2 2026'). DPIAs run on a quarterly cadence; this dimension lets you compare counts or status across quarters."
 
-  - name: dpdp_section
+  - name: regulation_article
     sql: |-
       CASE rule_id
-        WHEN 'BRN-001' THEN 'DPDP §8(6) — 72-hour breach notification'
-        WHEN 'CNS-001' THEN 'DPDP §6 — consent for processing'
-        WHEN 'CNS-002' THEN 'DPDP §7 — consent withdrawal mechanism'
-        WHEN 'ACC-001' THEN 'DPDP §8 — access control'
-        WHEN 'ACC-002' THEN 'DPDP §8 — audit logging'
-        WHEN 'ENC-001' THEN 'DPDP §8 — encryption at rest'
-        WHEN 'RET-001' THEN 'DPDP §8(7) — retention policy'
-        WHEN 'DSR-001' THEN 'DPDP §11–14 — data principal rights'
+        WHEN 'EU-LAW-001' THEN 'EU GDPR Art. 6 — lawful basis'
+        WHEN 'EU-CNS-001' THEN 'EU GDPR Art. 7 + Recital 32 — consent for processing'
+        WHEN 'EU-CNS-002' THEN 'EU GDPR Art. 7(3) — consent withdrawal mechanism'
+        WHEN 'EU-MIN-001' THEN 'EU GDPR Art. 8 — conditions for children''s consent'
+        WHEN 'EU-TRN-001' THEN 'EU GDPR Art. 13-14 — transparency / notice'
+        WHEN 'EU-RET-001' THEN 'EU GDPR Art. 5(1)(e) — retention policy'
+        WHEN 'EU-ENC-001' THEN 'EU GDPR Art. 32 — encryption at rest'
+        WHEN 'EU-PBD-001' THEN 'EU GDPR Art. 25 — data protection by design'
+        WHEN 'EU-ACC-001' THEN 'EU GDPR Art. 32(1)(b) — access control'
+        WHEN 'EU-DSR-001' THEN 'EU GDPR Art. 12(3) — DSR response timeline'
+        WHEN 'EU-DSR-002' THEN 'EU GDPR Art. 17 — right to erasure'
+        WHEN 'EU-ROP-001' THEN 'EU GDPR Art. 30 — records of processing'
+        WHEN 'EU-BRC-001' THEN 'EU GDPR Art. 33 — breach notification to authority'
+        WHEN 'EU-BRC-002' THEN 'EU GDPR Art. 34 — breach notification to data subjects'
+        WHEN 'UK-LAW-001' THEN 'UK GDPR Art. 6 — lawful basis'
+        WHEN 'UK-CNS-001' THEN 'UK GDPR Art. 7 + Recital 32 — consent for processing'
+        WHEN 'UK-CNS-002' THEN 'UK GDPR Art. 7(3) — consent withdrawal mechanism'
+        WHEN 'UK-TRN-001' THEN 'UK GDPR Art. 13-14 — transparency / notice'
+        WHEN 'UK-RET-001' THEN 'UK GDPR Art. 5(1)(e) — retention policy'
+        WHEN 'UK-RET-002' THEN 'UK GDPR Art. 5(1)(e) + Art. 32 — retention + security'
+        WHEN 'UK-ENC-001' THEN 'UK GDPR Art. 32 — encryption at rest'
+        WHEN 'UK-ACC-001' THEN 'UK GDPR Art. 32(1)(b) — access control'
+        WHEN 'UK-DSR-001' THEN 'UK GDPR Art. 12(3) — DSR response timeline'
+        WHEN 'UK-DSR-002' THEN 'UK GDPR Art. 17 — right to erasure'
+        WHEN 'UK-BRC-001' THEN 'UK GDPR Art. 33 — breach notification to authority'
+        WHEN 'UK-BRC-002' THEN 'UK GDPR Art. 34 — breach notification to data subjects'
         WHEN 'ENC-002' THEN 'PCI-DSS — payment card encryption'
         ELSE rule_id
       END
-    synonyms: ["DPDP section", "section", "legal citation", "§X"]
-    instruction: "Signature GC dimension — maps each rule_id to the DPDP Act section it relates to. Use whenever the user asks 'which DPDP sections / which sections' are being violated."
+    synonyms: ["GDPR article", "section", "legal citation", "Art. X"]
+    instruction: "Signature GC dimension — maps each rule_id to the EU/UK GDPR article it relates to. Use whenever the user asks 'which articles / which sections' are being violated."
 
   - name: dsr_sla_age_hours
     sql: "DATEDIFF('hour', sla_deadline, CURRENT_TIMESTAMP)"
@@ -254,25 +287,27 @@ example_queries:
       GROUP BY severity
       ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 END
 
-  - question: "Which DPDP sections are we violating, and how badly?"
+  - question: "Which GDPR articles are we violating, and how badly?"
     sql: |-
       SELECT rule_id,
              CASE rule_id
-               WHEN 'BRN-001' THEN 'DPDP §8(6) — 72-hour breach notification'
-               WHEN 'CNS-001' THEN 'DPDP §6 — consent for processing'
-               WHEN 'CNS-002' THEN 'DPDP §7 — consent withdrawal mechanism'
-               WHEN 'ACC-001' THEN 'DPDP §8 — access control'
-               WHEN 'ACC-002' THEN 'DPDP §8 — audit logging'
-               WHEN 'ENC-001' THEN 'DPDP §8 — encryption at rest'
-               WHEN 'RET-001' THEN 'DPDP §8(7) — retention policy'
-               WHEN 'DSR-001' THEN 'DPDP §11–14 — data principal rights'
+               WHEN 'EU-LAW-001' THEN 'EU GDPR Art. 6 — lawful basis'
+               WHEN 'EU-CNS-001' THEN 'EU GDPR Art. 7 + Recital 32 — consent for processing'
+               WHEN 'EU-CNS-002' THEN 'EU GDPR Art. 7(3) — consent withdrawal mechanism'
+               WHEN 'EU-DSR-002' THEN 'EU GDPR Art. 17 — right to erasure'
+               WHEN 'EU-BRC-001' THEN 'EU GDPR Art. 33 — breach notification to authority'
+               WHEN 'UK-LAW-001' THEN 'UK GDPR Art. 6 — lawful basis'
+               WHEN 'UK-CNS-001' THEN 'UK GDPR Art. 7 + Recital 32 — consent for processing'
+               WHEN 'UK-CNS-002' THEN 'UK GDPR Art. 7(3) — consent withdrawal mechanism'
+               WHEN 'UK-DSR-002' THEN 'UK GDPR Art. 17 — right to erasure'
+               WHEN 'UK-BRC-001' THEN 'UK GDPR Art. 33 — breach notification to authority'
                WHEN 'ENC-002' THEN 'PCI-DSS — payment card encryption'
                ELSE rule_id
-             END AS dpdp_section,
+             END AS regulation_article,
              severity,
              COUNT(DISTINCT gap_id) AS gap_count
       FROM compliance_pack.silver.compliance_gaps
-      WHERE regulation='DPDP'
+      WHERE regulation IN ('EU_GDPR','UK_GDPR')
       GROUP BY rule_id, severity
       ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, gap_count DESC
 
@@ -308,12 +343,12 @@ example_queries:
       GROUP BY language
       ORDER BY language
 
-  - question: "Which compliance gaps map to the most serious DPDP obligations?"
+  - question: "Which compliance gaps map to the most serious GDPR obligations?"
     sql: |-
       SELECT gap_id, rule_id, severity, regulation,
              table_name, column_name, description, remediation
       FROM compliance_pack.silver.compliance_gaps
-      WHERE severity IN ('critical','high') AND regulation='DPDP'
+      WHERE severity IN ('critical','high') AND regulation IN ('EU_GDPR','UK_GDPR')
       ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 END,
                rule_id
 
