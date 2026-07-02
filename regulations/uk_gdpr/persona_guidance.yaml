@@ -1,5 +1,5 @@
 # Per-persona Genie guidance contributed by the UK GDPR pack.
-# See regulations/dpdp_2023/persona_guidance.yaml for the canonical schema.
+# See regulations/README.md for the canonical persona_guidance.yaml schema.
 
 short_name: UK GDPR
 glossary_entry: |
