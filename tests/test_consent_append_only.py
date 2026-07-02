@@ -1,9 +1,9 @@
 """INT-05 · Consent log append-only invariant.
 
 The consent events log is the single tamper-evident record the platform
-produces. DPDP §6 (consent) and §18 (audit trail) require that consent
-grants/withdrawals cannot be modified after the fact — corrections are
-themselves new events that supersede earlier ones.
+produces. GDPR Art. 7 (consent) and Art. 5(2) (accountability/audit trail)
+require that consent grants/withdrawals cannot be modified after the
+fact — corrections are themselves new events that supersede earlier ones.
 
 Design nuance documented in T2.5 (docs/how_to_test.html): a withdrawal
 lands as a NEW append event, and the ORIGINAL grant event is updated

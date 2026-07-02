@@ -22,7 +22,7 @@ Complete this checklist 30 minutes before the demo:
 
 Say verbatim:
 
-> "Thank you for joining. Over the next 45 minutes I'll demonstrate three artifacts this POC produced in 14 days: a personal data register, a consent log, and a completed data subject rights request. These are the three things that together establish the foundation for DPDP compliance on this platform. The demo itself is 8 minutes of live queries. The remaining time is for your questions and for us to align on the Phase 1 scope.
+> "Thank you for joining. Over the next 45 minutes I'll demonstrate three artifacts this POC produced in 14 days: a personal data register, a consent log, and a completed data subject rights request. These are the three things that together establish the foundation for UK/EU GDPR compliance on this platform. The demo itself is 8 minutes of live queries. The remaining time is for your questions and for us to align on the Phase 1 scope.
 >
 > One framing before we start: everything you'll see uses synthetic data. No real customer records. The platform works identically against real data; we used synthetic because that's the right discipline for a sprint."
 
