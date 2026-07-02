@@ -158,15 +158,15 @@
 
 <div class="header">
   <h1>Compliance Pack Accelerator</h1>
-  <div class="subtitle">Databricks-native multi-jurisdiction compliance — pluggable regulation packs (DPDP India 2023 · UK GDPR · EU GDPR · CCPA · PIPEDA · …)</div>
+  <div class="subtitle">Databricks-native multi-jurisdiction compliance — pluggable regulation packs (UK GDPR · EU GDPR · PIPEDA · …)</div>
   <div class="badge">ADR-0001 · Per-data-subject routing</div>
 </div>
 
 <div class="adr-callout">
   <strong>Architectural foundation.</strong> Compliance is per–data-subject, not per-deployment.
   Every customer-level row carries a <code>jurisdiction</code> column; rules apply per principal
-  through the regulation pack governing them. An Indian SaaS with UK clients applies DPDP rules
-  to Indian principals (730-day retention) and UK GDPR rules to UK principals (90-day retention)
+  through the regulation pack governing them. A UK-based SaaS with EU clients applies EU GDPR rules
+  to EU principals (90-day retention) and UK GDPR rules to UK principals (90-day retention)
   — same database, different rules per row, no manual sorting. Cross-cutting company-level
   obligations (breach notification, DPIA filing, DPO requirement) apply as the union of all
   loaded packs whose principals are present. Full rationale and 24 enumerated edge cases:
@@ -260,7 +260,7 @@
     </div>
     <div class="box consumer">
       <div class="title">Compliance Q&amp;A (Unscoped)</div>
-      <div class="desc">Admin-only full-estate queries · "What critical PII do we hold under DPDP vs UK GDPR?" · Context-aware routing across all tables and packs</div>
+      <div class="desc">Admin-only full-estate queries · "What critical PII do we hold under EU GDPR vs UK GDPR?" · Context-aware routing across all tables and packs</div>
     </div>
   </div>
 </div>
@@ -287,7 +287,7 @@
       <div class="desc">
         Per-pack purpose taxonomy + lawful-basis semantics<br>
         Immutable Delta log with CDF · Withdrawal propagation<br>
-        DPDP §8: opt-in default · UK GDPR Art. 7: granular per-purpose<br>
+        EU GDPR Art. 7: opt-in default · UK GDPR Art. 7: granular per-purpose<br>
         Notice version tracking per locale + per pack
       </div>
     </div>
@@ -311,15 +311,6 @@
   <div class="grid-4">
     <div class="box pack">
       <span class="tag">ACTIVE</span>
-      <div class="title">DPDP India 2023</div>
-      <div class="desc">
-        9 rules · 5 IN-specific PII patterns (Aadhaar, PAN, IFSC, India phone, India passport)<br>
-        DPBI authority · ₹250cr/150cr/50cr/5cr penalty ceilings<br>
-        10 Indian languages · 730-day default retention
-      </div>
-    </div>
-    <div class="box pack">
-      <span class="tag">ACTIVE</span>
       <div class="title">UK GDPR</div>
       <div class="desc">
         12 rules · UK-specific patterns (NHS Number, NINO, UTR, UK passport, postcode)<br>
@@ -335,12 +326,13 @@
         EDPB + national SAs · €20M / 4% turnover · 24 EU official languages · EU SCCs + Schrems II
       </div>
     </div>
-    <div class="box pack">
-      <span class="tag">ACTIVE</span>
-      <div class="title">CCPA / CPRA</div>
+    <div class="box pack" style="opacity: 0.6;">
+      <span class="tag" style="background:#999;">PLANNED</span>
+      <div class="title">PIPEDA (Canada)</div>
       <div class="desc">
-        16 rules · opt-out of sale/sharing + GPC honour + SPI limit-use + non-discrimination · 7 US patterns (SSN, ITIN, EIN, DL, passport, bank, ZIP+4)<br>
-        CPPA + California AG · $7,500/$2,500/$750 tiers · 12 California-prevalent languages
+        10 Fair Information Principles · SIN + Canadian postal code patterns<br>
+        OPC authority · order-based (no fixed penalty ceiling)<br>
+        en-CA + fr-CA locales
       </div>
     </div>
   </div>
@@ -348,11 +340,6 @@
   <div class="routing">
     <b>Per-data-subject routing — the core architectural primitive.</b><br>
     <div class="row" style="margin-top: 6px;">
-      <span><code>jurisdiction = 'IN'</code></span>
-      <span class="arr">→</span>
-      <span>DPDP rules · 730-day retention · DPDP §11/§12 DSR rights · 10 Indian-language notices</span>
-    </div>
-    <div class="row">
       <span><code>jurisdiction = 'GB'</code></span>
       <span class="arr">→</span>
       <span>UK GDPR rules · 90-day retention · UK GDPR Art. 15-22 DSR rights · en-GB notices</span>
@@ -363,20 +350,16 @@
       <span>EU GDPR rules · per-Member-State retention · Art. 15-22 + Art. 7 lawful-basis · 24-locale notices</span>
     </div>
     <div class="row">
-      <span><code>jurisdiction = 'US'</code></span>
-      <span class="arr">→</span>
-      <span>CCPA/CPRA rules · 45-day DSR SLA · opt-out of sale/sharing + GPC · 12 California-prevalent languages</span>
-    </div>
-    <div class="row">
       <span><code>jurisdiction IS NULL</code></span>
       <span class="arr">→</span>
       <span>ADR-0001 Q3 unmapped bucket · "Unmapped principals" counter tile live on the CCO Executive Overview</span>
     </div>
     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #b2dfdb; font-size: 11px; color: #00695c;">
       Cross-cutting company-level rules (breach notification, DPIA filing, DPO requirement,
-      Significant Data Fiduciary registration, audit-log retention) apply as the
+      audit-log retention) apply as the
       <b>union</b> of every pack whose principals are present in the deployment — a
-      breach affecting both IN and GB principals notifies both DPBI and ICO in parallel.
+      breach affecting both GB and EU principals notifies both the ICO and the relevant
+      lead supervisory authority in parallel.
     </div>
   </div>
 </div>
@@ -390,7 +373,7 @@
     <div class="box agent">
       <span class="tag">AGENT</span>
       <div class="title">DPIA Auto-Generator</div>
-      <div class="desc">Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft in 30 seconds. Cites every regulation whose principals are in the activity's data scope (DPDP §… AND UK GDPR Art. 35 in the same document).<br><em>Replaces 3-month manual exercise · Quarterly cron + Review App</em></div>
+      <div class="desc">Reads UC metadata + pii_findings + compliance_gaps + consent coverage → structured DPIA draft in 30 seconds. Cites every regulation whose principals are in the activity's data scope (EU GDPR Art. 35 AND UK GDPR Art. 35 in the same document).<br><em>Replaces 3-month manual exercise · Quarterly cron + Review App</em></div>
     </div>
     <div class="box agent">
       <span class="tag">AGENT</span>
@@ -416,9 +399,9 @@
       <div class="desc">
         <b>Discovery:</b> 36 PII column tags · auto lineage (Bronze → Silver → Gold → Register) · sensitivity tiers · foreign catalogs for Lakehouse Federation<br>
         <b style="color:#bf360c;">Per-persona grants:</b> each persona user has USE_CATALOG + USE_SCHEMA + SELECT only on scoped tables; out-of-scope queries fail PERMISSION_DENIED regardless of UI path<br>
-        <b style="color:#bf360c;">Column masks (DPDP §5(2) · UK GDPR Art. 32):</b> 37 PII columns wrapped in <code>CASE WHEN is_member('admins') THEN val ELSE mask(val) END</code>; persona queries return redacted values<br>
+        <b style="color:#bf360c;">Column masks (EU GDPR Art. 5(1)(c) · UK GDPR Art. 32):</b> 37 PII columns wrapped in <code>CASE WHEN is_member('admins') THEN val ELSE mask(val) END</code>; persona queries return redacted values<br>
         <b style="color:#006064;">Per-data-subject jurisdiction routing:</b> rule evaluation, retention enforcement, and notice rendering route through <code>customers_tagged.jurisdiction</code> → the pack governing that principal<br>
-        <b style="color:#bf360c;">Audit trail (DPDP §18 · UK GDPR Art. 30):</b> <code>system.access.audit</code> captures every query with user + timestamp; CCO Genie space surfaces it via sample questions
+        <b style="color:#bf360c;">Audit trail (EU GDPR Art. 5(2) · UK GDPR Art. 30):</b> <code>system.access.audit</code> captures every query with user + timestamp; CCO Genie space surfaces it via sample questions
       </div>
     </div>
   </div>
@@ -530,12 +513,12 @@
       </tr>
       <tr class="highlight">
         <td><strong>Regulation packs</strong> (the central abstraction)</td>
-        <td>Every regulation-specific value (rules, notices, retention, residency, region PII patterns, DSR SLAs, DPIA template) lives in <code>regulations/&lt;code&gt;/</code>. <code>governance_core/</code> hosts the regulation-agnostic loader + resolver. <strong>All packs in <code>regulations/</code> load simultaneously; each customer-level row's <code>jurisdiction</code> column routes rule evaluation per-row</strong>. Adding UK GDPR / EU GDPR / CCPA / PIPEDA / LGPD is authoring 9 yaml files plus a <code>pii_patterns.py</code> + <code>dpia_template.yaml</code> — zero core code change.</td>
-        <td>Same lakehouse + same personas + same dashboards, multiple regulations active per row. A multinational customer applies DPDP to Indian principals and UK GDPR to UK principals from the same query, no per-deployment forking. See <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a> for the per-data-subject routing decision and 24 enumerated edge cases.</td>
+        <td>Every regulation-specific value (rules, notices, retention, residency, region PII patterns, DSR SLAs, DPIA template) lives in <code>regulations/&lt;code&gt;/</code>. <code>governance_core/</code> hosts the regulation-agnostic loader + resolver. <strong>All packs in <code>regulations/</code> load simultaneously; each customer-level row's <code>jurisdiction</code> column routes rule evaluation per-row</strong>. Adding PIPEDA / LGPD / other jurisdictions is authoring 9-11 yaml files plus a <code>pii_patterns.py</code> + <code>dpia_template.yaml</code> — zero core code change.</td>
+        <td>Same lakehouse + same personas + same dashboards, multiple regulations active per row. A multinational customer applies EU GDPR to EU principals and UK GDPR to UK principals from the same query, no per-deployment forking. See <a href="adr/0001-multi-jurisdiction-data-subject-routing.md">ADR-0001</a> for the per-data-subject routing decision and 24 enumerated edge cases.</td>
       </tr>
       <tr>
         <td><strong>system.access.audit</strong></td>
-        <td>Every SQL query + dashboard view + Genie question captured with user + timestamp (DPDP §18 · UK GDPR Art. 30 evidence). CCO Genie space surfaces it via sample questions.</td>
+        <td>Every SQL query + dashboard view + Genie question captured with user + timestamp (EU GDPR Art. 5(2) · UK GDPR Art. 30 evidence). CCO Genie space surfaces it via sample questions.</td>
         <td>Multi-regulator audit evidence available on demand. <em>"Who accessed patient X's record last week?"</em> answered live in seconds — same query satisfies a DPBI inquiry and an ICO inquiry.</td>
       </tr>
       <tr>
@@ -551,12 +534,12 @@
       <tr class="highlight">
         <td><strong>Agent Bricks + AI Functions</strong></td>
         <td>DPIA auto-generation (multi-regulator citations) · Compliance Q&amp;A · ai_classify/ai_extract for unstructured PII</td>
-        <td>DPIA production drops from ~3 months of legal + IT + compliance coordination to ~30 seconds of agent output + ~1-2 hours of human review. A processing activity touching IN and GB principals produces a single DPIA citing both DPDP §… and UK GDPR Art. 35 inline. For an enterprise running 20+ DPIAs a year across multiple regulators, the savings compound.</td>
+        <td>DPIA production drops from ~3 months of legal + IT + compliance coordination to ~30 seconds of agent output + ~1-2 hours of human review. A processing activity touching EU and GB principals produces a single DPIA citing both EU GDPR Art. 35 and UK GDPR Art. 35 inline. For an enterprise running 20+ DPIAs a year across multiple regulators, the savings compound.</td>
       </tr>
       <tr>
         <td><strong>Lakehouse Federation</strong></td>
         <td>Foreign catalogs for Postgres, Snowflake, BigQuery — query in place, no ETL</td>
-        <td>Data residency stays compliant without engineering work — the source system never has to move its data. Cross-border concerns under DPDP §16, UK GDPR Chapter V, GDPR Art. 44-50 — query where the data already lives, residency filter applied at query time.</td>
+        <td>Data residency stays compliant without engineering work — the source system never has to move its data. Cross-border concerns under UK GDPR Chapter V, EU GDPR Art. 44-50 — query where the data already lives, residency filter applied at query time.</td>
       </tr>
       <tr class="highlight">
         <td><strong>Lakeflow Connect</strong></td>
@@ -576,7 +559,7 @@
       <tr>
         <td><strong>Delta Lake (CDF)</strong></td>
         <td>Immutable consent log · Withdrawal propagation · Time travel for audit</td>
-        <td>Real-time consent withdrawal propagation across regulators — DPDP §8(7) "without undue delay" and UK GDPR Art. 7(3) "as easily as it was given" both satisfied by the platform, not by a nightly batch job. Downstream marketing / ML systems auto-invalidate the moment a principal withdraws; no polling, no stale cache.</td>
+        <td>Real-time consent withdrawal propagation across regulators — EU GDPR Art. 5(1)(e) "without undue delay" and UK GDPR Art. 7(3) "as easily as it was given" both satisfied by the platform, not by a nightly batch job. Downstream marketing / ML systems auto-invalidate the moment a principal withdraws; no polling, no stale cache.</td>
       </tr>
       <tr>
         <td><strong>Delta Sharing</strong></td>
@@ -609,15 +592,14 @@
 
 <div class="footer" style="text-align:left; font-size: 12px; line-height: 1.5; color: #555; padding: 16px 20px; background: #fafafa; border-top: 1px solid #e0e0e0;">
   <p><strong>Note on numbers.</strong> Counts shown in the module cards and metric tiles
-  reflect the live multi-jurisdiction workspace as of the post-M4 follow-up sweep
-  (2026-05-12): 36 PII findings across 10 silver objects · 37 column masks ·
-  <strong>51 multi-pack compliance rules</strong> (9 DPDP + 12 UK GDPR + 14 EU GDPR
-  + 16 CCPA) across <strong>4 regulation packs</strong> (`dpdp_2023@1.0.0`,
-  `uk_gdpr@1.0.0`, `eu_gdpr@1.0.0`, `ccpa@1.0.0`; ADR-0001 Q2 pack semver in force) ·
-  <strong>818 compliance gaps</strong> tagged by source pack (164 dpdp_2023 +
-  298 uk_gdpr + 356 eu_gdpr; CCPA gaps materialise on next bundle deploy) ·
-  1,000 consent events · 292 principals · mixed jurisdiction in customers_tagged
-  (3,503 IN + 1,258 GB + 239 NULL — the ADR-0001 Q3 "unmapped principals"
+  reflect the live multi-jurisdiction workspace as of the UK/Europe-only scope
+  (2026-07-02): PII findings across 10 silver objects · column masks ·
+  <strong>26 multi-pack compliance rules</strong> (12 UK GDPR + 14 EU GDPR)
+  across <strong>2 regulation packs</strong> (`uk_gdpr@1.0.0`,
+  `eu_gdpr@1.0.0`; ADR-0001 Q2 pack semver in force) ·
+  <strong>compliance gaps</strong> tagged by source pack ·
+  1,000 consent events · mixed jurisdiction in customers_tagged
+  (60/35/5 GB/EU/NULL mix — the ADR-0001 Q3 "unmapped principals"
   bucket surfaced on the CCO dashboard). These are <strong>illustrative</strong> —
   they come from the synthetic POC dataset on a Databricks Free Edition workspace
   (seed=42) and are reproducible via the SQL in
