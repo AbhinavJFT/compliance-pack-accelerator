@@ -2,7 +2,7 @@
 """
 Compliance Pack POC synthetic data generator.
 
-Generates deterministic synthetic Indian personal data for five source tables
+Generates deterministic synthetic UK/EU personal data for five source tables
 plus consent events. All output is seeded for reproducibility.
 
 Usage:
@@ -27,7 +27,7 @@ from faker import Faker
 # ---------------------------------------------------------------------------
 SEED = 42
 GENERATOR_DATE = date(2026, 4, 17)  # fixed to avoid non-determinism
-IST = timezone(timedelta(hours=5, minutes=30))
+TZ = timezone.utc
 
 TARGET_EMPLOYEES = 2000
 TARGET_CUSTOMERS = 5000
@@ -37,36 +37,6 @@ TARGET_USERS = 3000
 
 DSR_PRINCIPAL_ID = "customer_04217"
 DSR_PRINCIPAL_INDEX = 4217  # 0-indexed
-
-IFSC_BANK_PREFIXES = [
-    "SBIN", "HDFC", "ICIC", "AXIS", "KKBK",
-    "YESB", "PUNB", "UTIB", "IOBA", "UNIN",
-]
-
-INDIAN_IP_PREFIXES = ["103", "49", "122", "157", "182", "117", "106", "14", "123"]
-
-INDIAN_STATES = [
-    "Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
-    "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
-    "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
-    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-    "Delhi",
-]
-
-INDIAN_CITIES = {
-    "Karnataka": ["Bangalore", "Mysore", "Mangalore", "Hubli"],
-    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik"],
-    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Salem"],
-    "Telangana": ["Hyderabad", "Warangal", "Nizamabad"],
-    "Delhi": ["New Delhi", "Delhi"],
-    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot"],
-    "West Bengal": ["Kolkata", "Howrah", "Siliguri"],
-    "Uttar Pradesh": ["Lucknow", "Noida", "Agra", "Varanasi"],
-    "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur"],
-    "Kerala": ["Kochi", "Thiruvananthapuram", "Kozhikode"],
-    "Punjab": ["Chandigarh", "Ludhiana", "Amritsar"],
-}
 
 DEPARTMENTS = [
     "Engineering", "Marketing", "Sales", "Finance", "HR",
@@ -82,12 +52,11 @@ LOYALTY_TIERS = ["bronze", "silver", "gold", "platinum"]
 GENDERS = ["Male", "Female", "Other"]
 BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]
 INSURANCE_PROVIDERS = [
-    "Star Health", "HDFC ERGO", "ICICI Lombard",
-    "Max Bupa", "Bajaj Allianz", "New India Assurance",
+    "Bupa", "AXA Health", "Vitality", "Allianz Care", "Aviva", "WPA",
 ]
 TRANSACTION_TYPES = ["purchase", "refund", "subscription", "transfer"]
 TRANSACTION_STATUSES = ["completed", "pending", "failed", "reversed"]
-PAYMENT_METHODS = ["credit_card", "debit_card", "upi", "net_banking", "wallet"]
+PAYMENT_METHODS = ["credit_card", "debit_card", "bank_transfer", "direct_debit", "wallet"]
 ACCOUNT_STATUSES = ["active", "suspended", "deactivated", "pending_verification"]
 
 CONSENT_PURPOSES = [
@@ -114,13 +83,13 @@ USER_AGENTS = [
 # row). Adjusting the mix changes the per-jurisdiction PII / consent /
 # compliance-gap counts but not their relative ratios.
 #
-#   70% IN  → governed by regulations/dpdp_2023/ (730d retention, ₹250cr cap)
-#   25% GB  → governed by regulations/uk_gdpr/  (90d retention, £17.5M cap)
-#    5% NULL → "country uncaptured" — surfaces as high-severity gap UK-LAW-001
-#             until backfilled (ADR-0001 §"Schema migration").
+#   60% GB   → governed by regulations/uk_gdpr/ (90d retention, its own tiered cap)
+#   35% EU   → governed by regulations/eu_gdpr/ (€20M / 4% turnover cap)
+#    5% NULL → "country uncaptured" — surfaces as high-severity gap until
+#              backfilled (ADR-0001 §"Schema migration").
 JURISDICTION_MIX: list[tuple[str | None, float]] = [
-    ("IN", 0.70),
-    ("GB", 0.25),
+    ("GB", 0.60),
+    ("EU", 0.35),
     (None, 0.05),                       # unmapped — country left blank
 ]
 
@@ -136,9 +105,43 @@ UK_CITIES = [
     "Belfast", "Reading", "Brighton", "Oxford", "Cambridge", "Southampton",
 ]
 
+# EU/EEA countries + cities — used when jurisdiction is 'EU'. A representative
+# subset of the member states eu_gdpr's residency.yaml covers; no need to
+# enumerate all 27+3 for a synthetic demo dataset.
+EU_COUNTRIES = [
+    "Germany", "France", "Netherlands", "Ireland", "Spain",
+    "Italy", "Poland", "Sweden", "Belgium", "Austria",
+]
+EU_CITIES = {
+    "Germany": ["Berlin", "Munich", "Hamburg", "Frankfurt"],
+    "France": ["Paris", "Lyon", "Marseille", "Toulouse"],
+    "Netherlands": ["Amsterdam", "Rotterdam", "Utrecht"],
+    "Ireland": ["Dublin", "Cork", "Galway"],
+    "Spain": ["Madrid", "Barcelona", "Valencia"],
+    "Italy": ["Rome", "Milan", "Naples"],
+    "Poland": ["Warsaw", "Krakow", "Wroclaw"],
+    "Sweden": ["Stockholm", "Gothenburg", "Malmo"],
+    "Belgium": ["Brussels", "Antwerp", "Ghent"],
+    "Austria": ["Vienna", "Graz", "Linz"],
+}
+EU_CALLING_CODES = {
+    "Germany": "49", "France": "33", "Netherlands": "31", "Ireland": "353",
+    "Spain": "34", "Italy": "39", "Poland": "48", "Sweden": "46",
+    "Belgium": "32", "Austria": "43",
+}
+# Full locale (language + region) per country — used for notice_version.language
+# on consent events. preferred_language on customer/user rows uses just the
+# language-code prefix.
+EU_LOCALE_BY_COUNTRY = {
+    "Germany": "de-DE", "France": "fr-FR", "Netherlands": "nl-NL",
+    "Ireland": "en-IE", "Spain": "es-ES", "Italy": "it-IT",
+    "Poland": "pl-PL", "Sweden": "sv-SE", "Belgium": "nl-BE",
+    "Austria": "de-AT",
+}
+
 
 def pick_jurisdiction(rng: random.Random) -> str | None:
-    """Return 'IN' / 'GB' / None according to JURISDICTION_MIX. One rng draw."""
+    """Return 'GB' / 'EU' / None according to JURISDICTION_MIX. One rng draw."""
     r = rng.random()
     cumulative = 0.0
     for code, weight in JURISDICTION_MIX:
@@ -148,13 +151,25 @@ def pick_jurisdiction(rng: random.Random) -> str | None:
     return JURISDICTION_MIX[-1][0]  # safety, never hits
 
 
-def country_for(jur: str | None) -> str:
-    """Country string written into the row's `country` column."""
-    if jur == "IN":
-        return "India"
-    if jur == "GB":
-        return "United Kingdom"
-    return ""                            # unmapped → empty string
+def pick_eu_country(rng: random.Random) -> str:
+    """Pick one representative EU/EEA country. One rng draw."""
+    return rng.choice(EU_COUNTRIES)
+
+
+def notice_language_for(country: str) -> str:
+    """Full locale for consent-notice language, given a row's `country` value."""
+    if country == "United Kingdom":
+        return "en-GB"
+    return EU_LOCALE_BY_COUNTRY.get(country, "en-GB")
+
+
+def currency_for(country: str) -> str:
+    """Transaction currency, given a row's `country` value."""
+    if country == "United Kingdom":
+        return "GBP"
+    if country in EU_CALLING_CODES:
+        return "EUR"
+    return "GBP"
 
 
 # ---------------------------------------------------------------------------
@@ -229,59 +244,19 @@ def fake_uk_address(rng: random.Random, fake: Faker) -> str:
 
 
 # ---------------------------------------------------------------------------
-# PII generators
+# EU-specific PII generators
 # ---------------------------------------------------------------------------
-def fake_aadhaar(rng: random.Random) -> str:
-    first = rng.choice("23456789")
-    rest = "".join(rng.choices("0123456789", k=11))
-    num = first + rest
-    return f"{num[:4]} {num[4:8]} {num[8:]}"
-
-
-def fake_pan(rng: random.Random) -> str:
-    letters = string.ascii_uppercase
-    return (
-        "".join(rng.choices(letters, k=3))
-        + rng.choice(letters)
-        + "P"
-        + "".join(rng.choices("0123456789", k=4))
-        + rng.choice(letters)
-    )
-
-
-def fake_passport(rng: random.Random) -> str:
-    return rng.choice(string.ascii_uppercase) + "".join(
-        rng.choices("0123456789", k=7)
-    )
-
-
-def fake_ifsc(rng: random.Random) -> str:
-    prefix = rng.choice(IFSC_BANK_PREFIXES)
-    branch = "".join(
-        rng.choices(string.ascii_uppercase + string.digits, k=6)
-    )
-    return f"{prefix}0{branch}"
-
-
-def fake_indian_mobile(rng: random.Random, with_prefix: bool = True) -> str:
-    leading = rng.choice("6789")
+def fake_eu_mobile(rng: random.Random, calling_code: str, with_prefix: bool = True) -> str:
+    """Generic EU-shaped mobile number: +<country calling code>-<9 digits>."""
     rest = "".join(rng.choices("0123456789", k=9))
     if with_prefix:
-        return f"+91-{leading}{rest}"
-    return f"{leading}{rest}"
+        return f"+{calling_code}-{rest}"
+    return rest
 
 
-def fake_indian_ip(rng: random.Random) -> str:
-    p = rng.choice(INDIAN_IP_PREFIXES)
-    return f"{p}.{rng.randint(0,255)}.{rng.randint(0,255)}.{rng.randint(0,255)}"
-
-
-def fake_ip(rng: random.Random, fake: Faker) -> str:
-    if rng.random() < 0.9:
-        return fake_indian_ip(rng)
-    return fake.ipv4()
-
-
+# ---------------------------------------------------------------------------
+# PII generators
+# ---------------------------------------------------------------------------
 def fake_bank_account(rng: random.Random) -> str:
     length = rng.choice([11, 12, 14, 16])
     return "".join(rng.choices("0123456789", k=length))
@@ -329,15 +304,22 @@ def generate_employees(rng: random.Random, fake: Faker, count: int) -> list[dict
             phone = fake_uk_mobile(rng)
             address = fake_uk_address(rng, fake)
             postal = fake_uk_postcode(rng)
-        else:
-            # IN and unmapped both use Indian-shape data — unmapped is "country
-            # uncaptured" not "non-Indian".
-            region = rng.choice(INDIAN_STATES)
-            cities = INDIAN_CITIES.get(region, [fake.city()])
-            city = rng.choice(cities)
-            phone = fake_indian_mobile(rng)
+            country = "United Kingdom"
+        elif jur == "EU":
+            country = pick_eu_country(rng)
+            region = country
+            city = rng.choice(EU_CITIES[country])
+            phone = fake_eu_mobile(rng, EU_CALLING_CODES[country])
             address = fake_address(rng, fake)
             postal = fake_postal_code(rng)
+        else:
+            # Unmapped — country left blank, generic fallback data.
+            region = ""
+            city = fake.city()
+            phone = fake.phone_number()
+            address = fake_address(rng, fake)
+            postal = fake_postal_code(rng)
+            country = ""
 
         row = {
             "employee_id": emp_id,
@@ -346,19 +328,13 @@ def generate_employees(rng: random.Random, fake: Faker, count: int) -> list[dict
             "email": f"{fake.user_name()}@company.com",
             "phone_number": phone,
             "date_of_birth": fake_dob(rng, 22, 60).isoformat(),
-            # India-only PII fields are blank on GB rows; the per-data-subject
-            # classifier under UK GDPR doesn't expect aadhaar/pan/ifsc.
-            "aadhaar_number": "" if jur == "GB" else fake_aadhaar(rng),
-            "pan_number": "" if jur == "GB" else fake_pan(rng),
-            "passport_number": fake_passport(rng),
             "address": address,
             "city": city,
             "state": region,
-            "country": country_for(jur),
+            "country": country,
             "postal_code": postal,
-            "salary": round(rng.uniform(300000, 5000000), 2),
+            "salary": round(rng.uniform(20000, 150000), 2),
             "bank_account": fake_bank_account(rng),
-            "ifsc_code": "" if jur == "GB" else fake_ifsc(rng),
             "department": rng.choice(DEPARTMENTS),
             "designation": rng.choice(DESIGNATIONS),
             "hire_date": fake_date_range(
@@ -376,10 +352,10 @@ def generate_customers(rng: random.Random, fake: Faker, count: int) -> list[dict
     rows = []
     for i in range(count):
         cust_id = f"customer_{i:05d}"
-        # DSR test principal (customer_04217) must stay Indian — many tests
-        # assert DPDP-specific behaviour against this row.
+        # DSR test principal (customer_04217) is pinned to GB — many tests
+        # assert UK GDPR-specific behaviour against this row.
         if i == DSR_PRINCIPAL_INDEX:
-            jur = "IN"
+            jur = "GB"
         else:
             jur = pick_jurisdiction(rng)
 
@@ -390,16 +366,23 @@ def generate_customers(rng: random.Random, fake: Faker, count: int) -> list[dict
             address = fake_uk_address(rng, fake)
             postal = fake_uk_postcode(rng)
             pref_lang = "en"
-        else:
-            region = rng.choice(INDIAN_STATES)
-            cities = INDIAN_CITIES.get(region, [fake.city()])
-            city = rng.choice(cities)
-            mobile = fake_indian_mobile(rng, with_prefix=rng.random() < 0.6)
+            country = "United Kingdom"
+        elif jur == "EU":
+            country = pick_eu_country(rng)
+            region = country
+            city = rng.choice(EU_CITIES[country])
+            mobile = fake_eu_mobile(rng, EU_CALLING_CODES[country], with_prefix=rng.random() < 0.6)
             address = fake_address(rng, fake)
             postal = fake_postal_code(rng)
-            pref_lang = rng.choice(
-                ["en", "hi", "ta", "te", "kn", "ml", "mr", "bn", "gu"]
-            )
+            pref_lang = EU_LOCALE_BY_COUNTRY[country].split("-")[0]
+        else:
+            region = ""
+            city = fake.city()
+            mobile = fake.phone_number()
+            address = fake_address(rng, fake)
+            postal = fake_postal_code(rng)
+            pref_lang = "en"
+            country = ""
 
         reg_date = fake_date_range(rng, date(2020, 1, 1), date(2026, 3, 1))
 
@@ -409,17 +392,12 @@ def generate_customers(rng: random.Random, fake: Faker, count: int) -> list[dict
             "email_address": fake.email(),
             "mobile": mobile,
             "date_of_birth": fake_dob(rng, 18, 75).isoformat(),
-            # Aadhaar/PAN are India-only IDs; GB rows leave them blank so the
-            # DPDP classifier doesn't surface false-positive matches on UK
-            # principals.
-            "aadhaar_number": "" if jur == "GB" else fake_aadhaar(rng),
-            "pan_number": "" if jur == "GB" else fake_pan(rng),
             "credit_card_number": fake.credit_card_number(),
             "cvv": f"{rng.randint(100,999)}",
             "billing_address": address,
             "city": city,
             "state": region,
-            "country": country_for(jur),       # ADR-0001 M2 routing key
+            "country": country,                # ADR-0001 M2 routing key
             "postal_code": postal,
             "loyalty_tier": rng.choice(LOYALTY_TIERS),
             "loyalty_points": rng.randint(0, 50000),
@@ -429,7 +407,7 @@ def generate_customers(rng: random.Random, fake: Faker, count: int) -> list[dict
                 rng, reg_date, GENERATOR_DATE
             ).isoformat(),
             "account_holder_name": "",  # filled below
-            "ip_address": fake_ip(rng, fake),
+            "ip_address": fake.ipv4(),
         }
         row["account_holder_name"] = row["full_name"]
         rows.append(row)
@@ -461,13 +439,18 @@ def generate_patients(rng: random.Random, fake: Faker, count: int) -> list[dict]
         if jur == "GB":
             phone = fake_uk_mobile(rng)
             emergency_phone = fake_uk_mobile(rng)
-            aadhaar = ""
             nhs = fake_nhs_number(rng)         # GB rows carry NHS Number
-        else:
-            phone = fake_indian_mobile(rng)
-            emergency_phone = fake_indian_mobile(rng)
-            aadhaar = fake_aadhaar(rng)
+            country = "United Kingdom"
+        elif jur == "EU":
+            country = pick_eu_country(rng)
+            phone = fake_eu_mobile(rng, EU_CALLING_CODES[country])
+            emergency_phone = fake_eu_mobile(rng, EU_CALLING_CODES[country])
             nhs = ""
+        else:
+            phone = fake.phone_number()
+            emergency_phone = fake.phone_number()
+            nhs = ""
+            country = ""
 
         row = {
             "patient_id": patient_id,
@@ -475,7 +458,6 @@ def generate_patients(rng: random.Random, fake: Faker, count: int) -> list[dict]
             "full_name": f"{fake.first_name()} {fake.last_name()}",
             "date_of_birth": dob.isoformat(),
             "gender": rng.choice(GENDERS),
-            "aadhaar_number": aadhaar,
             "nhs_number": nhs,                # UK GDPR special-category PII
             "phone": phone,
             "email": fake.email(),
@@ -490,7 +472,7 @@ def generate_patients(rng: random.Random, fake: Faker, count: int) -> list[dict]
                 ["None", "Penicillin", "Sulfa drugs", "Aspirin", "Ibuprofen", "Latex"]
             ),
             "attending_physician": f"Dr. {fake.last_name()}",
-            "country": country_for(jur),       # ADR-0001 M2 routing key
+            "country": country,                # ADR-0001 M2 routing key
             "last_visit_date": last_visit.isoformat(),
             "next_appointment": (
                 last_visit + timedelta(days=rng.randint(7, 180))
@@ -506,6 +488,13 @@ def generate_patients(rng: random.Random, fake: Faker, count: int) -> list[dict]
     return rows
 
 
+def location_choices(cust: dict) -> list[str]:
+    """Candidate cities for a transaction `location` field, given a customer row."""
+    if cust["country"] == "United Kingdom":
+        return UK_CITIES
+    return EU_CITIES.get(cust["country"], [cust["city"]])
+
+
 def generate_transactions(
     rng: random.Random, fake: Faker, customers: list[dict], count: int
 ) -> list[dict]:
@@ -519,14 +508,15 @@ def generate_transactions(
     # Ensure DSR principal gets 12-20 transactions first
     dsr_txn_count = rng.randint(12, 20)
     dsr_cust = customers[DSR_PRINCIPAL_INDEX]
+    dsr_currency = currency_for(dsr_cust["country"])
     for _ in range(dsr_txn_count):
         txn_date = fake_date_range(rng, date(2024, 10, 1), GENERATOR_DATE)
         row = {
             "transaction_id": f"TXN{len(rows)+1:08d}",
             "customer_id": dsr_cust["customer_id"],
             "transaction_date": f"{txn_date.isoformat()}T{rng.randint(0,23):02d}:{rng.randint(0,59):02d}:{rng.randint(0,59):02d}",
-            "amount": round(rng.uniform(10, 250000), 2),
-            "currency": "INR",
+            "amount": round(rng.uniform(5, 5000), 2),
+            "currency": dsr_currency,
             "transaction_type": rng.choice(TRANSACTION_TYPES),
             "status": rng.choice(TRANSACTION_STATUSES),
             "payment_method": rng.choice(PAYMENT_METHODS),
@@ -536,12 +526,10 @@ def generate_transactions(
                 "retail", "groceries", "electronics", "dining",
                 "travel", "healthcare", "utilities", "entertainment",
             ]),
-            "ip_address": fake_ip(rng, fake),
+            "ip_address": fake.ipv4(),
             "device_id": f"DEV-{uuid.UUID(int=rng.getrandbits(128)).hex[:12]}",
             "account_holder_name": dsr_cust["account_holder_name"],
-            "location": rng.choice(
-                list(INDIAN_CITIES.get(dsr_cust["state"], [dsr_cust["city"]]))
-            ),
+            "location": rng.choice(location_choices(dsr_cust)),
         }
         rows.append(row)
 
@@ -561,8 +549,8 @@ def generate_transactions(
             "transaction_id": f"TXN{i+1:08d}",
             "customer_id": cust["customer_id"],
             "transaction_date": f"{txn_date.isoformat()}T{rng.randint(0,23):02d}:{rng.randint(0,59):02d}:{rng.randint(0,59):02d}",
-            "amount": round(rng.uniform(10, 250000), 2),
-            "currency": "INR",
+            "amount": round(rng.uniform(5, 5000), 2),
+            "currency": currency_for(cust["country"]),
             "transaction_type": rng.choice(TRANSACTION_TYPES),
             "status": rng.choice(TRANSACTION_STATUSES),
             "payment_method": rng.choice(PAYMENT_METHODS),
@@ -572,12 +560,10 @@ def generate_transactions(
                 "retail", "groceries", "electronics", "dining",
                 "travel", "healthcare", "utilities", "entertainment",
             ]),
-            "ip_address": fake_ip(rng, fake),
+            "ip_address": fake.ipv4(),
             "device_id": f"DEV-{uuid.UUID(int=rng.getrandbits(128)).hex[:12]}",
             "account_holder_name": cust["account_holder_name"],
-            "location": rng.choice(
-                list(INDIAN_CITIES.get(cust["state"], [cust["city"]]))
-            ),
+            "location": rng.choice(location_choices(cust)),
         }
         rows.append(row)
     return rows
@@ -617,13 +603,30 @@ def generate_users(
         # inherit the customer's country to keep the linked-principal join
         # honest. For non-overlap users, draw from the mix independently.
         if is_overlap:
-            jur = derive_user_jurisdiction_from_country(cust.get("country", ""))
+            country = cust.get("country", "")
+            jur = derive_user_jurisdiction_from_country(country)
         else:
             jur = pick_jurisdiction(rng)
-        phone = fake_uk_mobile(rng) if jur == "GB" else fake_indian_mobile(rng)
-        pref_lang = "en" if jur == "GB" else rng.choice(
-            ["en", "hi", "ta", "te", "kn", "ml"]
-        )
+            country = ""  # set below once resolved
+
+        if jur == "GB":
+            phone = fake_uk_mobile(rng)
+            pref_lang = "en"
+            if not is_overlap:
+                country = "United Kingdom"
+        elif jur == "EU":
+            if is_overlap:
+                eu_country = country
+            else:
+                eu_country = pick_eu_country(rng)
+                country = eu_country
+            phone = fake_eu_mobile(rng, EU_CALLING_CODES[eu_country])
+            pref_lang = EU_LOCALE_BY_COUNTRY[eu_country].split("-")[0]
+        else:
+            phone = fake.phone_number()
+            pref_lang = "en"
+            if not is_overlap:
+                country = ""
 
         row = {
             "user_id": user_id,
@@ -633,7 +636,7 @@ def generate_users(
             "last_name": last_name,
             "phone": phone,
             "date_of_birth": fake_dob(rng, 18, 70).isoformat(),
-            "ip_address": fake_ip(rng, fake),
+            "ip_address": fake.ipv4(),
             "device_id": f"DEV-{uuid.UUID(int=rng.getrandbits(128)).hex[:12]}",
             "account_status": rng.choice(ACCOUNT_STATUSES),
             "mfa_enabled": rng.choice(["true", "false"]),
@@ -645,22 +648,22 @@ def generate_users(
             "referral_source": rng.choice([
                 "organic", "google_ads", "social_media", "referral", "direct",
             ]),
-            "country": country_for(jur),      # ADR-0001 M2 routing key
+            "country": country,      # ADR-0001 M2 routing key
         }
         rows.append(row)
     return rows
 
 
 def derive_user_jurisdiction_from_country(country: str) -> str | None:
-    """Inverse of country_for() — used when a user inherits its parent
-    customer's country and we need the jurisdiction code to render PII shape.
-    Kept narrow on purpose; the canonical mapping lives in
-    governance_core.pack_loader.derive_jurisdiction.
+    """Inverse of the country strings written by generate_customers() — used
+    when a user inherits its parent customer's country and we need the
+    jurisdiction code to render PII shape. Kept narrow on purpose; the
+    canonical mapping lives in governance_core.pack_loader.derive_jurisdiction.
     """
-    if country == "India":
-        return "IN"
     if country == "United Kingdom":
         return "GB"
+    if country in EU_CALLING_CODES:
+        return "EU"
     return None
 
 
@@ -673,6 +676,7 @@ def generate_consent_events(
     """Generate consent events as JSON for Day 9 Lakebase ingestion."""
     events = []
     n_customers = len(customers)
+    fake = Faker()
 
     # Target distribution by purpose
     purpose_targets = {
@@ -696,14 +700,15 @@ def generate_consent_events(
 
     # First: insert the 4 DSR principal events deterministically
     dsr_cust = customers[dsr_principal_index]
-    base_ts = datetime(2026, 2, 16, 14, 23, 10, tzinfo=IST)  # ~Day -60
+    dsr_language = notice_language_for(dsr_cust["country"])
+    base_ts = datetime(2026, 2, 16, 14, 23, 10, tzinfo=TZ)  # ~Day -60
 
     dsr_events = [
         {
             "data_principal_external_id": dsr_cust["customer_id"],
             "event_timestamp": base_ts.isoformat(),
             "event_type": "granted",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": "en-IN"},
+            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
             "channel": "web",
             "purpose": "marketing_email",
             "purpose_grant_status": "granted",
@@ -717,7 +722,7 @@ def generate_consent_events(
             "data_principal_external_id": dsr_cust["customer_id"],
             "event_timestamp": (base_ts + timedelta(seconds=5)).isoformat(),
             "event_type": "granted",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": "en-IN"},
+            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
             "channel": "web",
             "purpose": "analytics",
             "purpose_grant_status": "granted",
@@ -731,7 +736,7 @@ def generate_consent_events(
             "data_principal_external_id": dsr_cust["customer_id"],
             "event_timestamp": (base_ts + timedelta(seconds=10)).isoformat(),
             "event_type": "granted",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": "en-IN"},
+            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
             "channel": "web",
             "purpose": "third_party_sharing",
             "purpose_grant_status": "declined",
@@ -743,16 +748,16 @@ def generate_consent_events(
         },
         {
             "data_principal_external_id": dsr_cust["customer_id"],
-            "event_timestamp": datetime(2026, 4, 12, 22, 5, 0, tzinfo=IST).isoformat(),  # Day -5
+            "event_timestamp": datetime(2026, 4, 12, 22, 5, 0, tzinfo=TZ).isoformat(),  # Day -5
             "event_type": "withdrawn",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": "en-IN"},
+            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
             "channel": "mobile_app",
             "purpose": "marketing_email",
             "purpose_grant_status": "declined",
-            "ip_address": fake_indian_ip(rng),
+            "ip_address": fake.ipv4(),
             "user_agent": USER_AGENTS[1],  # iPhone
             "consent_capture_method": "toggle",
-            "retention_clock_start": datetime(2026, 4, 12, 22, 5, 0, tzinfo=IST).isoformat(),
+            "retention_clock_start": datetime(2026, 4, 12, 22, 5, 0, tzinfo=TZ).isoformat(),
             "retention_duration_days": 0,
         },
     ]
@@ -800,7 +805,7 @@ def generate_consent_events(
             rng.randint(6, 23),
             rng.randint(0, 59),
             rng.randint(0, 59),
-            tzinfo=IST,
+            tzinfo=TZ,
         )
 
         channel = rng.choice(CONSENT_CHANNELS)
@@ -808,11 +813,11 @@ def generate_consent_events(
             "data_principal_external_id": cust["customer_id"],
             "event_timestamp": ts.isoformat(),
             "event_type": event_type,
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": "en-IN"},
+            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": notice_language_for(cust["country"])},
             "channel": channel,
             "purpose": purpose,
             "purpose_grant_status": grant_status,
-            "ip_address": fake_ip(rng, Faker()),
+            "ip_address": fake.ipv4(),
             "user_agent": rng.choice(USER_AGENTS),
             "consent_capture_method": rng.choice(CONSENT_CAPTURE_METHODS),
             "retention_clock_start": ts.isoformat(),
@@ -855,7 +860,7 @@ def write_json(filepath: str, data) -> None:
 # ---------------------------------------------------------------------------
 def generate_all(output_dir: str, seed: int = SEED) -> dict:
     rng = random.Random(seed)
-    fake = Faker("en_IN")
+    fake = Faker("en_GB")
     Faker.seed(seed)
     fake.seed_instance(seed)
 
@@ -922,7 +927,7 @@ def generate_all(output_dir: str, seed: int = SEED) -> dict:
     manifest = {
         "seed": seed,
         "generated_at": datetime(
-            2026, 4, 17, 10, 0, 0, tzinfo=IST
+            2026, 4, 17, 10, 0, 0, tzinfo=TZ
         ).isoformat(),
         "generator_date": GENERATOR_DATE.isoformat(),
         "dsr_principal_id": DSR_PRINCIPAL_ID,
@@ -954,7 +959,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compliance Pack POC synthetic data generator")
     parser.add_argument(
         "--output-dir",
-        default="/tmp/dpdp_landing",
+        default="/tmp/compliance_landing",
         help="Output directory for generated files",
     )
     parser.add_argument("--seed", type=int, default=SEED, help="Random seed")
