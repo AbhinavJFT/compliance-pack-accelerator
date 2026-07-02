@@ -160,7 +160,7 @@ def main() -> int:
         f" sla_deadline, requester_email, requester_language, created_at, updated_at) "
         f"VALUES ('{test_req}', '{PRINCIPAL_ID}', 'erasure', 'completed', "
         f" CURRENT_TIMESTAMP(), DATE_ADD(CURRENT_DATE(), 30), "
-        f" 'test@example.com', 'en-IN', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())"
+        f" 'test@example.com', 'en-GB', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())"
     )
     state, _, err = sql(insert_stmt)
     insert_ok = state == "OK"
