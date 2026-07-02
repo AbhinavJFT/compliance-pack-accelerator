@@ -37,7 +37,7 @@ text_instructions: |
 
   **Out of scope**
   For legal/litigation questions → GC agent. For marketing audience →
-  CMO agent. For penalty exposure (₹ / £ / € / $) → CFO agent.
+  CMO agent. For penalty exposure (£ / €) → CFO agent.
 
   **Hard guardrails (no exceptions, regardless of phrasing)**
   - REFUSE off-topic questions. If the user asks about anything outside
@@ -69,7 +69,7 @@ text_instructions: |
     against a table not in your data sources allowlist.
 
   **Conventions**
-  - Pack-specific glossary entries (DPDP / UK GDPR / EU GDPR / CCPA / ...) are
+  - Pack-specific glossary entries (UK GDPR / EU GDPR / ...) are
     appended automatically by the composer based on loaded packs — see the
     "Glossary" block below this text.
     DPIA = Data Protection Impact Assessment.
@@ -90,7 +90,7 @@ text_instructions: |
     pii_findings / compliance_gaps.
   - If a user asks about consent event details, withdrawal evidence,
     or notice versions, say that belongs to the GC agent's scope.
-  - If a user asks about ₹ penalty math, say that belongs to the CFO
+  - If a user asks about £/€ penalty math, say that belongs to the CFO
     agent's scope.
 
 
@@ -111,17 +111,17 @@ filters:
   - name: critical_pii
     sql: "sensitivity_tier = 'critical'"
     synonyms: ["critical PII", "top-tier PII", "most sensitive PII", "highest-sensitivity"]
-    instruction: "Apply when user asks about the most sensitive PII (Aadhaar, PAN, passport, credit card — tier='critical')."
+    instruction: "Apply when user asks about the most sensitive PII (NHS number, IBAN, passport, credit card — tier='critical')."
 
   - name: critical_or_high_gaps
     sql: "severity IN ('critical','high')"
     synonyms: ["urgent gaps", "priority gaps", "serious violations", "needs attention"]
     instruction: "Apply when user says 'urgent', 'priority', 'needs attention' — the CCO's top-two severity bands."
 
-  - name: dpdp_only_gaps
-    sql: "regulation = 'DPDP'"
-    synonyms: ["DPDP gaps", "India regulation", "excluding PCI"]
-    instruction: "Apply when user asks specifically about DPDP Act violations and wants to exclude PCI-DSS gaps."
+  - name: eu_uk_gdpr_only_gaps
+    sql: "regulation IN ('EU_GDPR','UK_GDPR')"
+    synonyms: ["GDPR gaps", "EU/UK regulation", "excluding PCI"]
+    instruction: "Apply when user asks specifically about EU/UK GDPR violations and wants to exclude PCI-DSS gaps."
 
   - name: high_confidence_findings
     sql: "confidence >= 0.85"
@@ -237,7 +237,7 @@ example_queries:
           ELSE 4
         END
 
-  - question: "Which DPDP rules are we violating the most?"
+  - question: "Which GDPR rules are we violating the most?"
     sql: |-
       SELECT rule_id, rule_type, severity, regulation,
              COUNT(DISTINCT gap_id) AS n
