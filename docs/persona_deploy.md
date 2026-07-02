@@ -58,14 +58,14 @@ source ~/.zshrc
 As of ADR-0001 M1–M4 (2026-05-11) the platform is **multi-pack at runtime** —
 every pack under `regulations/` loads simultaneously and routes per data
 subject via the `jurisdiction` column. There's no longer a single "active"
-pack; the four packs currently shipped (`dpdp_2023`, `uk_gdpr`, `eu_gdpr`,
-`ccpa`) all load on every deploy.
+pack; the two packs currently shipped (`uk_gdpr`, `eu_gdpr`) all load on
+every deploy.
 
 ```bash
 # Legacy compatibility — selects which pack is the "primary" for any
 # back-compat single-pack code path (e.g., `load()` / `active_pack()` in
 # governance_core/pack_loader.py). The actual multi-pack runtime ignores it.
-export REGULATION_PACK=dpdp_2023   # primary; per-row routing is unaffected
+export REGULATION_PACK=eu_gdpr   # primary; per-row routing is unaffected
 ```
 
 `phase1_bootstrap` calls `loaded_packs()` and MERGEs every pack's rules into
@@ -150,13 +150,13 @@ persona orchestrator. Takes ~15 minutes.
 databricks bundle deploy --target dev
 
 # 2. Generate synthetic CSVs locally (deterministic, seed=42)
-python3 generate_synthetic_data.py --output-dir /tmp/dpdp_landing
+python3 generate_synthetic_data.py --output-dir /tmp/compliance_landing
 
 # 3. Upload CSVs into the landing volume (one subfolder per source table)
 for tbl in employees customers patients transactions users; do
   databricks fs mkdir "dbfs:/Volumes/compliance_pack/bronze/landing/${tbl}" 2>/dev/null || true
   databricks fs cp --recursive --overwrite \
-    "/tmp/dpdp_landing/${tbl}/" \
+    "/tmp/compliance_landing/${tbl}/" \
     "dbfs:/Volumes/compliance_pack/bronze/landing/${tbl}/"
 done
 
@@ -202,11 +202,11 @@ python3 scripts/apply_pii_masks.py
 python3 scripts/apply_persona_row_filters.py
 
 # 8. (Optional) Generate notices in the pack's other languages via the
-#    foundation model endpoint. For DPDP this adds 7 watermarked notices
-#    (bn-IN, te-IN, mr-IN, gu-IN, kn-IN, ml-IN, pa-IN) on top of the
-#    3 hand-authored ones (en-IN, hi-IN, ta-IN). Re-runnable with
-#    --overwrite, scope to one language via --language <code>, preview
-#    prompts via --dry-run.
+#    foundation model endpoint. For eu_gdpr this adds 22 watermarked
+#    notices (de, fr, es, it, nl, pl, pt, ro, el, hu, cs, sv, bg, da,
+#    fi, sk, hr, sl, lt, lv, et, mt, ga) on top of the 1 hand-authored
+#    one (en). Re-runnable with --overwrite, scope to one language via
+#    --language <code>, preview prompts via --dry-run.
 python3 scripts/generate_multilang_notices.py
 ```
 
@@ -294,10 +294,10 @@ facing capabilities. Run them manually if needed:
 # succeeded. See docs/test_results.html → T16.1 for the full explanation.
 python3 scripts/create_audit_share.py
 
-# DSR discovery (DPDP §11 access request)
+# DSR discovery (GDPR Art. 15 access request)
 python3 scripts/dsr_discovery.py --principal-id <id> --verbose
 
-# DSR erasure (DPDP §12(b) — DESTRUCTIVE; requires --confirm)
+# DSR erasure (GDPR Art. 17 — DESTRUCTIVE; requires --confirm)
 python3 scripts/dsr_erasure.py --principal-id <id> --request-id <dsr_id> --confirm
 
 # Re-apply column masks if they drift (phase1_bootstrap already runs them)
@@ -338,7 +338,7 @@ persist.
 
 **In-app role gate** — the Approve button is shown only when the
 logged-in user's email matches a workspace user with a plus-addressed
-DPDP persona email (`<base>+compliance-cco@<domain>` or `+compliance-gc@`). The app
+compliance persona email (`<base>+compliance-cco@<domain>` or `+compliance-gc@`). The app
 discovers these at runtime via SCIM (listing workspace users matching
 the `+compliance-` pattern), so re-running `scripts/setup_persona_users.py`
 auto-updates the role gate on the next app request — no app restart
@@ -358,7 +358,7 @@ hidden); CMO can't open the app at all.
 5. Sign in as CMO — you should hit a permission denied opening the
    app at all.
 
-### Quarterly DPIA workflow (DPDP §10 / GDPR Art. 35)
+### Quarterly DPIA workflow (GDPR Art. 35)
 
 The `dpia_generator` job (in `resources/jobs.yml`) auto-drafts a Data
 Protection Impact Assessment from live UC metadata once a quarter, and
@@ -456,7 +456,7 @@ admin. Ask the account owner to add you, or have them run the script.
 **`setup_persona_users.py` succeeds but UC grants fail with
 `PRINCIPAL_DOES_NOT_EXIST`.** The email isn't recognized by UC. This
 happens if the email doesn't match the workspace's SCIM user store
-exactly. Check `databricks users list | grep dpdp-` and make sure the
+exactly. Check `databricks users list | grep compliance-` and make sure the
 4 users exist with the exact plus-addressed emails. Case-sensitive.
 
 **Dashboard tile shows a permission error for a persona user.** The
