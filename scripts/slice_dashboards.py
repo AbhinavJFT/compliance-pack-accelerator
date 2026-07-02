@@ -1,6 +1,6 @@
-"""Slice the 10-page dpdp_compliance dashboard into per-persona dashboards.
+"""Slice the 10-page compliance_overview dashboard into per-persona dashboards.
 
-Reads dashboards/dpdp_compliance.lvdash.json, keeps only the pages each
+Reads dashboards/compliance_overview.lvdash.json, keeps only the pages each
 persona needs (identified by page displayName), and writes one JSON file
 per persona under dashboards/personas/. All top-level datasets are
 preserved — trimming datasets is not worth the risk of missing a
@@ -34,7 +34,7 @@ import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOURCE_DASHBOARD = REPO_ROOT / "dashboards" / "dpdp_compliance.lvdash.json"
+SOURCE_DASHBOARD = REPO_ROOT / "dashboards" / "compliance_overview.lvdash.json"
 OUTPUT_DIR = REPO_ROOT / "dashboards" / "personas"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -53,7 +53,7 @@ PERSONA_PAGES: dict[str, list[str]] = {
         "Compliance Analysis",
         "Data Inventory",
         "Detection Quality",
-        # DPIA — CCO owns DPDP compliance posture; reads via dashboard.
+        # DPIA — CCO owns GDPR compliance posture; reads via dashboard.
         # Approve action lives in the Databricks Review App, not here.
         "DPIA",
     ],
@@ -265,19 +265,23 @@ def build_cmo_consent_page() -> tuple[dict, list[dict]]:
 
 
 def build_cfo_penalty_page() -> tuple[dict, list[dict]]:
-    """Build a CFO-focused page: ₹-denominated exposure, gap counts
-    weighted by penalty severity. The penalty lookup is inlined as SQL
-    CASE since we don't have a penalties table yet."""
+    """Build a CFO-focused page: per-pack penalty exposure (EU GDPR in €,
+    UK GDPR in £), gap counts weighted by penalty severity. The penalty
+    lookup is inlined as SQL CASE since we don't have a penalties table
+    yet. EU and UK exposure are kept in separate columns/tiles rather
+    than summed — the two packs use different currencies."""
     ds_exposure = _new_id()
     ds_severity = _new_id()
 
-    # DPDP penalties (₹ crore): critical → 250, high → 150, medium → 50, low → 5
-    penalty_case = (
-        "CASE severity "
-        "WHEN 'critical' THEN 250 "
-        "WHEN 'high' THEN 150 "
-        "WHEN 'medium' THEN 50 "
-        "ELSE 5 END"
+    # EU GDPR (€ million): higher-tier (critical/high) → 20, standard-tier → 10
+    penalty_case_eu = "CASE WHEN severity IN ('critical','high') THEN 20 ELSE 10 END"
+    # UK GDPR (£ million): higher-tier (critical/high) → 17.5, standard-tier → 8.7
+    penalty_case_uk = "CASE WHEN severity IN ('critical','high') THEN 17.5 ELSE 8.7 END"
+    penalty_case_native = (
+        "CASE "
+        f"WHEN regulation='EU_GDPR' THEN {penalty_case_eu} "
+        f"WHEN regulation='UK_GDPR' THEN {penalty_case_uk} "
+        "ELSE NULL END"
     )
 
     datasets = [
@@ -285,7 +289,9 @@ def build_cfo_penalty_page() -> tuple[dict, list[dict]]:
             "name": ds_exposure,
             "displayName": "cfo_penalty_exposure_total",
             "queryLines": [
-                f"SELECT ROUND(SUM({penalty_case}) / 100, 1) AS exposure_hundreds_cr\n",
+                "SELECT\n",
+                f"  ROUND(SUM(CASE WHEN regulation='EU_GDPR' THEN {penalty_case_eu} ELSE 0 END), 1) AS eu_gdpr_exposure_eur_m,\n",
+                f"  ROUND(SUM(CASE WHEN regulation='UK_GDPR' THEN {penalty_case_uk} ELSE 0 END), 1) AS uk_gdpr_exposure_gbp_m\n",
                 f"FROM {CATALOG}.silver.compliance_gaps;",
             ],
         },
@@ -293,9 +299,9 @@ def build_cfo_penalty_page() -> tuple[dict, list[dict]]:
             "name": ds_severity,
             "displayName": "cfo_gaps_by_severity_with_penalty",
             "queryLines": [
-                f"SELECT severity, COUNT(*) AS gap_count, MAX({penalty_case}) AS penalty_ceiling_cr\n",
-                f"FROM {CATALOG}.silver.compliance_gaps GROUP BY severity\n",
-                "ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END;",
+                f"SELECT regulation, severity, COUNT(*) AS gap_count, MAX({penalty_case_native}) AS penalty_ceiling_m\n",
+                f"FROM {CATALOG}.silver.compliance_gaps WHERE regulation IN ('EU_GDPR','UK_GDPR') GROUP BY regulation, severity\n",
+                "ORDER BY regulation, CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END;",
             ],
         },
     ]
@@ -305,17 +311,23 @@ def build_cfo_penalty_page() -> tuple[dict, list[dict]]:
         "displayName": "Penalty Exposure",
         "layout": [
             _counter_widget(
-                "cfo-exposure", ds_exposure, "exposure_hundreds_cr",
-                "Total Penalty Exposure (₹ hundred crore)",
-                "Sum of DPDP penalty ceilings for all open gaps",
+                "cfo-exposure-eu", ds_exposure, "eu_gdpr_exposure_eur_m",
+                "EU GDPR Penalty Exposure (€ million)",
+                "Sum of EU GDPR penalty ceilings for all open gaps",
                 {"x": 0, "y": 0, "width": 3, "height": 3},
+            ),
+            _counter_widget(
+                "cfo-exposure-uk", ds_exposure, "uk_gdpr_exposure_gbp_m",
+                "UK GDPR Penalty Exposure (£ million)",
+                "Sum of UK GDPR penalty ceilings for all open gaps",
+                {"x": 3, "y": 0, "width": 3, "height": 3},
             ),
             _table_widget(
                 "cfo-severity", ds_severity,
-                [("severity", "Severity"), ("gap_count", "Open Gaps"),
-                 ("penalty_ceiling_cr", "Per-Gap Ceiling (₹ Cr)")],
-                "Gaps by Severity with Per-Incident Penalty Ceiling",
-                {"x": 3, "y": 0, "width": 5, "height": 4},
+                [("regulation", "Regulation"), ("severity", "Severity"), ("gap_count", "Open Gaps"),
+                 ("penalty_ceiling_m", "Per-Gap Ceiling (M, native currency)")],
+                "Gaps by Regulation/Severity with Per-Incident Penalty Ceiling",
+                {"x": 6, "y": 0, "width": 5, "height": 4},
             ),
         ],
         "pageType": "PAGE_TYPE_CANVAS",
