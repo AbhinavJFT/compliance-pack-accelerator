@@ -2,7 +2,7 @@
 
 > ⚠️ **Pre-build planning document.** This spec describes what was planned before the POC was built. Some details (full Lakebase/DSR-portal app, Module 04 Lakewatch, 14-day sprint timeline) were deferred or dropped because they're unavailable on free-trial workspaces. **For deploying the POC today, follow [`docs/persona_deploy.md`](docs/persona_deploy.md) and [`README.md`](README.md) — not this file.**
 >
-> **Architectural pivot post-spec.** The spec was written for a single-regulation (DPDP-only) build. The platform has since evolved into a multi-regulation accelerator (Compliance Pack Accelerator) where DPDP is the seed pack and additional packs (UK GDPR, EU GDPR, CCPA, …) drop in as data-only authoring exercises. Compliance applies per data subject — see [`docs/adr/0001-multi-jurisdiction-data-subject-routing.md`](docs/adr/0001-multi-jurisdiction-data-subject-routing.md) for the binding architectural decision and 24 enumerated edge cases.
+> **Architectural pivot post-spec.** The spec was written for a single-regulation (DPDP-only) build. The platform has since evolved into a multi-regulation accelerator (Compliance Pack Accelerator) where additional packs drop in as data-only authoring exercises. Compliance applies per data subject — see [`docs/adr/0001-multi-jurisdiction-data-subject-routing.md`](docs/adr/0001-multi-jurisdiction-data-subject-routing.md) for the binding architectural decision and 24 enumerated edge cases. **Update (2026-07-02):** per a UK/Europe-only go-to-market scope, the DPDP (India) and CCPA (US) packs described below and throughout this spec have since been removed from the codebase — the live packs today are `uk_gdpr` and `eu_gdpr`. This file is left as the original historical spec; see `regulations/README.md` for the current pack registry.
 
 > **To Claude Code reading this for the first time.** This specification is designed for pair-programming execution. You are collaborating with a human engineer across a 14-day sprint to build a working DPDP compliance POC on Databricks, covering Modules 01 (PII inventory) and 02 (consent intelligence) of a six-module platform. The human is your primary reviewer; do not attempt to execute the full build autonomously without checkpoints. Read this file top to bottom, then walk the directory structure in §0.3 to understand where the detail lives.
 
@@ -64,7 +64,7 @@ compliance_pack_spec/
 │   ├── medallion.py                 ← DLT Bronze + Silver
 │   └── classification_dlt.py        ← DLT pii_findings
 ├── dashboards/
-│   └── dpdp_compliance.lvdash.json  ← AI/BI dashboard
+│   └── compliance_overview.lvdash.json  ← AI/BI dashboard
 ├── schemas/                         ← DDL and executable pattern library
 │   ├── bronze.sql · silver.sql · register.sql
 │   ├── consent_events.sql · notice_versions.sql · consent_events_delta.sql
@@ -80,7 +80,6 @@ compliance_pack_spec/
 │   ├── setup_day_00.md · troubleshooting.md
 │   ├── rollback.md · certificate_layout.md
 └── reference/
-    ├── dpdp_glossary.md
     ├── databricks_trial_limits.md
     └── proposal.pdf                 ← the six-module platform context
 ```
