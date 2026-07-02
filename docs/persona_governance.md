@@ -6,7 +6,7 @@ Written for SA review — if a reviewer asks "what if user X tries to read
 table Y?", this doc answers it.
 
 The persona governance layer is **regulation-pack agnostic** — the same
-four personas serve every loaded pack (DPDP, UK GDPR, EU GDPR, …).
+four personas serve every loaded pack (UK GDPR, EU GDPR, …).
 Persona scoping composes with the per-data-subject jurisdiction routing
 defined in [ADR-0001](adr/0001-multi-jurisdiction-data-subject-routing.md):
 a CMO's UC grants restrict what tables they can read; the principal's
@@ -142,8 +142,8 @@ by a different system with its own audit trail:
   - **Layer 3 (column masks + row filters):** even if a persona
     somehow reaches a PII-bearing column, UC rewrites the bytes at
     read time. Two row filters are in force: `residency_filter` on
-    `silver.employees_tagged` (non-admins see only `country='India'`
-    rows — DPDP §16) and `persona_purpose_scope` on
+    `silver.employees_tagged` (non-admins see only EU/EEA-resident
+    rows — GDPR Art. 44-49) and `persona_purpose_scope` on
     `compliance.consent_events_log` (CMO sees only marketing-relevant
     purposes; admin + other personas see all rows). Bronze is
     unreachable because no persona has `USE_SCHEMA` on it.
@@ -249,8 +249,8 @@ DLT warning rather than being dropped. This is intentional, not an oversight:
   untraceable; dropping it is correct.
 
 **What this means for an SA's likely question** ("why aren't you enforcing
-email format at ingestion?"): because the DPDP register should reflect what's
-actually in source systems. Warning-level expectations surface the issue in
+email format at ingestion?"): because the compliance register should reflect
+what's actually in source systems. Warning-level expectations surface the issue in
 the DLT event log without distorting the PII inventory. If the customer's
 production deployment wants hard enforcement, flip `@dlt.expect` →
 `@dlt.expect_or_drop` on a per-column basis — but only after a policy
