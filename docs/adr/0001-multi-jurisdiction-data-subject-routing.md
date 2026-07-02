@@ -2,6 +2,16 @@
 
 **Status:** Accepted · **Implementation: Complete + Q2/Q3/EU/CCPA follow-ups merged (2026-05-12)**
 **Date:** 2026-05-08 (decision); 2026-05-11 (M4 cut-over to live workspace); 2026-05-12 (post-M4 follow-up sweep)
+
+> **2026-07-02 addendum — DPDP and CCPA removed.** Per a UK/Europe-only
+> go-to-market scope, the `dpdp_2023` (India) and `ccpa` (US) regulation
+> packs described throughout this ADR's milestone log have since been
+> removed from the codebase. **Only `eu_gdpr` and `uk_gdpr` remain live.**
+> The milestone log below is preserved as an accurate historical record
+> of how the multi-pack architecture was built and validated (including
+> against a 4-pack deployment) — it is NOT a description of the current
+> pack set. See `regulations/README.md` for the current pack registry.
+
 **Implementation:** Complete. Milestone log:
   - **M1 Foundation** (commit `58c4e7e`): multi-pack loader (`loaded_packs`,
     `pack_for(jurisdiction)`, `derive_jurisdiction`), `jurisdiction` column
