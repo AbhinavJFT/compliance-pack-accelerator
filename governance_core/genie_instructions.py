@@ -44,8 +44,8 @@ Each data subject (customer, user, patient, employee) carries a
 evaluation to the pack governing them. When answering questions:
 
 - For any question about a specific principal, qualify the answer with
-  their jurisdiction. Indian principals are governed by DPDP; UK
-  principals by UK GDPR. Retention windows, consent semantics, lawful
+  their jurisdiction. GB principals are governed by UK GDPR; EU/EEA
+  principals by EU GDPR. Retention windows, consent semantics, lawful
   basis, and DSR SLAs differ between packs.
 - For aggregate questions ("how many compliance gaps do we have?"),
   default to a per-jurisdiction breakdown unless the user explicitly
@@ -88,7 +88,7 @@ def _format_pack_summary(pack: Pack) -> str:
 # ---------------------------------------------------------------------------
 
 def _pack_short_name(pack: Pack) -> str:
-    """Use pack's authored short_name (e.g. 'DPDP') with fallback to pack.code."""
+    """Use pack's authored short_name (e.g. 'UK GDPR') with fallback to pack.code."""
     guidance = pack.persona_guidance() or {}
     return guidance.get("short_name") or pack.code
 
@@ -98,14 +98,14 @@ def _compute_template_vars(packs: list[Pack]) -> dict[str, str]:
 
     Available variables (use ``{{name}}`` in YAML):
 
-      pack_scope        : adjective for the persona's role ("DPDP" or
+      pack_scope        : adjective for the persona's role ("UK GDPR" or
                           "multi-jurisdiction"). Used in "You are the X
                           compliance assistant".
       pack_names        : comma-separated full names of loaded packs
-                          ("DPDP Act 2023, UK GDPR, EU GDPR, CCPA").
-      pack_short_names  : comma-separated short names ("DPDP, UK GDPR,
-                          EU GDPR, CCPA"). Use in scope/refusal text.
-      pack_count        : "1" or "4" — string form for direct interpolation.
+                          ("UK GDPR, EU GDPR").
+      pack_short_names  : comma-separated short names ("UK GDPR,
+                          EU GDPR"). Use in scope/refusal text.
+      pack_count        : "1" or "2" — string form for direct interpolation.
     """
     if not packs:
         return {
