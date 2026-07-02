@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Changelog & SA-Review Gap Analysis — Compliance Pack Accelerator (4 regulation packs live: DPDP / UK GDPR / EU GDPR / CCPA)</title>
+<title>Changelog & SA-Review Gap Analysis — Compliance Pack Accelerator (2 regulation packs live: UK GDPR / EU GDPR)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
@@ -169,15 +169,24 @@
 
 <div class="header">
   <h1>Changelog &amp; SA-Review Gap Analysis</h1>
-  <div class="subtitle">DPDP India 2023 seed-pack history + ADR-0001 multi-pack live state. 4 packs loaded today (DPDP / UK GDPR / EU GDPR / CCPA). Architecture decision: <a href="adr/0001-multi-jurisdiction-data-subject-routing.md" style="color: #ffd54f;">ADR-0001</a>.</div>
+  <div class="subtitle">ADR-0001 multi-pack live state. 2 packs loaded today (UK GDPR / EU GDPR). Architecture decision: <a href="adr/0001-multi-jurisdiction-data-subject-routing.md" style="color: #ffd54f;">ADR-0001</a>.</div>
   <div class="stamp">FOR SA REVIEW</div>
+</div>
+
+<div class="tldr" style="background:#fff3e0; border-left: 4px solid #ef6c00;">
+  <p><strong>2026-07-02 update:</strong> Per a UK/Europe-only go-to-market scope, the DPDP
+  (India) and CCPA (US) packs referenced throughout this changelog's dated history entries
+  below have since been removed from the codebase. Only <code>uk_gdpr</code> and
+  <code>eu_gdpr</code> remain live — see <code>regulations/README.md</code> for the current
+  pack registry. The entries below are preserved as an accurate historical record of what
+  was built and when; they are not a description of the current pack set.</p>
 </div>
 
 <!-- ================================================================== -->
 <div class="tldr">
   <p><strong>One-page summary:</strong> The POC has a full persona governance layer
   (4 sliced dashboards + 4 scoped Genie spaces + 4 plus-addressed users + UC-enforced grants
-  + dashboard/Genie ACLs + warehouse access) on top of the existing DPDP platform. The bundle
+  + dashboard/Genie ACLs + warehouse access) on top of the existing compliance platform. The bundle
   validates clean on CLI v0.288+. Teammates can reproduce the persona layer on their own
   workspace with one command. An SA-fix pass (April 2026) landed column-level PII masking,
   the Phase-1 bootstrap notebook, a prod-target guard, an audit-log demo, a live
@@ -990,7 +999,7 @@ da18b08  Update architecture diagram and test guide for persona governance layer
 c0aa8e3  Add persona governance layer: sliced dashboards, Genie spaces, UC-enforced ACLs
 80ff86b  Fix bundle for CLI v0.288+ compat; enable clean teammate deploy
 
-<span class="comment"># Repo: github.com:neerajkumar-jft/dpdp.git</span>
+<span class="comment"># Repo: github.com:neerajkumar-jft/compliance-pack-accelerator.git</span>
 <span class="comment"># Branch: main</span>
 <span class="comment"># All commits pushed. Pull with: git pull origin main</span></pre>
 
