@@ -475,13 +475,13 @@
   <h1>Compliance Pack <span class="accent">Accelerator</span></h1>
   <div class="sub">
     A Databricks-native multi-jurisdiction compliance platform with pluggable
-    regulation packs — DPDP India 2023, UK GDPR, EU GDPR, CCPA, PIPEDA, and
+    regulation packs — UK GDPR, EU GDPR, PIPEDA, and
     beyond. Discover personal data, capture granular consent, fulfill
     data-subject requests, score compliance gaps, and generate audit-ready
     DPIAs from a single Unity Catalog spine. Compliance applies per data
     subject: each principal's jurisdiction routes to the pack governing
-    them, so an Indian SaaS with UK clients applies DPDP rules to Indian
-    principals and UK GDPR rules to UK principals, in the same database,
+    them, so a UK-based SaaS with EU clients applies UK GDPR rules to UK
+    principals and EU GDPR rules to EU principals, in the same database,
     without manual sorting.
   </div>
   <div class="ctas">
@@ -496,10 +496,9 @@
   <h3>Reduce multi-regulator penalty exposure and prove compliance to auditors on demand</h3>
   <p>
     Modern data businesses face a growing matrix of data-protection
-    regulators. India's DPDP Act 2023 imposes penalties up to <strong>₹250
-    crore</strong>; UK GDPR up to <strong>£17.5 million or 4% of global
+    regulators. UK GDPR imposes penalties up to <strong>£17.5 million or 4% of global
     turnover</strong>; EU GDPR up to <strong>€20 million or 4%</strong>;
-    CCPA, PIPEDA, LGPD, APPI each their own ceilings. A multinational data
+    PIPEDA, LGPD, APPI each their own ceilings. A multinational data
     business runs all of these against the same database. Most
     organizations cannot answer the basic question — <em>where is our
     personal data, which regulation governs each row, who has consent for
@@ -516,7 +515,7 @@
     AI-assisted DPIA generation — every layer sharing the same Unity Catalog
     governance spine, every rule routed by the principal's jurisdiction
     column to the regulation pack governing them. The seed deployment is
-    DPDP India 2023; UK GDPR is the next pack; EU GDPR / CCPA / PIPEDA /
+    EU GDPR and UK GDPR, both live simultaneously; PIPEDA /
     LGPD / APPI drop in as 9-yaml-file authoring exercises with no core
     code change.
   </p>
@@ -550,7 +549,8 @@
     <div class="head">DSR-ready, audit-ready, multi-language</div>
     <p>
       Discovery + erasure scripts produce signed audit bundles. Notice
-      versions in 10 Indian languages, with machine-translation
+      versions in each pack's full language set (24 for EU GDPR, including
+      cy-GB/gd-GB for UK GDPR), with machine-translation
       watermarks. Persona-scoped Genie agents enforce who-sees-what at
       query time.
     </p>
@@ -562,8 +562,8 @@
 <div class="capability">
   <h3>PII Discovery &amp; Classification <span class="meta">Discovery</span></h3>
   <p>
-    Sixteen-pattern PII library (eleven universal + five India-specific:
-    Aadhaar, PAN, IFSC, India phone, India passport). Vectorized
+    PII pattern library (eleven universal + region-specific packs: UK
+    NHS Number/NINO/UTR, EU IBAN/VAT/national IDs). Vectorized
     Lakeflow Declarative Pipelines classifier scans every silver column on
     every run; UC column tags and masks auto-applied. Non-admin users see
     redacted values regardless of query path — dashboard, Genie, SQL editor,
@@ -596,10 +596,11 @@
 <div class="capability">
   <h3>Penalty-Weighted Gap Analysis <span class="meta">Compliance</span></h3>
   <p>
-    Nine DPDP rules drive a generated <code>compliance_gaps</code> table —
+    Twenty-six multi-pack rules (12 UK GDPR + 14 EU GDPR) drive a generated <code>compliance_gaps</code> table —
     one row per (rule × PII column) — with severity tiers, regulation
-    citations, and remediation guidance. Gap counts roll up into a
-    ₹-denominated exposure view (₹250 cr / 150 / 50 / 5 ceilings) so the
+    citations, and remediation guidance. Gap counts roll up into per-pack
+    £/€-denominated exposure views (EU GDPR €20M/€10M, UK GDPR £17.5M/£8.7M
+    higher/standard-tier ceilings) so the
     CFO Genie can surface the loss-of-day question in plain English.
   </p>
 </div>
@@ -643,12 +644,13 @@
 <div class="capability">
   <h3>Multi-Regulation Pack Framework <span class="meta">Extensibility</span></h3>
   <p>
-    Regulation-agnostic core; everything DPDP-specific lives in
-    <code>regulations/dpdp_2023/</code> as nine yaml files (rules, rights,
-    notices, retention, residency, breach SLA, languages, India PII patterns).
-    Adding a UK GDPR or CCPA jurisdiction is authoring nine new yaml files
-    against the same contract — no core changes. The active regime is
-    selected by a single <code>REGULATION_PACK</code> environment variable.
+    Regulation-agnostic core; everything EU-GDPR-specific lives in
+    <code>regulations/eu_gdpr/</code> as eleven yaml files (rules, rights,
+    notices, retention, residency, breach SLA, languages, EU PII patterns).
+    Adding a new jurisdiction (e.g. PIPEDA) is authoring the same set of new yaml files
+    against the same contract — no core changes. The default regime is
+    selected by a single <code>REGULATION_PACK</code> environment variable,
+    though every pack under <code>regulations/</code> loads simultaneously.
   </p>
 </div>
 
@@ -695,7 +697,7 @@
       Unity Catalog<span class="sep">·</span>Delta Lake<span class="sep">·</span>Lakeflow Declarative Pipelines<span class="sep">·</span>Regulation Pack
     </div>
     <div class="band-meta">
-      36 PII findings · 37 column masks · 51 multi-pack rules (9 DPDP + 12 UK GDPR + 14 EU GDPR + 16 CCPA) · 818 gaps · 10 silver objects · multi-jurisdiction (3,503 IN + 1,258 GB + 239 NULL customers)
+      PII findings · column masks · 26 multi-pack rules (12 UK GDPR + 14 EU GDPR) · 10 silver objects · multi-jurisdiction (60/35/5 GB/EU/unmapped customer mix)
     </div>
   </div>
 
@@ -781,7 +783,7 @@ python3 scripts/setup_agent_bricks.py --smoke <span class="comment"># 4 Agent Br
   </div>
   <div class="resource">
     <h3>Modular framework writeup</h3>
-    <p><a href="modular_framework.html">modular_framework.html</a> — how the regulation-pack abstraction supports adding UK GDPR / CCPA / others</p>
+    <p><a href="modular_framework.html">modular_framework.html</a> — how the regulation-pack abstraction supports adding PIPEDA / others</p>
   </div>
   <div class="resource">
     <h3>Solution scope &amp; decisions</h3>
