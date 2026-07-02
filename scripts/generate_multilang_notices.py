@@ -1,16 +1,22 @@
 """Generate consent notices in the pack's full language set via foundation model.
 
-Reads the en-IN notice from the active regulation pack's notices.yaml, calls
-`databricks-gpt-oss-120b` (or whatever `persona_config.get_model_endpoint()`
+Reads the primary-locale notice from the active regulation pack's notices.yaml,
+calls `databricks-gpt-oss-120b` (or whatever `persona_config.get_model_endpoint()`
 returns) to translate into each non-seeded language listed in the pack's
 languages.yaml, and MERGEs the resulting rows into
 `compliance.notice_versions` so downstream views and consent events can link
 to them.
 
-For DPDP 2023, that means:
-    seeded (hand-authored): en-IN, hi-IN, ta-IN           — 3 notices
-    generated (this script): bn-IN, te-IN, mr-IN, gu-IN,  — 7 notices
-                             kn-IN, ml-IN, pa-IN
+For eu_gdpr, that means:
+    seeded (hand-authored): en                             — 1 notice
+    generated (this script): de, fr, es, it, nl, pl, pt,   — 22 notices
+                             ro, el, hu, cs, sv, bg, da,
+                             fi, sk, hr, sl, lt, lv, et,
+                             mt, ga
+
+For uk_gdpr, that means:
+    seeded (hand-authored): en-GB                          — 1 notice
+    generated (this script): cy-GB, gd-GB                  — 2 notices
 
 Every generated notice carries a watermark preamble flagging it as machine-
 translated, so downstream consumers can distinguish legal-reviewed copy
@@ -21,7 +27,7 @@ Usage:
     python3 scripts/generate_multilang_notices.py                 # generate only missing
     python3 scripts/generate_multilang_notices.py --dry-run       # print prompts only
     python3 scripts/generate_multilang_notices.py --overwrite     # regenerate all non-seeded
-    python3 scripts/generate_multilang_notices.py --language bn-IN  # one language only
+    python3 scripts/generate_multilang_notices.py --language de   # one language only
 """
 
 from __future__ import annotations
@@ -108,11 +114,12 @@ def invoke_model(endpoint: str, system_prompt: str, user_prompt: str,
 
 
 def build_translation_prompt(source_text: str, target_language: str,
-                             target_script: str) -> tuple[str, str]:
+                             target_script: str, pack_name: str,
+                             source_locale: str, citation_year: str) -> tuple[str, str]:
     system = (
-        "You are a professional legal translator specialising in India's Digital "
-        "Personal Data Protection Act 2023. Translate the consent notice from "
-        f"English (en-IN) into {target_language} (script: {target_script}). "
+        f"You are a professional legal translator specialising in the {pack_name}. "
+        f"Translate the consent notice from "
+        f"English ({source_locale}) into {target_language} (script: {target_script}). "
         "Preserve EXACTLY these elements — departure from any will be flagged "
         "by downstream validation:\n"
         "  (1) The numbered list structure — keep the digits '1.' through '6.' "
@@ -122,10 +129,10 @@ def build_translation_prompt(source_text: str, target_language: str,
         "  (2) Legal terms — consent, purposes, withdrawal, DPO — using the "
         "standard translations for that language.\n"
         "  (3) The line break pattern (blank lines between sections).\n"
-        "  (4) The final citation. Keep the year '2023' in Arabic numerals "
-        "(NOT '২০২৩' or '२०२३' or '೨೦೨೩' etc.). You may transliterate the "
-        "phrase 'Digital Personal Data Protection Act' into the target script, "
-        "but the year must stay as 2023 for legal-document consistency.\n"
+        f"  (4) The final citation. Keep the year '{citation_year}' in Arabic "
+        "numerals. You may transliterate the regulation's name into the "
+        f"target script, but the year must stay as {citation_year} for "
+        "legal-document consistency.\n"
         "Output ONLY the translated notice body. No commentary, disclaimers, "
         "or explanations outside the notice itself."
     )
@@ -277,16 +284,22 @@ def main() -> int:
         # Use a short human-readable name derived from the code when no
         # explicit field exists.
         lang_name = {
-            "bn-IN": "Bengali", "te-IN": "Telugu", "mr-IN": "Marathi",
-            "gu-IN": "Gujarati", "kn-IN": "Kannada", "ml-IN": "Malayalam",
-            "pa-IN": "Punjabi", "hi-IN": "Hindi", "ta-IN": "Tamil",
-            "en-IN": "English (India)", "ur-IN": "Urdu",
+            "de": "German", "fr": "French", "es": "Spanish", "it": "Italian",
+            "nl": "Dutch", "pl": "Polish", "pt": "Portuguese", "ro": "Romanian",
+            "el": "Greek", "hu": "Hungarian", "cs": "Czech", "sv": "Swedish",
+            "bg": "Bulgarian", "da": "Danish", "fi": "Finnish", "sk": "Slovak",
+            "hr": "Croatian", "sl": "Slovenian", "lt": "Lithuanian",
+            "lv": "Latvian", "et": "Estonian", "mt": "Maltese", "ga": "Irish",
+            "cy-GB": "Welsh", "gd-GB": "Scottish Gaelic",
         }.get(code, code)
 
         system_prompt, user_prompt = build_translation_prompt(
             source_text=seed["notice_text"],
             target_language=lang_name,
             target_script=script,
+            pack_name=pack.name,
+            source_locale=pack.primary_locale,
+            citation_year=pack.metadata.get("effective_date", "")[:4] or "2018",
         )
 
         print(f"[{code}] {lang_name} ({script}, tier={tier})")
