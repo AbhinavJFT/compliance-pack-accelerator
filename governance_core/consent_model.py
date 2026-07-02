@@ -2,8 +2,8 @@
 
 The consent event schema is shared across every privacy regulation. What varies
 per regulation is (a) which `purpose` values are meaningful and (b) how withdrawal
-semantics work (opt-in default under DPDP/GDPR/PIPEDA vs. opt-out under CCPA). The
-schema itself is universal.
+semantics work (opt-in default under GDPR/PIPEDA vs. opt-out-style regimes
+elsewhere). The schema itself is universal.
 
 ## Migration status (Phase 0)
 
@@ -28,7 +28,7 @@ rather than a hardcoded column list.
 | event_timestamp | TIMESTAMP | NO | When the principal acted |
 | notice_id | STRING | NO | Which notice was shown |
 | notice_version | INT | NO | Version of notice seen at consent |
-| notice_language | STRING | NO | ISO 639 + region (en-IN, en-GB, fr-CA) |
+| notice_language | STRING | NO | ISO 639 + region (en-GB, de-DE, fr-FR) |
 | channel | STRING | NO | mobile_app / web / call_center / paper |
 | purpose | STRING | NO | One of the pack's defined purposes |
 | purpose_grant_status | STRING | NO | granted / declined / withdrawn |

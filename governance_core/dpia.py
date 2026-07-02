@@ -54,8 +54,8 @@ PARSE_ERROR_MAX_CHARS = 1000
 class DPIASections(BaseModel):
     """Structured output for the DPIA agent.
 
-    The 8 section *keys* are regulation-agnostic — DPDP §10, GDPR Art. 35,
-    and CCPA all expect roughly this structure, so dashboard tiles render
+    The 8 section *keys* are regulation-agnostic — GDPR Art. 35 and similar
+    DPIA regimes all expect roughly this structure, so dashboard tiles render
     consistently regardless of which regulation pack is active. The
     section *content* differs per pack via ``regulations/<pack>/dpia_template.yaml``.
 
@@ -141,7 +141,7 @@ def _schema_with_pack_overrides(overrides: dict[str, str]) -> dict[str, Any]:
 
     The default Field descriptions in DPIASections are the regulation-agnostic
     baseline; the pack can replace any of them with regulation-specific
-    guidance (e.g. "cite DPDP section numbers"). The Pydantic model itself is
+    guidance (e.g. "cite GDPR article numbers"). The Pydantic model itself is
     not mutated — we only customise the schema dict that goes into the prompt.
     """
     schema = DPIASections.model_json_schema()

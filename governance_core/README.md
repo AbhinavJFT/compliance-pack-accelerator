@@ -2,7 +2,7 @@
 
 This directory holds the **Layer 1 + Layer 2** components from the 4-layer framework
 (see `docs/modular_framework.html`). Everything in here is regulation-agnostic —
-identical under DPDP-India, UK GDPR, CCPA, PIPEDA, etc.
+identical under UK GDPR, EU GDPR, and any future pack (e.g. planned PIPEDA).
 
 ## What lives here
 
