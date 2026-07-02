@@ -44,14 +44,14 @@ resources:
     # -------------------------------------------------------------------------
     # retention_enforcement
     # -------------------------------------------------------------------------
-    # DPDP §8(7) retention enforcement. Identifies consent events past their
+    # GDPR Art. 5(1)(e) retention enforcement. Identifies consent events past their
     # retention deadline (event_timestamp + retention_duration_days) and, in
     # apply mode, DELETEs + VACUUMs them. Writes every run to
     # compliance.retention_audit for DPIA / regulator evidence.
     # Safe default: mode=dry-run. Schedule weekly.
     retention_enforcement:
       name: compliance_pack_retention_enforcement
-      description: "DPDP §8(7): identify + delete consent events past their retention deadline. Produces compliance.retention_audit evidence."
+      description: "GDPR Art. 5(1)(e): identify + delete consent events past their retention deadline. Produces compliance.retention_audit evidence."
       max_concurrent_runs: 1
 
       # Serverless compute — required on newer workspaces. Classic single-node
@@ -100,7 +100,7 @@ resources:
     # -------------------------------------------------------------------------
     # dpia_generator
     # -------------------------------------------------------------------------
-    # DPDP §10 / GDPR Art. 35: Data Protection Impact Assessment.
+    # GDPR Art. 35: Data Protection Impact Assessment.
     # Auto-drafts the DPIA from live UC metadata (PII register + compliance
     # gaps + consent coverage + discovered tables + data sources), writes a
     # JSON artifact to the dpia_artifacts volume, and appends one row per run
@@ -110,7 +110,7 @@ resources:
     #   python3 scripts/approve_dpia.py --list-drafts
     #   python3 scripts/approve_dpia.py --run-id <id> --reviewer <email>
     #
-    # Cadence is quarterly — the regulatory cadence per DPDP guidance.
+    # Cadence is quarterly — a common regulatory cadence for DPIA review.
     # Schedule ships UNPAUSED so the cron fires automatically on the
     # first applicable quarterly boundary after deploy. The companion
     # `dpia_first_run` step in scripts/deploy_all.sh triggers an

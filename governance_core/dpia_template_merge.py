@@ -7,8 +7,8 @@ per regulation. This module produces the merged DPIATemplate from the set
 of jurisdictions present in the activity's data scope.
 
 ADR-0001 §"Per-activity DPIA scope" rule: cite **only** the packs whose
-principals appear in the activity. An activity touching only Indian
-principals produces a DPDP-only DPIA, even in a deployment that also has
+principals appear in the activity. An activity touching only EU
+principals produces an EU-GDPR-only DPIA, even in a deployment that also has
 UK GDPR loaded.
 
 Primary pack: when 2+ packs apply, the first-listed pack in

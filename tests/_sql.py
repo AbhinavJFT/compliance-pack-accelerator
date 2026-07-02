@@ -35,10 +35,10 @@ def sql(stmt: str, wait_timeout: str = "30s") -> tuple[str, list, str]:
     error_message: truncated error from the API/CLI on failure.
     """
     payload = {"warehouse_id": warehouse_id(), "statement": stmt, "wait_timeout": wait_timeout}
-    Path("/tmp/_dpdp_sql.json").write_text(json.dumps(payload))
+    Path("/tmp/_compliance_sql.json").write_text(json.dumps(payload))
     r = subprocess.run(
         ["databricks", "api", "post", "/api/2.0/sql/statements",
-         "--json", "@/tmp/_dpdp_sql.json"],
+         "--json", "@/tmp/_compliance_sql.json"],
         capture_output=True, text=True,
     )
     if r.returncode != 0:

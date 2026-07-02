@@ -46,7 +46,7 @@ resources:
     # the `process_dsr_request` job are back in resources/.
     #
     # dsr_portal:
-    #   name: dpdp-dsr-portal
+    #   name: compliance-dsr-portal
     #   description: "DSR intake portal. Receives rights requests, verifies identity, triggers the process_dsr_request workflow."
     #   source_code_path: ../apps/dsr_portal
     #

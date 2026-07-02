@@ -21,7 +21,7 @@
 #       comment: "Compliance Pack POC. Covers Modules 01 (PII inventory) and 02 (consent)."
 #       storage_root: ${var.catalog_storage_root}
 #       properties:
-#         dpdp_scope: "modules_01_02"
+#         compliance_scope: "modules_01_02"
 #         data_classification: "synthetic_pii"
 #
 #   schemas:

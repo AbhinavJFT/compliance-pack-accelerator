@@ -181,7 +181,7 @@ print(f"  prompts    = {_repo_root}/governance_core/agent_prompts.py")
 # MAGIC ## Agent 1: DPIA Auto-Generator
 # MAGIC
 # MAGIC Reads UC metadata + pii_findings + compliance_gaps + consent_events_log
-# MAGIC and generates a DPDP-ready DPIA draft. Each run lands two artifacts:
+# MAGIC and generates a GDPR-ready DPIA draft. Each run lands two artifacts:
 # MAGIC
 # MAGIC   1. JSON file at `/Volumes/{catalog}/compliance/dpia_artifacts/dpia_<run_id>.json`
 # MAGIC   2. Audit row in `compliance.dpia_runs` (status = 'draft')
@@ -247,7 +247,7 @@ print(_dpia_result["dpia_text"])
 # DBTITLE 1,Cell 9
 @mlflow.trace(span_type="LLM", name="compliance_qa")
 def compliance_qa(question: str) -> str:
-    """Ask a natural language question about the DPDP compliance data estate.
+    """Ask a natural language question about the compliance data estate.
 
     @mlflow.trace captures the question, the assembled context, the
     final prompt, and the model response as one span per call. Each
@@ -438,7 +438,7 @@ display(ai_extraction_results)
 # MAGIC %md
 # MAGIC ## Summary
 # MAGIC
-# MAGIC ### What Agent Bricks delivers for DPDP compliance:
+# MAGIC ### What Agent Bricks delivers for GDPR compliance:
 # MAGIC
 # MAGIC | Agent | Manual Effort | With Agent Bricks | Impact |
 # MAGIC |-------|--------------|-------------------|--------|

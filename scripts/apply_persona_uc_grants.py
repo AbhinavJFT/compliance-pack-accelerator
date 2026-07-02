@@ -81,7 +81,7 @@ PERSONA_TABLES: dict[str, list[str]] = {
         "compliance_pack.compliance.consent_events_log",
         "compliance_pack.compliance.notice_versions",
         "compliance_pack.compliance.dsr_requests",
-        # GC owns DPDP §10 sign-off — DPIA history is the artifact they
+        # GC owns DPIA sign-off — DPIA history is the artifact they
         # approve. Kept in sync with the Genie data_sources allowlist in
         # scripts/setup_persona_genie_spaces.py PERSONA_DEFS['gc']['tables'].
         "compliance_pack.compliance.dpia_runs",

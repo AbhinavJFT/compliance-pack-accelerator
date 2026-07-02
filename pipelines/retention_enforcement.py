@@ -1,14 +1,14 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Retention Enforcement — DPDP §8(7)
+# MAGIC # Retention Enforcement — GDPR Art. 5(1)(e)
 # MAGIC
 # MAGIC Deletes consent events whose retention clock has expired:
 # MAGIC `event_timestamp + retention_duration_days < current_date()`.
 # MAGIC
 # MAGIC The `retention_duration_days` field is set at capture time (default 730
-# MAGIC days = 2 years in our POC). When the clock expires, DPDP §8(7) requires
-# MAGIC deletion "without undue delay" unless retention is legally required for
-# MAGIC another purpose. This job enforces that.
+# MAGIC days = 2 years in our POC). When the clock expires, GDPR Art. 5(1)(e)
+# MAGIC requires deletion "without undue delay" unless retention is legally
+# MAGIC required for another purpose. This job enforces that.
 # MAGIC
 # MAGIC **Two-stage operation:**
 # MAGIC   1. `--dry-run` mode (default): count what would be deleted, emit a
