@@ -91,15 +91,10 @@ PATTERN_LIBRARY: list[PIIPattern] = list(UNIVERSAL_PATTERNS) + list(_pack.pii_pa
 # whichever pack is active.
 _by_id: dict[str, PIIPattern] = {p.pattern_id: p for p in PATTERN_LIBRARY}
 EMAIL_PATTERN          = _by_id.get("email")
-PHONE_INDIA_PATTERN    = _by_id.get("phone_india")
 PHONE_INTL_PATTERN     = _by_id.get("phone_intl")
-AADHAAR_PATTERN        = _by_id.get("aadhaar")
-PAN_PATTERN            = _by_id.get("pan")
-PASSPORT_INDIA_PATTERN = _by_id.get("passport_india")
 CREDIT_CARD_PATTERN    = _by_id.get("credit_card")
 CVV_PATTERN            = _by_id.get("cvv")
 BANK_ACCOUNT_PATTERN   = _by_id.get("bank_account")
-IFSC_PATTERN           = _by_id.get("ifsc")
 NAME_PATTERN           = _by_id.get("name")
 ADDRESS_PATTERN        = _by_id.get("address")
 DOB_PATTERN            = _by_id.get("dob")
@@ -112,26 +107,15 @@ INSURANCE_ID_PATTERN   = _by_id.get("insurance_id")
 # Sample redaction — keep raw PII out of pii_findings
 # =============================================================================
 # Redactions for pii_types universally known (email, phone, credit_card, name,
-# address, ip_address) plus India-specific (aadhaar, pan). When a new region
-# pack adds a pii_type with region-specific formatting (NHS, SSN, SIN), add a
-# case here or have the pack provide its own redactor (a future refinement).
+# address, ip_address). When a new region pack adds a pii_type with
+# region-specific formatting (NHS, NINO, IBAN), add a case here or have the
+# pack provide its own redactor (a future refinement).
 
 def redact_sample(value: str, pii_type: str) -> str:
     """Return a redacted version of a matched sample, safe to store in pii_findings."""
     if value is None:
         return ""
     v = str(value)
-
-    if pii_type == "aadhaar":
-        digits = re.sub(r"\D", "", v)
-        if len(digits) == 12:
-            return f"{digits[:4]}XXXXXX{digits[-2:]}"
-        return "[12-digit redacted]"
-
-    if pii_type == "pan":
-        if len(v) == 10:
-            return f"{v[:2]}XXXXXX{v[-2:]}"
-        return "[PAN redacted]"
 
     if pii_type == "credit_card":
         digits = re.sub(r"\D", "", v)
