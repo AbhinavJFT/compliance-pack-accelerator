@@ -39,29 +39,28 @@ def _section(title: str) -> None:
 # Default path: jurisdiction-derived multi-pack
 # ---------------------------------------------------------------------------
 
-def test_resolve_in_only_single_pack() -> None:
-    """IN-only data → single pack, dpdp_2023, no merger."""
+def test_resolve_gb_only_single_pack() -> None:
+    """GB-only data → single pack, uk_gdpr, no merger."""
     template, packs = _resolve_dpia_packs(
-        jurisdiction_breakdown=[{"jurisdiction": "IN", "principal_count": 3500}]
+        jurisdiction_breakdown=[{"jurisdiction": "GB", "principal_count": 1250}]
     )
-    assert packs == ["dpdp_2023"], packs
-    assert "+" not in template.legal_framework_name, (
-        "single-pack template should not have merged framework name"
+    assert packs == ["uk_gdpr"], packs
+    assert "Multi-regulation scope" not in template.system_prompt, (
+        "single-pack template should not carry the merger marker"
     )
-    print(f"  ✓ IN-only data → packs={packs}, framework={template.legal_framework_name!r}")
+    print(f"  ✓ GB-only data → packs={packs}, framework={template.legal_framework_name!r}")
 
 
-def test_resolve_in_gb_eu_merged() -> None:
-    """Mixed IN/GB/EU → 3 contributing packs, merged template emits the ADR-0001 marker."""
+def test_resolve_gb_eu_merged() -> None:
+    """Mixed GB/EU → 2 contributing packs, merged template emits the ADR-0001 marker."""
     template, packs = _resolve_dpia_packs(
         jurisdiction_breakdown=[
-            {"jurisdiction": "IN", "principal_count": 3500},
             {"jurisdiction": "GB", "principal_count": 1250},
             {"jurisdiction": "EU", "principal_count": 800},
         ]
     )
-    assert set(packs) == {"dpdp_2023", "uk_gdpr", "eu_gdpr"}, packs
-    assert packs[0] == "dpdp_2023", f"DPDP should be primary (hoisted), got {packs[0]}"
+    assert set(packs) == {"uk_gdpr", "eu_gdpr"}, packs
+    assert packs[0] == "eu_gdpr", f"eu_gdpr should be primary (hoisted, DEFAULT_PACK_CODE), got {packs[0]}"
     # The merger injects a "Multi-regulation scope (ADR-0001)" paragraph
     # into the system_prompt — that's a reliable single-vs-merged signal.
     # (Checking framework_name for "+" is unreliable: UK GDPR's name is
@@ -69,19 +68,19 @@ def test_resolve_in_gb_eu_merged() -> None:
     assert "Multi-regulation scope" in template.system_prompt, (
         "merged template's system_prompt should carry the ADR-0001 marker"
     )
-    print(f"  ✓ IN+GB+EU → packs={packs}, merged-marker present")
+    print(f"  ✓ GB+EU → packs={packs}, merged-marker present")
 
 
 def test_resolve_null_jurisdictions_ignored() -> None:
-    """NULL jurisdictions don't pollute pack selection — IN+NULL collapses to IN."""
+    """NULL jurisdictions don't pollute pack selection — GB+NULL collapses to GB."""
     template, packs = _resolve_dpia_packs(
         jurisdiction_breakdown=[
-            {"jurisdiction": "IN", "principal_count": 3500},
+            {"jurisdiction": "GB", "principal_count": 1250},
             {"jurisdiction": None, "principal_count": 239},
         ]
     )
-    assert packs == ["dpdp_2023"], packs
-    print(f"  ✓ IN + NULL → packs={packs} (NULL filtered)")
+    assert packs == ["uk_gdpr"], packs
+    print(f"  ✓ GB + NULL → packs={packs} (NULL filtered)")
 
 
 def test_resolve_fully_unmapped_falls_back_to_primary() -> None:
@@ -111,7 +110,7 @@ def test_resolve_regulation_pack_override_forces_single_pack() -> None:
     template, packs = _resolve_dpia_packs(
         regulation_pack="uk_gdpr",
         jurisdiction_breakdown=[
-            {"jurisdiction": "IN", "principal_count": 3500},
+            {"jurisdiction": "EU", "principal_count": 800},
             {"jurisdiction": "GB", "principal_count": 1250},
         ],
     )
@@ -154,8 +153,8 @@ def test_resolve_explicit_pack_wins() -> None:
 
 def main() -> int:
     tests = [
-        test_resolve_in_only_single_pack,
-        test_resolve_in_gb_eu_merged,
+        test_resolve_gb_only_single_pack,
+        test_resolve_gb_eu_merged,
         test_resolve_null_jurisdictions_ignored,
         test_resolve_fully_unmapped_falls_back_to_primary,
         test_resolve_empty_breakdown_falls_back_to_primary,
