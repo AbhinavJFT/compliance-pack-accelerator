@@ -5,7 +5,7 @@ Why this exists
 The deployed POC is deterministic — same git revision + same seeds (42 / 43
 / 44) + same regulation pack always produce the same pii_findings,
 compliance_gaps, sensitivity tier breakdown, etc. But every time someone
-edits ``regulations/dpdp_2023/rules.yaml`` or ``pii_patterns.py`` (or seeds,
+edits ``regulations/<pack>/rules.yaml`` or ``pii_patterns.py`` (or seeds,
 or generators) the deterministic numbers shift. The numeric assertions in
 ``docs/how_to_test.html`` and the strict baseline test
 (``tests/test_baseline_counts.py``) then go stale.
