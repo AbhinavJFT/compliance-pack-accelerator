@@ -64,9 +64,9 @@ cd "$REPO_ROOT"
 
 # --- env defaults ---------------------------------------------------------
 export DATABRICKS_BUNDLE_ENGINE="${DATABRICKS_BUNDLE_ENGINE:-direct}"
-export REGULATION_PACK="${REGULATION_PACK:-dpdp_2023}"
+export REGULATION_PACK="${REGULATION_PACK:-eu_gdpr}"
 
-LANDING_DIR="${LANDING_DIR:-/tmp/dpdp_landing}"
+LANDING_DIR="${LANDING_DIR:-/tmp/compliance_landing}"
 
 # --- argument parsing -----------------------------------------------------
 FROM=""
