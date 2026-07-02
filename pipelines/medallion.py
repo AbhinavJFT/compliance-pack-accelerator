@@ -49,11 +49,9 @@ def jurisdiction_from(country_col: str):
     """
     c = F.upper(F.trim(F.col(country_col)))
     return (
-        F.when(c.isin("IN", "IND", "INDIA"), F.lit("IN"))
-         .when(c.isin("GB", "UK", "GBR", "UNITED KINGDOM",
+        F.when(c.isin("GB", "UK", "GBR", "UNITED KINGDOM",
                       "ENGLAND", "SCOTLAND", "WALES", "NORTHERN IRELAND"),
                F.lit("GB"))
-         .when(c.isin("US", "USA", "UNITED STATES", "AMERICA"), F.lit("US"))
          .when(c.isin(
              "AT", "AUSTRIA", "BE", "BELGIUM", "BG", "BULGARIA",
              "HR", "CROATIA", "CY", "CYPRUS", "CZ", "CZECH REPUBLIC", "CZECHIA",
@@ -70,11 +68,9 @@ def jurisdiction_from(country_col: str):
     )
 
 
-# M1 had a JURISDICTION_HARDCODED_IN fallback for tables whose source rows
-# carried no country signal. M2 retired it — the 70/25/5 IN/GB/unmapped
-# synthetic mix means every customer-level table now writes a `country`
-# column, and all four silver materialisers call jurisdiction_from('country')
-# uniformly. Left as a comment in case a future pack needs a similar fallback.
+# Every customer-level table writes a `country` column, and all four silver
+# materialisers call jurisdiction_from('country') uniformly. The synthetic
+# generators produce a GB/EU/unmapped jurisdiction mix.
 
 # ---------------------------------------------------------------------------
 # Helper: Auto Loader stream for a single source table
@@ -168,7 +164,6 @@ def source_users():
 )
 @dlt.expect_or_drop("valid_employee_id", "employee_id IS NOT NULL AND length(employee_id) > 0")
 @dlt.expect("valid_email_format", "email RLIKE '^[^@]+@[^@]+\\\\.[^@]+$'")
-@dlt.expect("has_aadhaar_or_passport", "aadhaar_number IS NOT NULL OR passport_number IS NOT NULL OR country != 'India'")
 @dlt.expect("valid_hire_date", "hire_date <= current_date()")
 def employees_tagged():
     return (
