@@ -84,7 +84,7 @@ def test_resolve_null_jurisdictions_ignored() -> None:
 
 
 def test_resolve_fully_unmapped_falls_back_to_primary() -> None:
-    """All-NULL data → fallback to primary loaded pack (dpdp_2023), not crash."""
+    """All-NULL data → fallback to primary loaded pack (eu_gdpr), not crash."""
     template, packs = _resolve_dpia_packs(
         jurisdiction_breakdown=[{"jurisdiction": None, "principal_count": 100}]
     )
