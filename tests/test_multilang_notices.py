@@ -34,10 +34,9 @@ VERSION = 1
 MIN_BODY_CHARS = 100
 
 # Content-quality signals every notice body must carry, regardless of language.
-# The numbered list (items 1-6) + the DPDP Act citation year must survive any
-# translation — if they don't, something truncated or drifted.
+# The numbered list (items 1-6) + the regulation's citation year must survive
+# any translation — if they don't, something truncated or drifted.
 REQUIRED_LIST_MARKERS = ["1.", "2.", "3.", "4.", "5.", "6."]
-REQUIRED_CITATION_YEAR = "2023"
 
 
 def main() -> int:
@@ -47,6 +46,9 @@ def main() -> int:
 
     pack = active_pack()
     expected = {l["code"]: l.get("seeded_by_poc", False) for l in pack.languages()}
+    # Derived from the pack's own effective_date rather than hardcoded, so
+    # this check stays correct regardless of which pack is active.
+    required_citation_year = pack.metadata.get("effective_date", "")[:4] or "2018"
 
     print(f"Multilang notices — pack {pack.code}, {NOTICE_ID} v{VERSION}")
     print("=" * 70)
@@ -125,18 +127,18 @@ def main() -> int:
         ", ".join(lang_missing_list) if lang_missing_list else "",
     ))
 
-    # 6. DPDP Act citation year ('2023') must appear in every body — the
+    # 6. The regulation's citation year must appear in every body — the
     #    one non-translatable anchor a regulator would look for as proof
-    #    of statute reference. Script-transliterated forms in Devanagari /
-    #    Bengali / Tamil / etc. still use Arabic digits for the year in
+    #    of statute reference. Script-transliterated forms (e.g. Greek,
+    #    Bulgarian Cyrillic) still use Arabic digits for the year in
     #    practice. If the model localised the year into another numeral
     #    system this check would flag it for review.
     lang_missing_year = [
         lang for lang, (_, _, body) in by_lang.items()
-        if REQUIRED_CITATION_YEAR not in body
+        if required_citation_year not in body
     ]
     checks.append((
-        f"Every notice body cites the DPDP year '{REQUIRED_CITATION_YEAR}'",
+        f"Every notice body cites the pack's citation year '{required_citation_year}'",
         not lang_missing_year,
         f"missing: {lang_missing_year}" if lang_missing_year else "",
     ))
