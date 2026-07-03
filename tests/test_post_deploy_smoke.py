@@ -1,6 +1,6 @@
 """Post-deploy smoke test — assert the POC's three-path ingestion + governance chain is whole.
 
-The "≥36 findings" threshold flagged by the colleague's gap report
+The "≥N findings" threshold flagged by the colleague's gap report
 (2026-04-24) is the right kind of regression guard, but the real story
 is: did all three ingestion patterns (Auto Loader, Lakeflow Connect
 simulation, Federation simulation) deliver into the same governance
@@ -15,12 +15,12 @@ Checks (in order, each emits ✓/✗):
 
   1. All 5 schemas exist (bronze, silver, compliance, gold, federation_mock)
   2. ≥10 silver objects (8 tables + 2 federation views) registered
-  3. silver.pii_findings has ≥36 rows
+  3. silver.pii_findings has ≥23 rows
   4. All 3 ingestion patterns produced findings:
        Auto Loader (≥5 silver tables in findings) +
        Lakeflow Connect sim (sf_* present) +
        Federation sim (federation_* present)
-  5. compliance.personal_data_register has ≥36 rows (auto-derived view)
+  5. compliance.personal_data_register has ≥23 rows (auto-derived view)
   6. column_masks registered on every silver table the classifier flagged
   7. compliance.consent_events_log has events (Module 02 baseline)
   8. compliance.notice_versions has ≥10 rows (10-language coverage)
@@ -43,12 +43,19 @@ from _sql import rows_or_raise  # noqa: E402
 CATALOG = "compliance_pack"
 
 # Expected baselines — picked to fail loudly if a regression knocks
-# something out of the chain. Numbers reflect 2026-04-27 state after
-# Day 3 + Day 4 + B-pass landed.
+# something out of the chain. MIN_FINDINGS/MIN_REGISTER_ROWS reflect
+# 2026-07-03 state: the DPDP/CCPA column purge (aadhaar/pan/passport/ifsc
+# etc. dropped from the schema) plus the eu_passport/de_personalausweis/
+# uk_utr false-positive-regex fix (generic 8-10 char ID columns like
+# employee_id/patient_id/user_id no longer misclassify as passport/
+# de_id_card) both lowered the true finding count from the original
+# 36 baseline (2026-04-27, pre-purge, pre-fix) to a verified 23 —
+# every remaining finding is classifier_source="hybrid" (both column-name
+# hint AND content regex agree), not a lone weak signal.
 EXPECTED_SCHEMAS = {"bronze", "silver", "compliance", "gold", "federation_mock"}
 MIN_SILVER_OBJECTS = 10        # 5 base + 3 SF + 2 federation views
-MIN_FINDINGS = 36
-MIN_REGISTER_ROWS = 36
+MIN_FINDINGS = 23
+MIN_REGISTER_ROWS = 23
 MIN_NOTICE_VERSIONS = 3        # 2 seeded by phase1 (1 per loaded pack); many more after multilang
 MIN_AUTO_LOADER_TABLES = 5     # employees/customers/patients/transactions/users
 MIN_SF_TABLES = 3              # sf_leads/sf_contacts/sf_accounts
