@@ -15,7 +15,7 @@
 # MAGIC - `bronze.data_sources`      (10 ingestion-source rows; classifier reads silver_table_name from here)
 # MAGIC - `silver.compliance_gaps`   (gaps, from rules × pii_findings)
 # MAGIC - `compliance.consent_events_log` (1,000 synthetic consent events, deterministic seed=42)
-# MAGIC - `compliance.notice_versions`    (1 notice: marketing_notice v1, primary locale)
+# MAGIC - `compliance.notice_versions`    (1 notice per loaded pack, v1, primary locale)
 # MAGIC - `compliance.dsr_requests`        (schema only — DSR app writes rows)
 # MAGIC - `compliance.personal_data_register` (view on pii_findings)
 # MAGIC - `compliance.has_active_consent()`   (UDF)
@@ -892,13 +892,28 @@ print(f"✓ {spark.table(f'{CATALOG}.compliance.notice_versions').count()} notic
 
 import random
 from datetime import timedelta
+from governance_core.pack_loader import derive_jurisdiction, pack_for
 
 random.seed(42)
 
-# Pull customer_ids from silver.customers_tagged to keep principals real
-all_customers = [r.customer_id for r in
-                 spark.table(f"{CATALOG}.silver.customers_tagged")
-                      .select("customer_id").collect()]
+# Pull (customer_id, country) from silver.customers_tagged to keep principals
+# real AND to stamp each consent event with the notice of the pack that
+# actually governs that principal — not a hardcoded literal (see _notice_for
+# below; a UK principal must never be stamped with the EU pack's notice_id).
+_customer_rows = (spark.table(f"{CATALOG}.silver.customers_tagged")
+                       .select("customer_id", "country").collect())
+all_customers = [r.customer_id for r in _customer_rows]
+_country_by_pid = {r.customer_id: r.country for r in _customer_rows}
+
+
+def _notice_for(pid: str) -> tuple[str, str]:
+    """(notice_id, language) for pid's own governing pack's own notice.
+    Falls back to the default pack (_pack) for unmapped jurisdictions —
+    same fallback the rest of the platform uses for unmapped principals."""
+    p = pack_for(derive_jurisdiction(_country_by_pid.get(pid))) or _pack
+    n = p.notices()[0]
+    return n["notice_id"], n["language"]
+
 
 # Target: 1000 events across ~292 distinct principals
 principals = random.sample(all_customers, min(292, len(all_customers)))
@@ -929,21 +944,22 @@ events = []
 # First: the 4 canonical customer_04217 events (tests depend on exact shape)
 TEST_PID = "customer_04217"
 ev3_id = "evt_000003"  # marketing_email withdrawal event id
+_test_notice_id, _test_notice_lang = _notice_for(TEST_PID)
 events.extend([
     ("evt_000001", TEST_PID, "granted",   base_time + timedelta(days=1,  hours=3),
-     "marketing_notice", 1, "en-IN", "mobile_app", "marketing_email",   "granted",
+     _test_notice_id, 1, _test_notice_lang, "mobile_app", "marketing_email",   "granted",
      None, None, "opt_in_toggle", base_time + timedelta(days=1, hours=3),
      RETENTION_BY_PURPOSE["marketing_email"], ev3_id, None),
     ("evt_000002", TEST_PID, "granted",   base_time + timedelta(days=1,  hours=3, minutes=1),
-     "marketing_notice", 1, "en-IN", "mobile_app", "analytics",          "granted",
+     _test_notice_id, 1, _test_notice_lang, "mobile_app", "analytics",          "granted",
      None, None, "opt_in_toggle", base_time + timedelta(days=1, hours=3, minutes=1),
      RETENTION_BY_PURPOSE["analytics"], None, None),
     (ev3_id,       TEST_PID, "withdrawn", base_time + timedelta(days=30, hours=11),
-     "marketing_notice", 1, "en-IN", "mobile_app", "marketing_email",   "withdrawn",
+     _test_notice_id, 1, _test_notice_lang, "mobile_app", "marketing_email",   "withdrawn",
      None, None, "opt_out_toggle", base_time + timedelta(days=30, hours=11),
      RETENTION_BY_PURPOSE["marketing_email"], None, None),
     ("evt_000004", TEST_PID, "declined",  base_time + timedelta(days=1,  hours=3, minutes=2),
-     "marketing_notice", 1, "en-IN", "mobile_app", "third_party_sharing", "declined",
+     _test_notice_id, 1, _test_notice_lang, "mobile_app", "third_party_sharing", "declined",
      None, None, "opt_in_toggle", base_time + timedelta(days=1, hours=3, minutes=2),
      RETENTION_BY_PURPOSE["third_party_sharing"], None, None),
 ])
@@ -953,6 +969,7 @@ for pid in principals:
     # Each principal gets a grant event per a random subset of purposes
     num_purposes = random.randint(2, 6)
     pid_purposes = random.sample(PURPOSES, num_purposes)
+    _notice_id, _notice_lang = _notice_for(pid)
     for purpose in pid_purposes:
         if pid == TEST_PID:
             continue  # canonical events already added
@@ -964,7 +981,7 @@ for pid in principals:
                                     minutes=random.randint(0, 59))
         events.append((
             f"evt_{event_seq:06d}", pid, event_type, ts,
-            "marketing_notice", 1, "en-IN",
+            _notice_id, 1, _notice_lang,
             random.choice(CHANNELS), purpose, status,
             None, None, "opt_in_toggle" if granted else "opt_out_toggle",
             ts, RETENTION_BY_PURPOSE[purpose], None, None,

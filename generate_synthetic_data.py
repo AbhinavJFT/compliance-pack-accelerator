@@ -163,6 +163,14 @@ def notice_language_for(country: str) -> str:
     return EU_LOCALE_BY_COUNTRY.get(country, "en-GB")
 
 
+def notice_id_for(country: str) -> str:
+    """Which pack's own marketing notice a principal received, given their
+    country. uk_gdpr and eu_gdpr each name their notice independently
+    (uk_marketing_notice, eu_marketing_notice) — there is no shared
+    cross-pack notice_id."""
+    return "uk_marketing_notice" if country == "United Kingdom" else "eu_marketing_notice"
+
+
 def currency_for(country: str) -> str:
     """Transaction currency, given a row's `country` value."""
     if country == "United Kingdom":
@@ -708,7 +716,7 @@ def generate_consent_events(
             "data_principal_external_id": dsr_cust["customer_id"],
             "event_timestamp": base_ts.isoformat(),
             "event_type": "granted",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
+            "notice_version": {"notice_id": notice_id_for(dsr_cust["country"]), "version": 1, "language": dsr_language},
             "channel": "web",
             "purpose": "marketing_email",
             "purpose_grant_status": "granted",
@@ -722,7 +730,7 @@ def generate_consent_events(
             "data_principal_external_id": dsr_cust["customer_id"],
             "event_timestamp": (base_ts + timedelta(seconds=5)).isoformat(),
             "event_type": "granted",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
+            "notice_version": {"notice_id": notice_id_for(dsr_cust["country"]), "version": 1, "language": dsr_language},
             "channel": "web",
             "purpose": "analytics",
             "purpose_grant_status": "granted",
@@ -736,7 +744,7 @@ def generate_consent_events(
             "data_principal_external_id": dsr_cust["customer_id"],
             "event_timestamp": (base_ts + timedelta(seconds=10)).isoformat(),
             "event_type": "granted",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
+            "notice_version": {"notice_id": notice_id_for(dsr_cust["country"]), "version": 1, "language": dsr_language},
             "channel": "web",
             "purpose": "third_party_sharing",
             "purpose_grant_status": "declined",
@@ -750,7 +758,7 @@ def generate_consent_events(
             "data_principal_external_id": dsr_cust["customer_id"],
             "event_timestamp": datetime(2026, 4, 12, 22, 5, 0, tzinfo=TZ).isoformat(),  # Day -5
             "event_type": "withdrawn",
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": dsr_language},
+            "notice_version": {"notice_id": notice_id_for(dsr_cust["country"]), "version": 1, "language": dsr_language},
             "channel": "mobile_app",
             "purpose": "marketing_email",
             "purpose_grant_status": "declined",
@@ -813,7 +821,7 @@ def generate_consent_events(
             "data_principal_external_id": cust["customer_id"],
             "event_timestamp": ts.isoformat(),
             "event_type": event_type,
-            "notice_version": {"notice_id": "marketing_notice", "version": 1, "language": notice_language_for(cust["country"])},
+            "notice_version": {"notice_id": notice_id_for(cust["country"]), "version": 1, "language": notice_language_for(cust["country"])},
             "channel": channel,
             "purpose": purpose,
             "purpose_grant_status": grant_status,
