@@ -76,12 +76,20 @@ EU_VAT_PATTERN = PIIPattern(
 
 # German Personalausweis — national ID card number. 10 digits + check
 # character (sometimes shown). Issued by Bundesdruckerei.
+#
+# Column-hint-only (no regex_pattern): the format is a generic 10-character
+# letter+alphanumeric shape with no internal structure distinguishing it
+# from any other org's sequential ID scheme (e.g. a synthetic "CR00000001"
+# response_id collided with this pattern's old regex on a live deploy).
+# Real Personalausweis columns are named accordingly; blind content
+# matching on this shape isn't reliable enough to be worth the false
+# positives.
 DE_PERSONALAUSWEIS_PATTERN = PIIPattern(
     pattern_id="de_personalausweis",
     pii_type="de_id_card",
     category=CATEGORY_DIRECT_GOV,
     sensitivity=SENSITIVITY_CRITICAL,
-    regex_pattern=r"\b[CFGHJKLMNPRTVWXYZ][0-9CFGHJKLMNPRTVWXYZ]{8}[0-9]\b",
+    regex_pattern=None,
     column_hints=[
         "personalausweis", "personalausweis_nr", "ausweisnummer",
         "german_id", "de_id_card",
@@ -164,15 +172,24 @@ ES_DNI_PATTERN = PIIPattern(
 )
 
 
-# Generic EU member-state passport — length 9 alphanumeric (ICAO 9303).
-# Specific country formats vary; this is a catch-all for "looks like a
-# passport number" matched against passport-related column hints.
+# Generic EU member-state passport — length 8-9 alphanumeric (ICAO 9303).
+# Specific country formats vary; this is a catch-all matched against
+# passport-related column hints.
+#
+# Column-hint-only (no regex_pattern): ICAO 9303's 8-9-alphanumeric shape
+# is, by spec, indistinguishable from any other org's short sequential ID
+# scheme — a synthetic "EMP000001"/"USR000001"/"PAT000001" column collided
+# with this pattern's old regex on a live deploy (100% match rate, so pure
+# content matching alone cleared the classification confidence threshold
+# with zero column-name corroboration). Real passport columns are named
+# accordingly; blind content matching on this shape isn't reliable enough
+# to be worth the false positives.
 EU_PASSPORT_PATTERN = PIIPattern(
     pattern_id="eu_passport",
     pii_type="passport",
     category=CATEGORY_DIRECT_GOV,
     sensitivity=SENSITIVITY_CRITICAL,
-    regex_pattern=r"\b[A-Z0-9]{8,9}\b",
+    regex_pattern=None,
     column_hints=[
         "passport", "passport_number", "passport_no", "reisepass",
         "passeport", "passaporto", "pasaporte",

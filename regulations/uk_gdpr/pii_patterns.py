@@ -81,12 +81,17 @@ UK_POSTCODE_PATTERN = PIIPattern(
 )
 
 
+# Column-hint-only (no regex_pattern): a bare 10-digit number has no
+# structure distinguishing it from any other org's numeric ID scheme
+# (order IDs, phone numbers without formatting, etc.) — same false-positive
+# risk as eu_passport/de_personalausweis above, fixed the same way before
+# it collides with real data instead of after.
 UTR_PATTERN = PIIPattern(
     pattern_id="uk_utr",
     pii_type="utr",
     category=CATEGORY_DIRECT_FIN,
     sensitivity=SENSITIVITY_HIGH,
-    regex_pattern=r"\b\d{10}\b",
+    regex_pattern=None,
     column_hints=[
         "utr", "tax_reference", "taxpayer_reference", "hmrc_utr",
         "self_assessment_utr",
