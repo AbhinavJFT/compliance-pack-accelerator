@@ -207,6 +207,17 @@
 </div>
 
 <!-- ================================================================== -->
+<h2>§0.1 — Live-deploy validation on a fresh workspace (2026-07-03)</h2>
+
+<p style="font-size: 13px; color: #555; margin: 6px 0 16px 0;">First end-to-end <code>scripts/deploy_all.sh</code> run against a brand-new trial workspace after the DPDP/CCPA removal (§ above). Surfaced one real gap, unrelated to the pack removal.</p>
+
+<div class="gap-card gap-important">
+  <h3><span class="sev-badge" style="background:#2e7d32;color:white;">LANDED 2026-07-03</span> <code>phase1_bootstrap</code> hard-failed on trial workspaces without <code>system.access</code></h3>
+  <p><code>gold.access_patterns</code> and <code>gold.data_lineage</code> read <code>system.access.audit</code> / <code>system.access.table_lineage</code>. On some workspace/account tiers that system schema can only be enabled by Databricks —
+  <code>databricks system-schemas enable &lt;metastore-id&gt; access</code> fails with "access system schema can only be enabled by Databricks," and there's no admin-side self-service fix. Previously this failed the entire <code>phase1_bootstrap</code> job (blocking the other ~20 unrelated compliance objects it builds). Fixed: both objects now go through a <code>_create_or_stub</code> helper in <code>pipelines/phase1_bootstrap.py</code> that falls back to an empty, correctly-shaped table/view when <code>system.access</code> isn't available, instead of raising. Re-running <code>phase1_bootstrap</code> after the schema is eventually enabled replaces the stub with real data automatically — no other change needed. See <code>docs/test_results.html</code> Test 10's prereq note for the customer-facing version of this.</p>
+</div>
+
+<!-- ================================================================== -->
 <h2>§0 — Multi-jurisdiction cut-over + follow-ups (May 2026)</h2>
 
 <p style="font-size: 13px; color: #555; margin: 6px 0 16px 0;">ADR-0001 (per-data-subject jurisdiction routing) implementation — M1 Foundation through M4 Cut-over, plus the Q2 (pack versioning) and Q3 (loader jurisdiction validation) open-question follow-ups, plus two additional packs (EU GDPR, CCPA). All landed on `main` between 2026-05-08 and 2026-05-12. The DPDP-only POC architecture is preserved as the seed pack; the rest of the platform now routes per-row.</p>

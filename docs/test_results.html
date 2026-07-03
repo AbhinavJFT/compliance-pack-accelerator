@@ -1383,6 +1383,18 @@ question with user + timestamp. This test surfaces that evidence directly.</p>
   and have an admin run <code>ENABLE SCHEMA access</code> on the account-level metastore.
 </div>
 
+<div class="info">
+  <strong>Known gap on trial/Express-tier workspaces:</strong> on some account tiers,
+  <code>databricks system-schemas enable &lt;metastore-id&gt; access</code> fails with
+  "access system schema can only be enabled by Databricks" — self-service enablement isn't
+  available, and Databricks support has to turn it on. <code>phase1_bootstrap.py</code>
+  detects this and creates empty, correctly-shaped <code>gold.access_patterns</code> /
+  <code>gold.data_lineage</code> stubs instead of failing the deploy, so the rest of the
+  compliance layer still comes up — those two tabs just show no data until the schema is
+  enabled. Re-running <code>phase1_bootstrap</code> after enablement replaces the stub with
+  real data automatically.
+</div>
+
 <div class="test-card">
   <h3><span class="test-id tid-orange">T10.1</span> Who queried personal_data_register in the last 7 days?</h3>
   <pre><span class="keyword">SELECT</span>
