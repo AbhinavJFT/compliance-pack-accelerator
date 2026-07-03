@@ -72,7 +72,7 @@ def sql(stmt: str, wait: str = "30s") -> tuple[str, list, str]:
 
 
 def invoke_model(endpoint: str, system_prompt: str, user_prompt: str,
-                 max_tokens: int = 2000, temperature: float = 0.2) -> str:
+                 max_tokens: int = 6000, temperature: float = 0.2) -> str:
     """Invoke a Databricks serving endpoint via the CLI. Returns the
     assistant text. Raises RuntimeError on non-200 or malformed response."""
     payload = {
