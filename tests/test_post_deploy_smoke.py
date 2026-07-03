@@ -49,7 +49,7 @@ EXPECTED_SCHEMAS = {"bronze", "silver", "compliance", "gold", "federation_mock"}
 MIN_SILVER_OBJECTS = 10        # 5 base + 3 SF + 2 federation views
 MIN_FINDINGS = 36
 MIN_REGISTER_ROWS = 36
-MIN_NOTICE_VERSIONS = 3        # 3 seeded by phase1; 10 after the optional multilang step
+MIN_NOTICE_VERSIONS = 3        # 2 seeded by phase1 (1 per loaded pack); many more after multilang
 MIN_AUTO_LOADER_TABLES = 5     # employees/customers/patients/transactions/users
 MIN_SF_TABLES = 3              # sf_leads/sf_contacts/sf_accounts
 MIN_FEDERATION_TABLES = 2      # federation_lead_scoring/federation_campaign_response
@@ -177,13 +177,14 @@ def main() -> int:
         f"found {n_events}",
     ))
 
-    # 8. Notices in 10 languages
+    # 8. Notices across every loaded pack's own notice_id (e.g.
+    #    eu_marketing_notice, uk_marketing_notice) — not a single hardcoded
+    #    literal, since each pack names its notice independently.
     n_notices = int(rows_or_raise(
-        f"SELECT COUNT(*) FROM {CATALOG}.compliance.notice_versions "
-        f"WHERE notice_id = 'marketing_notice'"
+        f"SELECT COUNT(*) FROM {CATALOG}.compliance.notice_versions"
     )[0][0])
     checks.append((
-        f"notice_versions for marketing_notice ≥ {MIN_NOTICE_VERSIONS}",
+        f"notice_versions has ≥ {MIN_NOTICE_VERSIONS} rows (multi-pack notice coverage)",
         n_notices >= MIN_NOTICE_VERSIONS,
         f"found {n_notices}",
     ))

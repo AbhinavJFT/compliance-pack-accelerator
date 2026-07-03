@@ -1,12 +1,17 @@
-"""Check that compliance.notice_versions has every language the pack lists.
+"""Check that compliance.notice_versions has every language every pack lists.
 
-The pack's languages.yaml declares every language the POC is expected to
-cover. After running `scripts/generate_multilang_notices.py`, each entry
-should produce a row in compliance.notice_versions for the canonical
-marketing_notice v1. Machine-translated rows must carry the watermark
-preamble so consumers can distinguish legal-reviewed copy from demo copy.
+Each loaded pack's languages.yaml declares every language the POC is
+expected to cover. After running `scripts/generate_multilang_notices.py`,
+each entry should produce a row in compliance.notice_versions for that
+pack's own canonical notice (e.g. eu_marketing_notice, uk_marketing_notice)
+v1. Machine-translated rows must carry the watermark preamble so consumers
+can distinguish legal-reviewed copy from demo copy.
 
-Checks:
+Runs the checks below once per loaded pack, against that pack's own
+notice_id(s) and language list — a pack's notice_id is never assumed to be
+a shared literal across packs.
+
+Checks (per pack):
   1. Each language code in the pack's languages.yaml has a notice row
   2. Hand-authored (seeded_by_poc=true) rows DO NOT carry the watermark
   3. Generated (seeded_by_poc=false) rows DO carry the watermark
@@ -26,11 +31,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from _sql import rows_or_raise  # noqa: E402
-from governance_core.pack_loader import active_pack  # noqa: E402
+from governance_core.pack_loader import loaded_packs  # noqa: E402
 
 WATERMARK_PREFIX = "[MACHINE-TRANSLATED"
-NOTICE_ID = "marketing_notice"
-VERSION = 1
 MIN_BODY_CHARS = 100
 
 # Content-quality signals every notice body must carry, regardless of language.
@@ -39,18 +42,14 @@ MIN_BODY_CHARS = 100
 REQUIRED_LIST_MARKERS = ["1.", "2.", "3.", "4.", "5.", "6."]
 
 
-def main() -> int:
-    p = argparse.ArgumentParser()
-    p.add_argument("--verbose", action="store_true")
-    args = p.parse_args()
-
-    pack = active_pack()
+def check_notice(pack, notice_id: str, version: int, verbose: bool) -> list[tuple[str, bool, str]]:
+    """Run all notice-completeness checks for one (pack, notice_id, version)."""
     expected = {l["code"]: l.get("seeded_by_poc", False) for l in pack.languages()}
     # Derived from the pack's own effective_date rather than hardcoded, so
     # this check stays correct regardless of which pack is active.
     required_citation_year = pack.metadata.get("effective_date", "")[:4] or "2018"
 
-    print(f"Multilang notices — pack {pack.code}, {NOTICE_ID} v{VERSION}")
+    print(f"Multilang notices — pack {pack.code}, {notice_id} v{version}")
     print("=" * 70)
 
     # Fetch all rows for this notice+version, including the full body so we
@@ -59,13 +58,13 @@ def main() -> int:
         f"SELECT language, SUBSTR(notice_text, 1, 30) AS preamble, "
         f"LENGTH(notice_text) AS chars, notice_text "
         f"FROM compliance_pack.compliance.notice_versions "
-        f"WHERE notice_id = '{NOTICE_ID}' AND version_number = {VERSION}"
+        f"WHERE notice_id = '{notice_id}' AND version_number = {version}"
     )
     by_lang: dict[str, tuple[str, int, str]] = {
         r[0]: (r[1], int(r[2]), r[3]) for r in rows
     }
 
-    if args.verbose:
+    if verbose:
         print(f"\nPack expects {len(expected)} languages: {sorted(expected.keys())}")
         print(f"DB has {len(by_lang)} rows for this notice:")
         for lang in sorted(by_lang):
@@ -143,10 +142,25 @@ def main() -> int:
         f"missing: {lang_missing_year}" if lang_missing_year else "",
     ))
 
+    return checks
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("--verbose", action="store_true")
+    args = p.parse_args()
+
+    all_checks: list[tuple[str, bool, str]] = []
+    for pack in loaded_packs():
+        notice_keys = sorted({(n["notice_id"], int(n["version_number"])) for n in pack.notices()})
+        for notice_id, version in notice_keys:
+            checks = check_notice(pack, notice_id, version, args.verbose)
+            all_checks.extend((f"[{pack.code}] {name}", ok, detail) for name, ok, detail in checks)
+            print()
+
     # Report
-    print()
     passed = 0
-    for name, ok, detail in checks:
+    for name, ok, detail in all_checks:
         marker = "✓" if ok else "✗"
         print(f"  {marker} {name}")
         if not ok and detail:
@@ -154,9 +168,9 @@ def main() -> int:
         if ok:
             passed += 1
 
-    print("\n" + "=" * 70)
-    print(f"Summary: {passed}/{len(checks)} checks passed")
-    return 0 if passed == len(checks) else 1
+    print("=" * 70)
+    print(f"Summary: {passed}/{len(all_checks)} checks passed")
+    return 0 if passed == len(all_checks) else 1
 
 
 if __name__ == "__main__":
