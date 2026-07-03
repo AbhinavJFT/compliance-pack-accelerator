@@ -619,10 +619,11 @@ from governance_core.pack_loader import loaded_packs  # noqa: E402
 _packs = loaded_packs()
 print(f"Loaded {len(_packs)} regulation pack(s): {[f'{p.code}@v{p.version}' for p in _packs]}")
 
-# Primary-pack alias: used by the notices / consent-purpose / retention /
-# residency code paths below that haven't been refactored to multi-pack yet.
-# ADR-0001 defers per-pack notice rendering + residency union to a later
-# phase; rules + gaps are the multi-pack surfaces M2-M4 deliver.
+# Primary-pack alias: used by the consent-purpose / retention / residency
+# code paths below that haven't been refactored to multi-pack yet. ADR-0001
+# defers per-pack residency union to a later phase; rules, gaps, and (as of
+# 2026-07-03) notices are the multi-pack surfaces already delivered — see the
+# `for _p in _packs` loop at notice-seeding below instead of this alias.
 _pack = _packs[0] if _packs else None
 if _pack is None:
     raise RuntimeError(
@@ -817,14 +818,20 @@ spark.sql(f"""
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5 — Seed notice_versions (1 row — marketing_notice v1 en-IN)
+# MAGIC ## 5 — Seed notice_versions (one row per loaded pack's own notice(s))
 
 # COMMAND ----------
 
 from datetime import timezone
 
-# Notices are loaded from the active regulation pack:
-#   regulations/<REGULATION_PACK>/notices.yaml
+# Notices are loaded from EVERY loaded pack:
+#   regulations/<pack_code>/notices.yaml
+#
+# Each pack names its own notice_id (e.g. eu_marketing_notice,
+# uk_marketing_notice) so rows from different packs never collide on
+# notice_version_id. A UK principal and an EU principal each need their own
+# pack's notice text — seeding only _packs[0] would silently drop every
+# other loaded pack's notice.
 #
 # Each entry is hydrated into a Spark Row matching compliance.notice_versions.
 # Adding languages / new notices is a yaml edit in the pack — no code change.
@@ -856,9 +863,11 @@ notice_rows = [
         approved_by=n.get("approved_by"),
         created_at=_parse_iso(n["created_at"]),
     )
-    for n in _pack.notices()
+    for _p in _packs
+    for n in _p.notices()
 ]
-print(f"  → {len(notice_rows)} notice(s) loaded from regulations/{_pack.code}/notices.yaml")
+for _p in _packs:
+    print(f"  → {len(_p.notices())} notice(s) from regulations/{_p.code}/notices.yaml")
 # Use the target table's schema (same rationale as the rules createDataFrame above).
 _notice_schema = spark.table(f"{CATALOG}.compliance.notice_versions").schema
 spark.createDataFrame(notice_rows, schema=_notice_schema).createOrReplaceTempView("_notice_src")
@@ -868,7 +877,7 @@ USING _notice_src s ON t.notice_version_id = s.notice_version_id
 WHEN MATCHED THEN UPDATE SET *
 WHEN NOT MATCHED THEN INSERT *
 """)
-print(f"✓ {spark.table(f'{CATALOG}.compliance.notice_versions').count()} notice version(s) seeded (en-IN, hi-IN, ta-IN)")
+print(f"✓ {spark.table(f'{CATALOG}.compliance.notice_versions').count()} notice version(s) seeded across {len(_packs)} pack(s)")
 
 # COMMAND ----------
 
