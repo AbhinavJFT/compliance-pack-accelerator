@@ -80,11 +80,11 @@ blocked_countries: []
 # time. The row filter UDF blocks reads of rows whose `country` is not in
 # allowed_countries unless the reader is in the admins group.
 apply_filter_to:
-  - table: customers_tagged
+  - table: silver.customers_tagged
     column: country
-  - table: users_tagged
+  - table: silver.users_tagged
     column: country
-  - table: patients_tagged
+  - table: silver.patients_tagged
     column: country
-  - table: employees_tagged
+  - table: silver.employees_tagged
     column: country
