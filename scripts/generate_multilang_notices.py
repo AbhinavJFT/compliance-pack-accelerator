@@ -44,7 +44,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 sys.path.insert(0, str(REPO_ROOT))
 
 from persona_config import get_warehouse_id, get_catalog, get_model_endpoint  # noqa: E402
-from governance_core.pack_loader import active_pack  # noqa: E402
+from governance_core.pack_loader import loaded_packs  # noqa: E402
 
 
 WATERMARK = (
@@ -194,40 +194,18 @@ def upsert_notice(row: dict) -> None:
         raise RuntimeError(f"MERGE failed for {row['notice_version_id']}: {err}")
 
 
-def main() -> int:
-    p = argparse.ArgumentParser()
-    p.add_argument("--dry-run", action="store_true",
-                   help="Print prompts + target languages without calling the model")
-    p.add_argument("--overwrite", action="store_true",
-                   help="Regenerate even for languages that already have a row")
-    p.add_argument("--language", action="append",
-                   help="Restrict to specific language codes (repeatable). "
-                        "Default: every non-seeded language in the pack's languages.yaml")
-    p.add_argument("--notice-id", default="marketing_notice",
-                   help="Which notice_id to translate (default: marketing_notice)")
-    p.add_argument("--version", type=int, default=1,
-                   help="Notice version number (default: 1)")
-    args = p.parse_args()
-
-    pack = active_pack()
-    endpoint = get_model_endpoint()
-    catalog = get_catalog()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    watermark = WATERMARK.format(model=endpoint, date=today)
-
-    print(f"Pack:     {pack.name} ({pack.code})")
-    print(f"Endpoint: {endpoint}")
-    print(f"Catalog:  {catalog}")
-
-    # Find the seed notice (en-IN, notice_id+version).
+def translate_notice(pack, notice_id: str, version: int, args, endpoint: str, watermark: str) -> tuple[int, int]:
+    """Translate one (pack, notice_id, version) into every non-seeded target
+    language for that pack. Returns (generated, failures)."""
+    # Find the seed notice (the pack's own primary_locale, notice_id+version).
     seed = next((n for n in pack.notices()
-                 if n["notice_id"] == args.notice_id
-                 and int(n["version_number"]) == args.version
+                 if n["notice_id"] == notice_id
+                 and int(n["version_number"]) == version
                  and n["language"] == pack.primary_locale), None)
     if not seed:
-        print(f"error: no seed notice for notice_id={args.notice_id} "
-              f"version={args.version} language={pack.primary_locale}", file=sys.stderr)
-        return 2
+        print(f"error: no seed notice for notice_id={notice_id} "
+              f"version={version} language={pack.primary_locale}", file=sys.stderr)
+        return 0, 1
 
     print(f"Seed:     {seed['notice_version_id']} — {len(seed['notice_text'])} chars")
 
@@ -242,7 +220,7 @@ def main() -> int:
     pack_seeded_codes = {l["code"] for l in all_langs if l.get("seeded_by_poc")}
     in_db_codes = {
         n["language"] for n in pack.notices()
-        if n["notice_id"] == args.notice_id and int(n["version_number"]) == args.version
+        if n["notice_id"] == notice_id and int(n["version_number"]) == version
     }
 
     if args.language:
@@ -262,13 +240,13 @@ def main() -> int:
     if not targets:
         print("Nothing to generate — every target language already has a seed notice.")
         print("Use --overwrite to regenerate, or --language <code> to force a single one.")
-        return 0
+        return 0, 0
 
     print(f"Targets:  {[l['code'] for l in targets]}")
     print()
 
     # Existing languages in DB — for idempotency logging.
-    existing = existing_language_ids(args.notice_id, args.version)
+    existing = existing_language_ids(notice_id, version)
     print(f"Existing in compliance.notice_versions: {sorted(existing)}")
     print()
 
@@ -320,9 +298,9 @@ def main() -> int:
             body = "[human-review required — low-resource language]\n" + body
 
         row = {
-            "notice_version_id": f"nv_{args.notice_id}_v{args.version}_{code}",
-            "notice_id": args.notice_id,
-            "version_number": args.version,
+            "notice_version_id": f"nv_{notice_id}_v{version}_{code}",
+            "notice_id": notice_id,
+            "version_number": version,
             "language": code,
             "legal_basis": seed["legal_basis"],
             "notice_text": body,
@@ -342,7 +320,66 @@ def main() -> int:
 
     print()
     print(f"Generated: {generated}   failed: {failures}")
-    return 0 if failures == 0 else 1
+    return generated, failures
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("--dry-run", action="store_true",
+                   help="Print prompts + target languages without calling the model")
+    p.add_argument("--overwrite", action="store_true",
+                   help="Regenerate even for languages that already have a row")
+    p.add_argument("--language", action="append",
+                   help="Restrict to specific language codes (repeatable). "
+                        "Default: every non-seeded language in the pack's languages.yaml")
+    p.add_argument("--pack", action="append",
+                   help="Restrict to specific pack code(s) (repeatable). "
+                        "Default: every loaded pack (regulations/*)")
+    p.add_argument("--notice-id",
+                   help="Restrict to one notice_id. Default: every notice_id "
+                        "defined in each loaded pack's own notices.yaml")
+    p.add_argument("--version", type=int,
+                   help="Restrict to one notice version. Default: every version "
+                        "present for the matched notice_id(s)")
+    args = p.parse_args()
+
+    packs = loaded_packs()
+    if args.pack:
+        packs = [pk for pk in packs if pk.code in set(args.pack)]
+
+    endpoint = get_model_endpoint()
+    catalog = get_catalog()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    watermark = WATERMARK.format(model=endpoint, date=today)
+
+    print(f"Packs:    {[pk.code for pk in packs]}")
+    print(f"Endpoint: {endpoint}")
+    print(f"Catalog:  {catalog}")
+    print()
+
+    total_generated = 0
+    total_failures = 0
+    for pack in packs:
+        # Each pack names its own notice_id(s) (e.g. eu_marketing_notice,
+        # uk_marketing_notice) — discover them from the pack's own
+        # notices.yaml rather than assuming a shared literal across packs.
+        notice_keys = sorted({
+            (n["notice_id"], int(n["version_number"])) for n in pack.notices()
+            if (not args.notice_id or n["notice_id"] == args.notice_id)
+            and (args.version is None or int(n["version_number"]) == args.version)
+        })
+        if not notice_keys:
+            print(f"  (pack {pack.code}: no matching notice_id/version — skipping)")
+            continue
+        for notice_id, version in notice_keys:
+            print(f"--- Pack: {pack.name} ({pack.code}) — {notice_id} v{version} ---")
+            generated, failures = translate_notice(pack, notice_id, version, args, endpoint, watermark)
+            total_generated += generated
+            total_failures += failures
+            print()
+
+    print(f"Total generated: {total_generated}   failed: {total_failures}")
+    return 0 if total_failures == 0 else 1
 
 
 if __name__ == "__main__":
