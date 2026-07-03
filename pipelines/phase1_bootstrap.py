@@ -237,6 +237,31 @@ def _restore_grants_on(table_fq: str, saved: list) -> None:
             print(f"[restore_grants] WARN: failed to restore grant: {stmt}: {str(e)[:200]}")
 
 
+def _create_or_stub(object_fq: str, real_sql: str, stub_sql: str) -> None:
+    """Run real_sql; if it fails because system.access.* isn't enabled on
+    this metastore, fall back to stub_sql (an empty, correctly-shaped
+    table/view with no system-table dependency) instead of failing the
+    whole bootstrap job.
+
+    system.access (audit + table_lineage) can only be turned on by
+    Databricks on some workspace/account tiers — `databricks
+    system-schemas enable <metastore-id> access` errors with "access
+    system schema can only be enabled by Databricks" on those tiers, so
+    this isn't something a deploy script can provision itself. Every
+    other gold/compliance object here is independent of system.access,
+    so one missing system schema shouldn't block them.
+    """
+    try:
+        spark.sql(real_sql)
+    except Exception as e:  # noqa: BLE001
+        msg = str(e).lower()
+        if "table_or_view_not_found" in msg and "system" in msg and "access" in msg:
+            print(f"[create_or_stub] {object_fq}: system.access not enabled on this metastore — creating empty stub")
+            spark.sql(stub_sql)
+        else:
+            raise
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -1329,80 +1354,114 @@ try:
     # anomaly_flag = z-score > 2 vs the user's own access_count distribution,
     # OR an absolute >50 backstop for users with too few rows for a
     # meaningful stddev.
-    spark.sql(f"""
-    CREATE OR REPLACE TABLE {CATALOG}.gold.access_patterns AS
-    WITH access_events AS (
-      SELECT user_identity.email AS user_name,
-        request_params['full_name_arg'] AS table_full_name,
-        SPLIT_PART(request_params['full_name_arg'], '.', 3) AS table_name,
-        event_time
-      FROM system.access.audit
-      WHERE service_name = 'unityCatalog'
-        AND action_name = 'getTable'
-        AND request_params['full_name_arg'] LIKE '{CATALOG}.%'
-        AND event_date >= current_date() - INTERVAL 30 DAYS
-    ),
-    pii_tables AS (
-      SELECT DISTINCT CONCAT('{CATALOG}.', schema_name, '.', table_name) AS table_full_name
-      FROM {CATALOG}.silver.pii_findings
-    ),
-    agg AS (
-      SELECT a.user_name, a.table_name, a.table_full_name,
-        COUNT(*) AS access_count, MAX(a.event_time) AS last_accessed,
-        (p.table_full_name IS NOT NULL) AS has_pii
-      FROM access_events a
-      LEFT JOIN pii_tables p ON p.table_full_name = a.table_full_name
-      GROUP BY a.user_name, a.table_name, a.table_full_name, p.table_full_name
-    ),
-    user_stats AS (
-      SELECT user_name, AVG(access_count) AS mean_access, STDDEV_POP(access_count) AS stddev_access
-      FROM agg GROUP BY user_name
+    #
+    # system.access isn't self-service-enabled on every metastore (some
+    # workspace/account tiers require Databricks to turn it on) — see
+    # _create_or_stub above. Falls back to an empty, correctly-shaped table
+    # so the tab reads "no data yet" instead of blocking the whole bootstrap.
+    _create_or_stub(
+        f"{CATALOG}.gold.access_patterns",
+        real_sql=f"""
+        CREATE OR REPLACE TABLE {CATALOG}.gold.access_patterns AS
+        WITH access_events AS (
+          SELECT user_identity.email AS user_name,
+            request_params['full_name_arg'] AS table_full_name,
+            SPLIT_PART(request_params['full_name_arg'], '.', 3) AS table_name,
+            event_time
+          FROM system.access.audit
+          WHERE service_name = 'unityCatalog'
+            AND action_name = 'getTable'
+            AND request_params['full_name_arg'] LIKE '{CATALOG}.%'
+            AND event_date >= current_date() - INTERVAL 30 DAYS
+        ),
+        pii_tables AS (
+          SELECT DISTINCT CONCAT('{CATALOG}.', schema_name, '.', table_name) AS table_full_name
+          FROM {CATALOG}.silver.pii_findings
+        ),
+        agg AS (
+          SELECT a.user_name, a.table_name, a.table_full_name,
+            COUNT(*) AS access_count, MAX(a.event_time) AS last_accessed,
+            (p.table_full_name IS NOT NULL) AS has_pii
+          FROM access_events a
+          LEFT JOIN pii_tables p ON p.table_full_name = a.table_full_name
+          GROUP BY a.user_name, a.table_name, a.table_full_name, p.table_full_name
+        ),
+        user_stats AS (
+          SELECT user_name, AVG(access_count) AS mean_access, STDDEV_POP(access_count) AS stddev_access
+          FROM agg GROUP BY user_name
+        )
+        SELECT a.user_name, a.table_name, a.access_count, a.last_accessed, a.has_pii,
+          CASE
+            WHEN s.stddev_access > 0 AND a.access_count > s.mean_access + 2 * s.stddev_access THEN TRUE
+            WHEN a.access_count > 50 THEN TRUE
+            ELSE FALSE
+          END AS anomaly_flag,
+          current_timestamp() AS analyzed_at
+        FROM agg a
+        JOIN user_stats s ON s.user_name = a.user_name
+        """,
+        stub_sql=f"""
+        CREATE OR REPLACE TABLE {CATALOG}.gold.access_patterns (
+          user_name STRING,
+          table_name STRING,
+          access_count BIGINT,
+          last_accessed TIMESTAMP,
+          has_pii BOOLEAN,
+          anomaly_flag BOOLEAN,
+          analyzed_at TIMESTAMP
+        )
+        """,
     )
-    SELECT a.user_name, a.table_name, a.access_count, a.last_accessed, a.has_pii,
-      CASE
-        WHEN s.stddev_access > 0 AND a.access_count > s.mean_access + 2 * s.stddev_access THEN TRUE
-        WHEN a.access_count > 50 THEN TRUE
-        ELSE FALSE
-      END AS anomaly_flag,
-      current_timestamp() AS analyzed_at
-    FROM agg a
-    JOIN user_stats s ON s.user_name = a.user_name
-    """)
 
     # data_lineage — backs the master dashboard's Data Lineage tab.
     # Sources from system.access.table_lineage (UC populates this for every
     # query). column_mapping is intentionally a comma-joined list of the
     # target table's PII columns rather than a true source→target column
     # map (UC does not record column-level lineage at the system-table tier).
-    spark.sql(f"""
-    CREATE OR REPLACE VIEW {CATALOG}.gold.data_lineage AS
-    WITH compliance_lineage AS (
-      SELECT
-        source_table_full_name AS source_table,
-        target_table_full_name AS target_table,
-        MAX(event_time) AS mapped_at
-      FROM system.access.table_lineage
-      WHERE (source_table_catalog = '{CATALOG}' OR target_table_catalog = '{CATALOG}')
-        AND source_table_full_name IS NOT NULL
-        AND target_table_full_name IS NOT NULL
-      GROUP BY source_table_full_name, target_table_full_name
-    ),
-    target_pii AS (
-      SELECT
-        CONCAT(catalog_name,'.',schema_name,'.',table_name) AS target_table,
-        CONCAT_WS(',', collect_set(column_name)) AS column_mapping
-      FROM {CATALOG}.silver.pii_findings
-      GROUP BY catalog_name, schema_name, table_name
+    #
+    # Same system.access fallback as access_patterns above.
+    _create_or_stub(
+        f"{CATALOG}.gold.data_lineage",
+        real_sql=f"""
+        CREATE OR REPLACE VIEW {CATALOG}.gold.data_lineage AS
+        WITH compliance_lineage AS (
+          SELECT
+            source_table_full_name AS source_table,
+            target_table_full_name AS target_table,
+            MAX(event_time) AS mapped_at
+          FROM system.access.table_lineage
+          WHERE (source_table_catalog = '{CATALOG}' OR target_table_catalog = '{CATALOG}')
+            AND source_table_full_name IS NOT NULL
+            AND target_table_full_name IS NOT NULL
+          GROUP BY source_table_full_name, target_table_full_name
+        ),
+        target_pii AS (
+          SELECT
+            CONCAT(catalog_name,'.',schema_name,'.',table_name) AS target_table,
+            CONCAT_WS(',', collect_set(column_name)) AS column_mapping
+          FROM {CATALOG}.silver.pii_findings
+          GROUP BY catalog_name, schema_name, table_name
+        )
+        SELECT
+          l.source_table,
+          l.target_table,
+          COALESCE(p.column_mapping, '') AS column_mapping,
+          (p.column_mapping IS NOT NULL) AS has_pii_flow,
+          l.mapped_at
+        FROM compliance_lineage l
+        LEFT JOIN target_pii p ON p.target_table = l.target_table
+        """,
+        stub_sql=f"""
+        CREATE OR REPLACE VIEW {CATALOG}.gold.data_lineage AS
+        SELECT
+          CAST(NULL AS STRING) AS source_table,
+          CAST(NULL AS STRING) AS target_table,
+          CAST(NULL AS STRING) AS column_mapping,
+          CAST(NULL AS BOOLEAN) AS has_pii_flow,
+          CAST(NULL AS TIMESTAMP) AS mapped_at
+        WHERE FALSE
+        """,
     )
-    SELECT
-      l.source_table,
-      l.target_table,
-      COALESCE(p.column_mapping, '') AS column_mapping,
-      (p.column_mapping IS NOT NULL) AS has_pii_flow,
-      l.mapped_at
-    FROM compliance_lineage l
-    LEFT JOIN target_pii p ON p.target_table = l.target_table
-    """)
 
     print("✓ Views + UDF created")
 finally:
