@@ -47,6 +47,15 @@
 #                 personal_data_register / DPIA / dashboard reflect AI-
 #                 discovered free-text PII immediately. Daily 03:00 IST cron
 #                 takes over for ongoing scans + backfill.
+#   retag         apply_uc_tags.py, re-run AFTER the AI scan completes. The
+#                 `tags` step above runs long before pii_ai_first_run, so on
+#                 a fresh deploy it only ever sees regex findings — AI-
+#                 discovered columns (e.g. patients_tagged.allergies /
+#                 current_prescription / notes / primary_diagnosis, all
+#                 critical-sensitivity free-text health PII) never got UC
+#                 tags applied even though they correctly appear in
+#                 pii_findings_all / personal_data_register. Same rationale
+#                 as refresh_gaps below, applied to tags instead of gaps.
 #   refresh_gaps  scripts/refresh_compliance_gaps.py — regenerates
 #                 silver.compliance_gaps from pii_findings_all AFTER the AI
 #                 scan completes. phase1_bootstrap generates gaps early in
@@ -381,6 +390,7 @@ run_step app_perms    do_app_perms
 # the Day-1 DPIA already cites AI-discovered findings instead of having
 # to wait for the next quarterly cron.
 run_step pii_ai_first_run do_pii_ai_first_run
+run_step retag            do_tags
 run_step refresh_gaps     do_refresh_gaps
 run_step dpia_first_run   do_dpia_first_run
 
