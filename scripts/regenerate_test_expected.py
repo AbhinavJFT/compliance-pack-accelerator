@@ -96,13 +96,18 @@ def collect_live_state() -> dict:
         "notice_versions": {
             "total":          _scalar(f"SELECT COUNT(*) FROM {CATALOG}.compliance.notice_versions"),
             "by_language":    _kv(f"SELECT language, COUNT(*) FROM {CATALOG}.compliance.notice_versions GROUP BY language"),
+            # '%...%' not a prefix match: the "[human-review required...]"
+            # banner for low-resource languages is prepended before the
+            # watermark, so a prefix-only LIKE missed every such row (found
+            # live: 25 of 27 rows were genuinely machine-translated but
+            # this counted them as human_authored).
             "human_authored": _scalar(
                 f"SELECT COUNT(*) FROM {CATALOG}.compliance.notice_versions "
-                f"WHERE NOT notice_text LIKE '[MACHINE-TRANSLATED%'"
+                f"WHERE NOT notice_text LIKE '%[MACHINE-TRANSLATED%'"
             ),
             "machine_translated": _scalar(
                 f"SELECT COUNT(*) FROM {CATALOG}.compliance.notice_versions "
-                f"WHERE notice_text LIKE '[MACHINE-TRANSLATED%'"
+                f"WHERE notice_text LIKE '%[MACHINE-TRANSLATED%'"
             ),
         },
         "silver_tagged_objects": _scalar(
