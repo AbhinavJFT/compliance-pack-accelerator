@@ -93,7 +93,7 @@ If you're reading old accelerator code or dashboard queries:
 
 `customer_04217` (Oeshi Desai) is the designated test principal:
 - 1 row in `customers_tagged`, 1 in `users_tagged` (USR001298, linked by email `odate@example.net`)
-- 20 transactions in `transactions_tagged`
+- 19 transactions in `transactions_tagged`
 - 4 consent events: marketing_email granted then withdrawn, analytics granted, third_party_sharing declined
 - Not in employees or patients
 

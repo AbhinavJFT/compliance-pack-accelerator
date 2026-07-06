@@ -191,8 +191,8 @@
        <span class="keyword">COUNT</span>(<span class="keyword">DISTINCT</span> source_table) <span class="keyword">AS</span> tables_scanned
 <span class="keyword">FROM</span> compliance_pack.compliance.personal_data_register;
 
-<span class="comment">-- Expected: total_findings >= 36, tables_scanned = 10 (8 base + SF tables + 2 federation views)</span></pre>
-  <div class="success"><strong>Pass criteria:</strong> At least 36 PII findings across 10 silver objects: 5 Auto Loader tables (employees, customers, patients, transactions, users) + 3 Lakeflow Connect tables (sf_leads, sf_contacts, sf_accounts) + 2 federation views (federation_lead_scoring, federation_campaign_response).</div>
+<span class="comment">-- Expected: total_findings >= 29, tables_scanned = 10 (8 base + SF tables + 2 federation views)</span></pre>
+  <div class="success"><strong>Pass criteria:</strong> At least 29 PII findings across 10 silver objects: 5 Auto Loader tables (employees, customers, patients, transactions, users) + 3 Lakeflow Connect tables (sf_leads, sf_contacts, sf_accounts) + 2 federation views (federation_lead_scoring, federation_campaign_response).</div>
   <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"How many PII columns do we have and across how many source tables?"</em> — Genie generates SQL against <code>personal_data_register</code> and returns the same numbers, with the generated SQL visible for auditability.</div>
 </div>
 
@@ -207,9 +207,9 @@
     <span class="keyword">WHEN</span> <span class="string">'medium'</span> <span class="keyword">THEN</span> <span class="number">3</span>
     <span class="keyword">ELSE</span> <span class="number">4</span> <span class="keyword">END</span>;
 
-<span class="comment">-- Expected: critical >= 12, high >= 2, medium >= 22 (current live state).
---   `high` is bounded by ifsc_code occurrences (one per source with bank
---   data — currently 2: silver.employees_tagged + silver.sf_contacts_tagged).</span></pre>
+<span class="comment">-- Expected: critical >= 2, high >= 0, medium >= 27 (current live state,
+--   post-DPDP/CCPA-removal + UK-pattern classifier fix: nhs_number is the
+--   critical finding, uk_postcode accounts for most of the medium tier).</span></pre>
   <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"Break down our PII inventory by sensitivity tier."</em> — Genie returns the tier histogram in a table with counts, useful for the executive narrative.</div>
 </div>
 
@@ -275,7 +275,7 @@
        <span class="keyword">COUNT</span>(<span class="keyword">DISTINCT</span> channel) <span class="keyword">AS</span> distinct_channels
 <span class="keyword">FROM</span> compliance_pack.compliance.consent_events_log;
 
-<span class="comment">-- Expected: event_count = 1000, distinct_principals ~292,
+<span class="comment">-- Expected: event_count = 1000, distinct_principals ~240,
 --           distinct_purposes = 6, distinct_channels = 4</span></pre>
 </div>
 
@@ -311,9 +311,13 @@
        <span class="keyword">SUBSTRING</span>(notice_text, <span class="number">1</span>, <span class="number">100</span>) <span class="keyword">AS</span> notice_preview
 <span class="keyword">FROM</span> compliance_pack.compliance.notice_versions;
 
-<span class="comment">-- Expected: 10 rows — marketing_notice v1 in 10 languages (3 hand-authored:
---   en-IN, hi-IN, ta-IN; 7 machine-translated with watermark preamble:
---   bn-IN, te-IN, mr-IN, gu-IN, kn-IN, ml-IN, pa-IN). All consent legal basis.</span></pre>
+<span class="comment">-- Expected: 27 rows across both packs' own notices — eu_marketing_notice v1
+--   (24 languages: 1 hand-authored 'en' + 23 machine-translated) and
+--   uk_marketing_notice v1 (3 languages: 1 hand-authored 'en-GB' +
+--   2 machine-translated cy-GB/gd-GB). 2 hand-authored + 25 machine-
+--   translated total, each carrying the [MACHINE-TRANSLATED...] watermark
+--   preamble (or, for low-resource-tier languages, a "[human-review
+--   required...]" banner prepended before it). All consent legal basis.</span></pre>
   <div class="info"><strong>Why this matters:</strong> Every consent event links to a specific notice version. Three years later, a regulator can ask "what notice did this person see?" and the platform can reproduce the exact text.</div>
 </div>
 
@@ -520,7 +524,7 @@ python3 scripts/generate_multilang_notices.py --dry-run
 <span class="keyword">FROM</span> compliance_pack.silver.transactions_tagged
 <span class="keyword">WHERE</span> customer_id = <span class="string">'customer_04217'</span>;
 
-<span class="comment">-- Expected: 20 transactions</span></pre>
+<span class="comment">-- Expected: 19 transactions</span></pre>
 </div>
 
 <div class="test-card">
@@ -576,8 +580,9 @@ python3 scripts/generate_multilang_notices.py --dry-run
 <span class="keyword">WHERE</span> is_active = <span class="keyword">true</span>
 <span class="keyword">ORDER BY</span> rule_id;
 
-<span class="comment">-- Expected: 9 active rules (ENC-001, ENC-002, CNS-001, CNS-002,
---   RET-001, ACC-001, ACC-002, DSR-001, BRN-001)</span></pre>
+<span class="comment">-- Expected: 26 active rules across both loaded packs (12 UK GDPR +
+--   14 EU GDPR) — see regulations.jurisdiction / regulations.regulation_pack
+--   on each row to distinguish which pack contributed it.</span></pre>
   <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"Which rule types are causing the most compliance gaps?"</em> — Genie joins <code>compliance_gaps</code> by <code>rule_type</code> and ranks them. Useful when the CCO wants to know where to focus remediation without reading a rule catalog.</div>
 </div>
 
@@ -591,10 +596,10 @@ python3 scripts/generate_multilang_notices.py --dry-run
     <span class="keyword">WHEN</span> <span class="string">'high'</span> <span class="keyword">THEN</span> <span class="number">2</span>
     <span class="keyword">ELSE</span> <span class="number">3</span> <span class="keyword">END</span>;
 
-<span class="comment">-- Expected: critical = 86, high = 64, medium = 14
--- Total = 164 gaps (grew from 135 after Day 3+4 added 3 SF tables and 2
---   federation views — gap = rule × pii column, so any new PII column
---   the classifier finds adds rows here).</span></pre>
+<span class="comment">-- Expected: critical = 318, high = 337, medium = 92
+-- Total = 747 gaps (gap = rule × pii column × pack, so 26 multi-pack rules
+--   over the current 29 PII findings produces far more rows than the old
+--   single-pack, single-jurisdiction count).</span></pre>
   <div class="genie"><strong>Genie companion (CCO Agent):</strong> Ask <em>"How many compliance gaps do we have by severity?"</em> — same numbers, in the CCO's conversational flow.</div>
 </div>
 
@@ -606,10 +611,10 @@ python3 scripts/generate_multilang_notices.py --dry-run
 <span class="keyword">GROUP BY</span> rule_type
 <span class="keyword">ORDER BY</span> gap_count <span class="keyword">DESC</span>;
 
-<span class="comment">-- Expected: consent (58), data_subject_rights (36),
---   access_control (25), encryption (17),
---   breach_notification (14), retention (14).
---   Total 164 (was 135 before Day 3+4 ingestion expansion).</span></pre>
+<span class="comment">-- Expected: consent (155), data_subject_rights (128),
+--   breach_notification (110), retention (96), access_control (88),
+--   lawfulness (66), transparency (64), encryption (40).
+--   Total 747.</span></pre>
 </div>
 
 <div class="test-card">
@@ -1735,7 +1740,7 @@ VACUUM while preserving legally-retained consent evidence.</p>
 
 <span class="comment"># Expected:
 #   Mode: DRY-RUN
-#   Rows to be erased: 21 (customer + 20 transactions)
+#   Rows to be erased: 20 (customer + 19 transactions)
 #   Preserved: consent_events_log, retention_audit, dsr_requests
 #
 # Without --confirm, no data is mutated.
