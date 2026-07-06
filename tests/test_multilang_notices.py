@@ -55,21 +55,20 @@ def check_notice(pack, notice_id: str, version: int, verbose: bool) -> list[tupl
     # Fetch all rows for this notice+version, including the full body so we
     # can assert content-quality signals per language.
     rows = rows_or_raise(
-        f"SELECT language, SUBSTR(notice_text, 1, 30) AS preamble, "
-        f"LENGTH(notice_text) AS chars, notice_text "
+        f"SELECT language, LENGTH(notice_text) AS chars, notice_text "
         f"FROM compliance_pack.compliance.notice_versions "
         f"WHERE notice_id = '{notice_id}' AND version_number = {version}"
     )
-    by_lang: dict[str, tuple[str, int, str]] = {
-        r[0]: (r[1], int(r[2]), r[3]) for r in rows
+    by_lang: dict[str, tuple[int, str]] = {
+        r[0]: (int(r[1]), r[2]) for r in rows
     }
 
     if verbose:
         print(f"\nPack expects {len(expected)} languages: {sorted(expected.keys())}")
         print(f"DB has {len(by_lang)} rows for this notice:")
         for lang in sorted(by_lang):
-            preamble, chars, _ = by_lang[lang]
-            origin = "machine" if preamble.startswith(WATERMARK_PREFIX) else "human"
+            chars, body = by_lang[lang]
+            origin = "machine" if WATERMARK_PREFIX in body else "human"
             print(f"  {lang:6s}  {origin:8s}  {chars} chars")
         print()
 
@@ -84,9 +83,13 @@ def check_notice(pack, notice_id: str, version: int, verbose: bool) -> list[tupl
     ))
 
     # 2. Seeded languages don't carry the machine-translation preamble.
+    # Checked against the full body (not just a fixed-length prefix) since
+    # the "[human-review required...]" banner for low-resource languages is
+    # itself prepended before the watermark, pushing it well past any short
+    # fixed-length window.
     seeded_with_wm = [
         lang for lang, seeded in expected.items()
-        if seeded and lang in by_lang and by_lang[lang][0].startswith(WATERMARK_PREFIX)
+        if seeded and lang in by_lang and WATERMARK_PREFIX in by_lang[lang][1]
     ]
     checks.append((
         "Seeded (human-authored) notices do NOT carry the machine-translation preamble",
@@ -97,7 +100,7 @@ def check_notice(pack, notice_id: str, version: int, verbose: bool) -> list[tupl
     # 3. Non-seeded languages DO carry the preamble.
     non_seeded_without_wm = [
         lang for lang, seeded in expected.items()
-        if not seeded and lang in by_lang and not by_lang[lang][0].startswith(WATERMARK_PREFIX)
+        if not seeded and lang in by_lang and WATERMARK_PREFIX not in by_lang[lang][1]
     ]
     checks.append((
         "Generated notices DO carry the machine-translation preamble",
@@ -106,7 +109,7 @@ def check_notice(pack, notice_id: str, version: int, verbose: bool) -> list[tupl
     ))
 
     # 4. Every body is non-trivially long (sanity check against truncated output).
-    short = [lang for lang in by_lang if by_lang[lang][1] < MIN_BODY_CHARS]
+    short = [lang for lang in by_lang if by_lang[lang][0] < MIN_BODY_CHARS]
     checks.append((
         f"Every notice body is at least {MIN_BODY_CHARS} characters",
         not short,
@@ -116,7 +119,7 @@ def check_notice(pack, notice_id: str, version: int, verbose: bool) -> list[tupl
     # 5. Numbered-list structure (1. through 6.) survives every translation.
     #    If a translation dropped a purpose, we want a loud signal.
     lang_missing_list = []
-    for lang, (_, _, body) in by_lang.items():
+    for lang, (_, body) in by_lang.items():
         if not all(marker in body for marker in REQUIRED_LIST_MARKERS):
             missing_markers = [m for m in REQUIRED_LIST_MARKERS if m not in body]
             lang_missing_list.append(f"{lang}(missing={missing_markers})")
@@ -133,7 +136,7 @@ def check_notice(pack, notice_id: str, version: int, verbose: bool) -> list[tupl
     #    practice. If the model localised the year into another numeral
     #    system this check would flag it for review.
     lang_missing_year = [
-        lang for lang, (_, _, body) in by_lang.items()
+        lang for lang, (_, body) in by_lang.items()
         if required_citation_year not in body
     ]
     checks.append((
