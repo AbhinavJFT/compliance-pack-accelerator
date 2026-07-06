@@ -1,10 +1,10 @@
-"""PII pattern library — composition shim over governance_core + active pack.
+"""PII pattern library — composition shim over governance_core + every loaded pack.
 
 This file is the single import point for consumers. It re-exports the
 PIIPattern dataclass, taxonomy constants, confidence calculation, and
 threshold tuning constants from `governance_core.pii_patterns.universal`,
 and composes the final `PATTERN_LIBRARY` as
-`UNIVERSAL_PATTERNS + active_pack.pii_patterns()`.
+`UNIVERSAL_PATTERNS + every loaded pack's pii_patterns()`.
 
 Consumers (`pipelines/classification_dlt.py`, `scripts/apply_pii_masks.py`,
 `scripts/apply_uc_tags.py`) import from `pii_patterns` exactly as before —
@@ -15,8 +15,16 @@ the module's public API is unchanged. What moved is where the values live:
              + regulations/<pack>/pii_patterns.py         (region-specific)
              + this file                                  (composition shim)
 
-Switching regulation packs (`export REGULATION_PACK=uk_gdpr`) changes which
-region patterns compose in; no code change needed here.
+ADR-0001 loads every pack under regulations/ simultaneously and routes each
+principal to their own pack by jurisdiction — so the classifier must scan
+for every loaded pack's region-specific patterns at once, not just the
+single REGULATION_PACK-selected "active" one. Using only active_pack()
+here meant uk_gdpr's 5 UK-specific patterns (NHS number, National
+Insurance number, UK postcode, UK driving licence, UTR) were never even
+attempted on a live deploy where REGULATION_PACK defaults to eu_gdpr —
+confirmed live: genuinely valid NHS numbers went undetected in
+patients_tagged. Adding a new pack to regulations/ now needs zero changes
+here, matching ALL_RULES' existing multi-pack loop in phase1_bootstrap.py.
 
 Usage (unchanged for consumers):
     from pii_patterns import PATTERN_LIBRARY, calculate_confidence, redact_sample
@@ -76,14 +84,23 @@ from governance_core.pii_patterns.universal import (  # noqa: E402
     CANDIDATE_THRESHOLD,
     calculate_confidence,
 )
-from governance_core.pack_loader import active_pack  # noqa: E402
+from governance_core.pack_loader import loaded_packs  # noqa: E402
 
 
 # -----------------------------------------------------------------------------
-# Composed pattern library — universal + active pack's region-specific patterns
+# Composed pattern library — universal + every loaded pack's region-specific
+# patterns. Duplicate pattern_ids across packs (shouldn't happen — each pack's
+# ids are its own region's names) keep the first-seen pack's definition.
 # -----------------------------------------------------------------------------
-_pack = active_pack()
-PATTERN_LIBRARY: list[PIIPattern] = list(UNIVERSAL_PATTERNS) + list(_pack.pii_patterns())
+_packs = loaded_packs()
+_region_patterns: list[PIIPattern] = []
+_seen_pattern_ids: set[str] = set()
+for _p in _packs:
+    for _pattern in _p.pii_patterns():
+        if _pattern.pattern_id not in _seen_pattern_ids:
+            _region_patterns.append(_pattern)
+            _seen_pattern_ids.add(_pattern.pattern_id)
+PATTERN_LIBRARY: list[PIIPattern] = list(UNIVERSAL_PATTERNS) + _region_patterns
 
 
 # Back-compat re-exports of individual pattern objects — some callers reference
